@@ -37,6 +37,7 @@ public class Student {
     @Column
     private String document;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
 

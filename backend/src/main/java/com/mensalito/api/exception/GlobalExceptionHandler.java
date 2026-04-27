@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ResponseError> resourceNotFound(ResourceNotFoundException ex,  HttpServletRequest request){
+    public ResponseEntity<ResponseError> resourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         return buildMessage(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
@@ -31,6 +31,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ResponseError> genericError(Exception ex, HttpServletRequest request) {
+        ex.printStackTrace();
         return buildMessage(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor", request);
     }
 

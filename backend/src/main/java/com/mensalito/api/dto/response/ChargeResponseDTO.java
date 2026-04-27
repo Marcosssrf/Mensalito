@@ -1,5 +1,7 @@
 package com.mensalito.api.dto.response;
 
+import com.mensalito.api.model.enums.ChargeStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -10,7 +12,7 @@ public record ChargeResponseDTO(
         String studentName,
         BigDecimal amount,
         LocalDate dueDate,
-        String status,
+        ChargeStatus status,
         LocalDate paymentDate,
         String pixCode,
         String boletoUrl,

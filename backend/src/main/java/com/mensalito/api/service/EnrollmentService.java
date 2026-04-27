@@ -11,20 +11,25 @@ import com.mensalito.api.repository.EnrollmentRepository;
 import com.mensalito.api.repository.PlanRepository;
 import com.mensalito.api.repository.SchoolClassRepository;
 import com.mensalito.api.repository.StudentRepository;
+import com.mensalito.api.security.SecurityUtils;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
     private final StudentRepository studentRepository;
     private final SchoolClassRepository schoolClassRepository;
     private final PlanRepository planRepository;
+    private final SecurityUtils securityUtils;
 
     public EnrollmentResponseDTO create(EnrollmentRequestDTO dto) {
         Student student = studentRepository.findById(dto.studentId())
@@ -39,6 +44,7 @@ public class EnrollmentService {
                 .schoolClass(schoolClass)
                 .plan(plan)
                 .startDate(dto.startDate())
+                .tenant(securityUtils.getAuthenticatedTenant())
                 .build();
 
         Enrollment saved = enrollmentRepository.save(enrollment);
@@ -47,31 +53,36 @@ public class EnrollmentService {
     }
 
     public List<EnrollmentResponseDTO> findAll() {
-        return enrollmentRepository.findAll()
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        return enrollmentRepository.findByTenantId(tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public EnrollmentResponseDTO findById(UUID id) {
-        Enrollment enrollment = enrollmentRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
         return toResponse(enrollment);
     }
 
     public List<EnrollmentResponseDTO> findByStudent(UUID studentId) {
-        return enrollmentRepository.findByStudentId(studentId)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        return enrollmentRepository.findByStudentIdAndTenantId(studentId, tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public EnrollmentResponseDTO deactivate(UUID id) {
-        Enrollment enrollment = enrollmentRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
         enrollment.setActive(false);
+        enrollment.setEndDate(LocalDate.now());
         enrollment = enrollmentRepository.save(enrollment);
         return toResponse(enrollment);
     }

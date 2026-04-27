@@ -33,6 +33,7 @@ public class Tenant {
     @Column
     private String document;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
 

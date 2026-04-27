@@ -5,7 +5,7 @@ import com.mensalito.api.dto.response.StudentResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.repository.StudentRepository;
-import com.mensalito.api.repository.TenantRepository;
+import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ import java.util.UUID;
 public class StudentService {
 
     private final StudentRepository studentRepository;
-    private final TenantRepository tenantRepository;
+    private final SecurityUtils securityUtils;
 
     public StudentResponseDTO create(StudentRequestDTO dto) {
         Student student = Student.builder()
@@ -25,7 +25,7 @@ public class StudentService {
                 .email(dto.email())
                 .phone(dto.phone())
                 .document(dto.document())
-//                .tenant(tenantRepository.getReferenceById(tenantId))
+                .tenant(securityUtils.getAuthenticatedTenant())
                 .build();
 
         student = studentRepository.save(student);
@@ -34,20 +34,23 @@ public class StudentService {
     }
 
     public List<StudentResponseDTO> findAll() {
-        return studentRepository.findAll()
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        return studentRepository.findByTenantId(tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public StudentResponseDTO findById(UUID id) {
-        Student student = studentRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Student student = studentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         return toResponse(student);
     }
 
     public StudentResponseDTO update(UUID id, StudentRequestDTO dto) {
-        Student student = studentRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Student student = studentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
 
         if (dto.name() != null) {
@@ -73,7 +76,8 @@ public class StudentService {
     }
 
     public StudentResponseDTO deactivate(UUID id) {
-        Student student = studentRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Student student = studentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         student.setActive(false);
         student = studentRepository.save(student);

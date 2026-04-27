@@ -1,5 +1,6 @@
 package com.mensalito.api.model;
 
+import com.mensalito.api.model.enums.ChargeStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,8 +38,10 @@ public class Charge {
     @Column(nullable = false)
     private LocalDate dueDate;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private ChargeStatus status = ChargeStatus.PENDING;
 
     @Column
     private LocalDate paymentDate;

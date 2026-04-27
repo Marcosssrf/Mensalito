@@ -5,6 +5,7 @@ import com.mensalito.api.dto.response.PlanResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Plan;
 import com.mensalito.api.repository.PlanRepository;
+import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +17,14 @@ import java.util.UUID;
 public class PlanService {
 
     private final PlanRepository planRepository;
+    private final SecurityUtils securityUtils;
 
     public PlanResponseDTO create(PlanRequestDTO dto) {
         Plan plan = Plan.builder()
                 .name(dto.name())
                 .amount(dto.amount())
                 .dueDay(dto.dueDay())
+                .tenant(securityUtils.getAuthenticatedTenant())
                 .build();
 
         Plan saved = planRepository.save(plan);
@@ -30,20 +33,23 @@ public class PlanService {
     }
 
     public List<PlanResponseDTO> findAll() {
-        return planRepository.findAll()
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        return planRepository.findByTenantId(tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public PlanResponseDTO findById(UUID id) {
-        Plan plan = planRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         return toResponse(plan);
     }
 
     public PlanResponseDTO update(UUID id, PlanRequestDTO dto) {
-        Plan plan = planRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
         if (dto.name() != null) {
@@ -64,7 +70,8 @@ public class PlanService {
     }
 
     public PlanResponseDTO deactivate(UUID id) {
-        Plan plan = planRepository.findById(id)
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         plan.setActive(false);
         plan = planRepository.save(plan);
