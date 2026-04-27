@@ -1,4 +1,4 @@
-package com.mensalito.backend.model;
+package com.mensalito.api.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,13 +9,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "enrollments")
+@Table(name = "students")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Enrollment {
+public class Student {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,23 +25,17 @@ public class Enrollment {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_id", nullable = false)
-    private Student student;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_id", nullable = false)
-    private SchoolClass schoolClass;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plan_id", nullable = false)
-    private Plan plan;
-
     @Column(nullable = false)
-    private LocalDateTime startDate;
+    private String name;
 
     @Column
-    private LocalDateTime endDate;
+    private String email;
+
+    @Column
+    private String phone;
+
+    @Column
+    private String document;
 
     @Column(nullable = false)
     private Boolean active = true;
@@ -53,5 +47,4 @@ public class Enrollment {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
 }

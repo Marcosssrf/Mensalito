@@ -1,21 +1,22 @@
-package com.mensalito.backend.model;
+package com.mensalito.api.model;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "students")
+@Table(name = "charges")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Student {
+public class Charge {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,20 +26,30 @@ public class Student {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    @Column(nullable = false)
-    private String name;
-
-    @Column
-    private String email;
-
-    @Column
-    private String phone;
-
-    @Column
-    private String document;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "enrollment_id", nullable = false)
+    private Enrollment enrollment;
 
     @Column(nullable = false)
-    private Boolean active = true;
+    private BigDecimal amount;
+
+    @Column(nullable = false)
+    private LocalDateTime due_date;
+
+    @Column(nullable = false)
+    private String status;
+
+    @Column
+    private LocalDateTime paymentDate;
+
+    @Column
+    private String asaasId;
+
+    @Column
+    private String pixCode;
+
+    @Column
+    private String boletoUrl;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -47,4 +58,5 @@ public class Student {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
 }
