@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,13 +35,13 @@ public class Charge {
     private BigDecimal amount;
 
     @Column(nullable = false)
-    private LocalDateTime due_date;
+    private LocalDate dueDate;
 
     @Column(nullable = false)
     private String status;
 
     @Column
-    private LocalDateTime paymentDate;
+    private LocalDate paymentDate;
 
     @Column
     private String asaasId;
