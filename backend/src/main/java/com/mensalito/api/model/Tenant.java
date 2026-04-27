@@ -1,4 +1,4 @@
-package com.mensalito.backend.model;
+package com.mensalito.api.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,21 +9,17 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(name = "tenants")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class Tenant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
 
     @Column(nullable = false)
     private String name;
@@ -31,8 +27,11 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
-    private String password;
+    @Column
+    private String phone;
+
+    @Column
+    private String document;
 
     @Column(nullable = false)
     private Boolean active = true;
@@ -44,5 +43,4 @@ public class User {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
 }

@@ -1,6 +1,6 @@
-package com.mensalito.backend.repository;
+package com.mensalito.api.repository;
 
-import com.mensalito.backend.model.Enrollment;
+import com.mensalito.api.model.Enrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;

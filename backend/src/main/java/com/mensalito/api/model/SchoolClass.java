@@ -1,4 +1,4 @@
-package com.mensalito.backend.model;
+package com.mensalito.api.model;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,22 +1,21 @@
-package com.mensalito.backend.model;
+package com.mensalito.api.model;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "plans")
+@Table(name = "enrollments")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Plan {
+public class Enrollment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,14 +25,23 @@ public class Plan {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    @Column(nullable = false)
-    private String name;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_id", nullable = false)
+    private SchoolClass schoolClass;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
+    private Plan plan;
 
     @Column(nullable = false)
-    private BigDecimal amount;
+    private LocalDateTime startDate;
 
-    @Column(nullable = false)
-    private Integer dueDay;
+    @Column
+    private LocalDateTime endDate;
 
     @Column(nullable = false)
     private Boolean active = true;
