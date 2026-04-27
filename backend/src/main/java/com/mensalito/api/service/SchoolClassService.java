@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.SchoolClassRequestDTO;
 import com.mensalito.api.dto.response.SchoolClassResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.SchoolClass;
 import com.mensalito.api.repository.SchoolClassRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,13 +37,13 @@ public class SchoolClassService {
 
     public SchoolClassResponseDTO findById(UUID id) {
         SchoolClass schoolClass = schoolClassRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Turma não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
         return toResponse(schoolClass);
     }
 
     public SchoolClassResponseDTO update(UUID id, SchoolClassRequestDTO dto) {
         SchoolClass schoolClass = schoolClassRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Turma não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
 
         if (dto.name() != null) {
             schoolClass.setName(dto.name());
@@ -58,7 +59,7 @@ public class SchoolClassService {
 
     public SchoolClassResponseDTO deactivate(UUID id) {
         SchoolClass schoolClass = schoolClassRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Turma não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
         schoolClass.setActive(false);
         schoolClass = schoolClassRepository.save(schoolClass);
         return toResponse(schoolClass);

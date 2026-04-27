@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.TenantRequestDTO;
 import com.mensalito.api.dto.response.TenantResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ public class TenantService {
 
     public Tenant findById(UUID id) {
         return tenantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tenant não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
     }
 
     public TenantResponseDTO findByIdResponse(UUID id) {
@@ -40,7 +41,7 @@ public class TenantService {
     public TenantResponseDTO update(UUID id, TenantRequestDTO dto) {
 
         Tenant tenant = tenantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tenant não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
         if (dto.name() != null) {
             tenant.setName(dto.name());

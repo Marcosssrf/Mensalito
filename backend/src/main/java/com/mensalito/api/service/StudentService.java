@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.StudentRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.repository.StudentRepository;
 import com.mensalito.api.repository.TenantRepository;
@@ -41,13 +42,13 @@ public class StudentService {
 
     public StudentResponseDTO findById(UUID id) {
         Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Aluno não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         return toResponse(student);
     }
 
     public StudentResponseDTO update(UUID id, StudentRequestDTO dto) {
         Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Aluno não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
 
         if (dto.name() != null) {
             student.setName(dto.name());
@@ -73,7 +74,7 @@ public class StudentService {
 
     public StudentResponseDTO deactivate(UUID id) {
         Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Aluno não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         student.setActive(false);
         student = studentRepository.save(student);
         return toResponse(student);

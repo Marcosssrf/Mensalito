@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.PlanRequestDTO;
 import com.mensalito.api.dto.response.PlanResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Plan;
 import com.mensalito.api.repository.PlanRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,13 +38,13 @@ public class PlanService {
 
     public PlanResponseDTO findById(UUID id) {
         Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         return toResponse(plan);
     }
 
     public PlanResponseDTO update(UUID id, PlanRequestDTO dto) {
         Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
         if (dto.name() != null) {
             plan.setName(dto.name());
@@ -64,7 +65,7 @@ public class PlanService {
 
     public PlanResponseDTO deactivate(UUID id) {
         Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         plan.setActive(false);
         plan = planRepository.save(plan);
         return toResponse(plan);

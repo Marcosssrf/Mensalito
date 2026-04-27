@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.ChargeRequestDTO;
 import com.mensalito.api.dto.response.ChargeResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Charge;
 import com.mensalito.api.model.Enrollment;
 import com.mensalito.api.repository.ChargeRepository;
@@ -23,7 +24,7 @@ public class ChargeService {
     public ChargeResponseDTO create(ChargeRequestDTO dto) {
 
         Enrollment enrollment = enrollmentRepository.findById(dto.enrollmentId())
-                .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
         Charge charge = Charge.builder()
                 .enrollment(enrollment)
@@ -55,7 +56,7 @@ public class ChargeService {
 
     public ChargeResponseDTO updateStatus(UUID id, ChargeRequestDTO dto) {
         Charge charge = chargeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cobrança não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cobrança não encontrada"));
         charge.setStatus("PENDING");
         Charge saved = chargeRepository.save(charge);
 

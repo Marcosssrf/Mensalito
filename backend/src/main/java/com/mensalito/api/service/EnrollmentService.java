@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.EnrollmentRequestDTO;
 import com.mensalito.api.dto.response.EnrollmentResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Enrollment;
 import com.mensalito.api.model.Plan;
 import com.mensalito.api.model.SchoolClass;
@@ -27,11 +28,11 @@ public class EnrollmentService {
 
     public EnrollmentResponseDTO create(EnrollmentRequestDTO dto) {
         Student student = studentRepository.findById(dto.studentId())
-                .orElseThrow(() -> new RuntimeException("Aluno não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         SchoolClass schoolClass = schoolClassRepository.findById(dto.classId())
-                .orElseThrow(() -> new RuntimeException("Turma não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
         Plan plan = planRepository.findById(dto.planId())
-                .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
         Enrollment enrollment = Enrollment.builder()
                 .student(student)
@@ -54,7 +55,7 @@ public class EnrollmentService {
 
     public EnrollmentResponseDTO findById(UUID id) {
         Enrollment enrollment = enrollmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
         return toResponse(enrollment);
     }
@@ -68,7 +69,7 @@ public class EnrollmentService {
 
     public EnrollmentResponseDTO deactivate(UUID id) {
         Enrollment enrollment = enrollmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
         enrollment.setActive(false);
         enrollment = enrollmentRepository.save(enrollment);

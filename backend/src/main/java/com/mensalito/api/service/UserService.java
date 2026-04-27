@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.UserRequestDTO;
 import com.mensalito.api.dto.response.UserResponseDTO;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.User;
 import com.mensalito.api.repository.TenantRepository;
@@ -35,21 +36,21 @@ public class UserService {
 
     public UserResponseDTO findByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
         return toResponse(user);
     }
 
     public UserResponseDTO findById(UUID id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
         return toResponse(user);
     }
 
     public UserResponseDTO update(UUID id, UserRequestDTO dto) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
         if (dto.name() != null) {
             user.setName(dto.name());
@@ -65,7 +66,7 @@ public class UserService {
 
     public UserResponseDTO changePassword(UUID id, UserRequestDTO dto) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
         if (dto.password() != null) {
             user.setPassword(dto.password());
