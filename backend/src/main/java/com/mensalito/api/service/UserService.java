@@ -18,7 +18,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
 
-    public UserResponseDTO create(UserRequestDTO dto){
+    public UserResponseDTO create(UserRequestDTO dto) {
         Tenant tenant = tenantRepository.getReferenceById(dto.tenantId());
 
         User user = User.builder()
@@ -33,28 +33,28 @@ public class UserService {
         return toResponse(saved);
     }
 
-    public UserResponseDTO findByEmail(String email){
+    public UserResponseDTO findByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         return toResponse(user);
     }
 
-    public UserResponseDTO findById(UUID id){
+    public UserResponseDTO findById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         return toResponse(user);
     }
 
-    public UserResponseDTO update(UUID id, UserRequestDTO dto){
+    public UserResponseDTO update(UUID id, UserRequestDTO dto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        if(dto.name() != null){
+        if (dto.name() != null) {
             user.setName(dto.name());
         }
-        if(dto.email() != null){
+        if (dto.email() != null) {
             user.setEmail(dto.email());
         }
 
@@ -63,11 +63,11 @@ public class UserService {
         return toResponse(user);
     }
 
-    public UserResponseDTO changePassword(UUID id, UserRequestDTO dto){
+    public UserResponseDTO changePassword(UUID id, UserRequestDTO dto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        if(dto.password() != null){
+        if (dto.password() != null) {
             user.setPassword(dto.password());
         }
 
@@ -76,7 +76,7 @@ public class UserService {
         return toResponse(user);
     }
 
-    public UserResponseDTO toResponse (User user){
+    public UserResponseDTO toResponse(User user) {
         return new UserResponseDTO(
                 user.getId(),
                 user.getName(),

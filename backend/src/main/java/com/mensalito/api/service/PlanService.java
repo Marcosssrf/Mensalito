@@ -16,7 +16,7 @@ public class PlanService {
 
     private final PlanRepository planRepository;
 
-    public PlanResponseDTO create(PlanRequestDTO dto){
+    public PlanResponseDTO create(PlanRequestDTO dto) {
         Plan plan = Plan.builder()
                 .name(dto.name())
                 .amount(dto.amount())
@@ -28,32 +28,32 @@ public class PlanService {
         return toResponse(saved);
     }
 
-    public List<PlanResponseDTO> findAll(){
+    public List<PlanResponseDTO> findAll() {
         return planRepository.findAll()
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public PlanResponseDTO findById(UUID id){
+    public PlanResponseDTO findById(UUID id) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
         return toResponse(plan);
     }
 
-    public PlanResponseDTO update(UUID id, PlanRequestDTO dto){
+    public PlanResponseDTO update(UUID id, PlanRequestDTO dto) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
 
-        if(dto.name() != null){
+        if (dto.name() != null) {
             plan.setName(dto.name());
         }
 
-        if(dto.amount() != null){
+        if (dto.amount() != null) {
             plan.setAmount(dto.amount());
         }
 
-        if(dto.dueDay() != null){
+        if (dto.dueDay() != null) {
             plan.setDueDay(dto.dueDay());
         }
 
@@ -62,7 +62,7 @@ public class PlanService {
         return toResponse(plan);
     }
 
-    public PlanResponseDTO deactivate(UUID id){
+    public PlanResponseDTO deactivate(UUID id) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Plano não encontrado"));
         plan.setActive(false);
@@ -72,12 +72,12 @@ public class PlanService {
 
     private PlanResponseDTO toResponse(Plan plan) {
         return new PlanResponseDTO(
-            plan.getId(),
-            plan.getName(),
-            plan.getAmount(),
-            plan.getDueDay(),
-            plan.getActive(),
-            plan.getCreatedAt()
+                plan.getId(),
+                plan.getName(),
+                plan.getAmount(),
+                plan.getDueDay(),
+                plan.getActive(),
+                plan.getCreatedAt()
         );
     }
 }

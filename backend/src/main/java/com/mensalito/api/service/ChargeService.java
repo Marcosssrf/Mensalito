@@ -20,7 +20,7 @@ public class ChargeService {
     private final ChargeRepository chargeRepository;
     private final EnrollmentRepository enrollmentRepository;
 
-    public ChargeResponseDTO create (ChargeRequestDTO dto){
+    public ChargeResponseDTO create(ChargeRequestDTO dto) {
 
         Enrollment enrollment = enrollmentRepository.findById(dto.enrollmentId())
                 .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
@@ -53,7 +53,7 @@ public class ChargeService {
                 .stream().map(this::toResponse).toList();
     }
 
-    public ChargeResponseDTO updateStatus(UUID id, ChargeRequestDTO dto){
+    public ChargeResponseDTO updateStatus(UUID id, ChargeRequestDTO dto) {
         Charge charge = chargeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Cobrança não encontrada"));
         charge.setStatus("PENDING");

@@ -25,7 +25,7 @@ public class EnrollmentService {
     private final SchoolClassRepository schoolClassRepository;
     private final PlanRepository planRepository;
 
-    public EnrollmentResponseDTO create(EnrollmentRequestDTO dto){
+    public EnrollmentResponseDTO create(EnrollmentRequestDTO dto) {
         Student student = studentRepository.findById(dto.studentId())
                 .orElseThrow(() -> new RuntimeException("Aluno não encontrado"));
         SchoolClass schoolClass = schoolClassRepository.findById(dto.classId())
@@ -45,18 +45,18 @@ public class EnrollmentService {
         return toResponse(saved);
     }
 
-    public List<EnrollmentResponseDTO> findAll(){
+    public List<EnrollmentResponseDTO> findAll() {
         return enrollmentRepository.findAll()
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public EnrollmentResponseDTO findById(UUID id){
+    public EnrollmentResponseDTO findById(UUID id) {
         Enrollment enrollment = enrollmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
 
-        return  toResponse(enrollment);
+        return toResponse(enrollment);
     }
 
     public List<EnrollmentResponseDTO> findByStudent(UUID studentId) {
@@ -66,7 +66,7 @@ public class EnrollmentService {
                 .toList();
     }
 
-    public EnrollmentResponseDTO deactivate(UUID id){
+    public EnrollmentResponseDTO deactivate(UUID id) {
         Enrollment enrollment = enrollmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
 
@@ -75,7 +75,7 @@ public class EnrollmentService {
         return toResponse(enrollment);
     }
 
-    public EnrollmentResponseDTO toResponse(Enrollment enrollment){
+    public EnrollmentResponseDTO toResponse(Enrollment enrollment) {
         return new EnrollmentResponseDTO(
                 enrollment.getId(),
                 enrollment.getStudent().getName(),
