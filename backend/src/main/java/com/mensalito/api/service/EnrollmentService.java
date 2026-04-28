@@ -32,11 +32,12 @@ public class EnrollmentService {
     private final SecurityUtils securityUtils;
 
     public EnrollmentResponseDTO create(EnrollmentRequestDTO dto) {
-        Student student = studentRepository.findById(dto.studentId())
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Student student = studentRepository.findByIdAndTenantId(dto.studentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
-        SchoolClass schoolClass = schoolClassRepository.findById(dto.classId())
+        SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(dto.classId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
-        Plan plan = planRepository.findById(dto.planId())
+        Plan plan = planRepository.findByIdAndTenantId(dto.planId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
         Enrollment enrollment = Enrollment.builder()

@@ -28,8 +28,8 @@ public class ChargeService {
     private final SecurityUtils securityUtils;
 
     public ChargeResponseDTO create(ChargeRequestDTO dto) {
-
-        Enrollment enrollment = enrollmentRepository.findById(dto.enrollmentId())
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(dto.enrollmentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
         Charge charge = Charge.builder()

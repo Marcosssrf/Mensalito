@@ -28,3 +28,7 @@ server:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}
+
+abacatepay:
+  api-key: ${ABACATEPAY_API_KEY}
+  base-url: https://api.abacatepay.com/v2

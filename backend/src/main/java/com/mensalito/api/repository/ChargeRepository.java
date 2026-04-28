@@ -21,4 +21,6 @@ public interface ChargeRepository extends JpaRepository<Charge, UUID> {
 
     Optional<Charge> findByIdAndTenantId(UUID id, UUID tenantId);
 
+    boolean existsByEnrollmentIdAndDueDate(UUID enrollmentId, LocalDate dueDate);
+
 }
