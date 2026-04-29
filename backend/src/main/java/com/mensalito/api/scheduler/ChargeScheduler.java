@@ -17,4 +17,10 @@ public class ChargeScheduler {
     public void generateMonthlyCharges() {
         chargeService.generateMonthlyCharges();
     }
+
+    @Scheduled(cron = "0 0 9 * * *")
+    public void sendOverdueReminders() {
+        chargeService.sendOverdueReminders();
+    }
+
 }

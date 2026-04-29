@@ -37,3 +37,8 @@ abacatepay:
 
 encryption:
   secret: ${ENCRYPTION_SECRET}
+
+evolution:
+  api-url: ${EVOLUTION_API_URL}
+  api-key: ${EVOLUTION_API_KEY}
+  instance: ${EVOLUTION_INSTANCE}

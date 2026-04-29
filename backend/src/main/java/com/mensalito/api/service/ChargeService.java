@@ -1,6 +1,7 @@
 package com.mensalito.api.service;
 
 import com.mensalito.api.client.AbacatePayClient;
+import com.mensalito.api.client.WhatsAppClient;
 import com.mensalito.api.config.AbacatePayConfig;
 import com.mensalito.api.dto.abacatepay.request.AbacatePayCheckoutRequest;
 import com.mensalito.api.dto.abacatepay.request.AbacatePayPixRequest;
@@ -41,6 +42,8 @@ public class ChargeService {
     private final AbacatePayClient abacatePayClient;
     private final AbacatePayConfig abacatePayConfig;
     private final EncryptionService encryptionService;
+    private final WhatsAppClient whatsAppClient;
+    private final WhatsAppMessageBuilder messageBuilder;
 
     public ChargeResponseDTO create(ChargeRequestDTO dto) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
@@ -139,20 +142,25 @@ public class ChargeService {
         );
     }
 
-    public void generatePayment(Charge saved) {
+    public boolean generatePayment(Charge saved) {
         Enrollment enrollment = saved.getEnrollment();
+        String encryptedKey = enrollment.getTenant().getAbacatePayApiKey();
+
+        if (encryptedKey == null) {
+            log.warn("Tenant {} sem API key — pagamento não gerado para charge {}",
+                    enrollment.getTenant().getId(), saved.getId());
+            return false;
+        }
+
+        String tenantApiKey = encryptionService.decrypt(encryptedKey);
         Student student = enrollment.getStudent();
         Plan plan = enrollment.getPlan();
-        String encryptedKey = enrollment.getTenant().getAbacatePayApiKey();
-        if (encryptedKey == null) {
-            log.warn("Tenant {} sem API key do AbacatePay — pagamento não gerado para charge {}",
-                    enrollment.getTenant().getId(), saved.getId());
-            return;
-        }
-        String tenantApiKey = encryptionService.decrypt(encryptedKey);
 
         generateCheckout(saved, student, plan, tenantApiKey);
         generatePix(saved, student, plan, tenantApiKey);
+        sendWhatsAppNotification(saved);
+
+        return true;
     }
 
     private void generateCheckout(Charge charge, Student student, Plan plan, String tenantApiKey) {
@@ -245,4 +253,32 @@ public class ChargeService {
                 () -> log.warn("Cobrança não encontrada para externalId {}", externalId)
         );
     }
+
+    private void sendWhatsAppNotification(Charge charge) {
+        Student student = charge.getEnrollment().getStudent();
+        if (student.getPhone() == null) {
+            log.warn("Aluno {} sem telefone, WhatsApp não enviado", student.getId());
+            return;
+        }
+        whatsAppClient.sendText(student.getPhone(), messageBuilder.buildChargeNotification(charge));
+    }
+
+    private void sendReminderNotification(Charge charge, int daysOverdue) {
+        Student student = charge.getEnrollment().getStudent();
+        if (student.getPhone() == null) return;
+        whatsAppClient.sendText(student.getPhone(), messageBuilder.buildReminderNotification(charge, daysOverdue));
+        log.info("Lembrete D+{} enviado para {}", daysOverdue, student.getName());
+    }
+
+    public void sendOverdueReminders() {
+        LocalDate threeDaysAgo = LocalDate.now().minusDays(3);
+        LocalDate sevenDaysAgo = LocalDate.now().minusDays(7);
+
+        List<Charge> overdue3 = chargeRepository.findByStatusAndDueDate(ChargeStatus.PENDING, threeDaysAgo);
+        List<Charge> overdue7 = chargeRepository.findByStatusAndDueDate(ChargeStatus.PENDING, sevenDaysAgo);
+
+        overdue3.forEach(charge -> sendReminderNotification(charge, 3));
+        overdue7.forEach(charge -> sendReminderNotification(charge, 7));
+    }
+
 }

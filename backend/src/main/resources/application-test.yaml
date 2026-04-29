@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  data:
+    redis:
+      url: redis://localhost:6379
+
+JWT_SECRET: test-secret-key-qualquer-coisa-longa-para-teste-123456
+JWT_EXPIRATION: 86400000
+
+ABACATEPAY_API_KEY: test-api-key
+ABACATEPAY_RETURN_URL: http://localhost/return
+ABACATEPAY_COMPLETION_URL: http://localhost/completion
+
+ENCRYPTION_SECRET: test-encryption-secret-32chars-ok
+
+EVOLUTION_API_URL: http://localhost:8081
+EVOLUTION_API_KEY: test-evolution-key
+EVOLUTION_INSTANCE: test-instance
