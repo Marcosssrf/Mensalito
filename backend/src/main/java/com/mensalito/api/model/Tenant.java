@@ -37,6 +37,9 @@ public class Tenant {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @Column
+    private String abacatePayApiKey;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -1,0 +1,5 @@
+ALTER TABLE students ADD COLUMN IF NOT EXISTS abacate_pay_customer_id VARCHAR(255);
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS abacate_pay_product_id VARCHAR(255);
+ALTER TABLE charges ADD COLUMN IF NOT EXISTS abacate_pay_checkout_id VARCHAR(255);
+ALTER TABLE charges ADD COLUMN IF NOT EXISTS checkout_url VARCHAR(500);
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS abacate_pay_api_key VARCHAR(255);

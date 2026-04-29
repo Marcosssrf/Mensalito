@@ -4,7 +4,6 @@ import com.mensalito.api.dto.request.ChargeRequestDTO;
 import com.mensalito.api.dto.request.ChargeStatusRequestDTO;
 import com.mensalito.api.dto.response.ChargeResponseDTO;
 import com.mensalito.api.model.enums.ChargeStatus;
-import com.mensalito.api.scheduler.ChargeScheduler;
 import com.mensalito.api.service.ChargeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,6 @@ import java.util.UUID;
 public class ChargeController {
 
     private final ChargeService chargeService;
-    private final ChargeScheduler chargeScheduler;
 
     @GetMapping
     public ResponseEntity<List<ChargeResponseDTO>> findAll(
@@ -56,7 +54,7 @@ public class ChargeController {
 //    teste
     @PostMapping("/generate-charges")
     public ResponseEntity<String> generateCharges() {
-        chargeScheduler.generateMonthlyCharges();
+        chargeService.generateMonthlyCharges();
         return ResponseEntity.ok("Cobranças geradas!");
     }
 

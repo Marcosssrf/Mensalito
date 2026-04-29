@@ -37,6 +37,9 @@ public class Student {
     @Column
     private String document;
 
+    @Column
+    private String abacatePayCustomerId;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;

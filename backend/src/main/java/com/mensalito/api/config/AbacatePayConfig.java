@@ -12,4 +12,6 @@ import org.springframework.context.annotation.Configuration;
 public class AbacatePayConfig {
     private String apiKey;
     private String baseUrl;
+    private String returnUrl;
+    private String completionUrl;
 }

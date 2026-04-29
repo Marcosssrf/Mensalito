@@ -1,5 +1,5 @@
 package com.mensalito.api.model.enums;
 
 public enum ChargeStatus {
-    PENDING, PAID, OVERDUE, CANCELLED
+    PENDING, PAID, OVERDUE, CANCELLED, REFUNDED, LOST, DISPUTED
 }

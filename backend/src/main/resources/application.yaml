@@ -32,3 +32,8 @@ jwt:
 abacatepay:
   api-key: ${ABACATEPAY_API_KEY}
   base-url: https://api.abacatepay.com/v2
+  return-url: ${ABACATEPAY_RETURN_URL}
+  completion-url: ${ABACATEPAY_COMPLETION_URL}
+
+encryption:
+  secret: ${ENCRYPTION_SECRET}

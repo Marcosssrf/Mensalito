@@ -15,9 +15,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
     Optional<Enrollment> findByIdAndTenantId(UUID id, UUID tenantId);
 
-    Optional<Enrollment> findByStudentIdAndTenantId(UUID studentId, UUID tenantId);
+    List<Enrollment> findByStudentIdAndTenantId(UUID studentId, UUID tenantId);
 
-    @Query("SELECT e FROM Enrollment e JOIN FETCH e.plan JOIN FETCH e.tenant WHERE e.active = true AND e.plan.dueDay = :dueDay")
+    @Query("""
+    SELECT e FROM Enrollment e
+    JOIN FETCH e.plan
+    JOIN FETCH e.tenant
+    JOIN FETCH e.student
+    JOIN FETCH e.schoolClass
+    WHERE e.active = true AND e.plan.dueDay = :dueDay
+""")
     List<Enrollment> findActiveByPlanDueDay(@Param("dueDay") int dueDay);
-
 }

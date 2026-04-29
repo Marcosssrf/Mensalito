@@ -6,6 +6,7 @@ import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.SchoolClass;
 import com.mensalito.api.repository.SchoolClassRepository;
 import com.mensalito.api.security.SecurityUtils;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class SchoolClassService {
 
     private final SchoolClassRepository schoolClassRepository;

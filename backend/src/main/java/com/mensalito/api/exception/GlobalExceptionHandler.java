@@ -29,6 +29,16 @@ public class GlobalExceptionHandler {
         return buildMessage(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<ResponseError> handlePaymentGateway(PaymentGatewayException ex, HttpServletRequest request) {
+        return buildMessage(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ResponseError> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        return buildMessage(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ResponseError> genericError(Exception ex, HttpServletRequest request) {
         ex.printStackTrace();

@@ -1,5 +1,6 @@
 package com.mensalito.api.controller;
 
+import com.mensalito.api.dto.request.TenantApiKeyRequestDTO;
 import com.mensalito.api.dto.request.TenantRequestDTO;
 import com.mensalito.api.dto.response.TenantResponseDTO;
 import com.mensalito.api.service.TenantService;
@@ -39,6 +40,12 @@ public class TenantController {
     @PatchMapping(value = "/{id}")
     public ResponseEntity<TenantResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid TenantRequestDTO dto) {
         return ResponseEntity.ok(tenantService.update(id, dto));
+    }
+
+    @PutMapping(value = "/me/api-key")
+    public ResponseEntity<Void> saveApiKey(@RequestBody TenantApiKeyRequestDTO dto){
+        tenantService.saveApiKey(dto.abacatePayApiKey());
+        return ResponseEntity.noContent().build();
     }
 
 }

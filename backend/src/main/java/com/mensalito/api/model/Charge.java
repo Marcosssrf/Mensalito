@@ -47,7 +47,10 @@ public class Charge {
     private LocalDate paymentDate;
 
     @Column
-    private String asaasId;
+    private String abacatePayCheckoutId;
+
+    @Column
+    private String checkoutUrl;
 
     @Column
     private String pixCode;
