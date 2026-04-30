@@ -8,6 +8,7 @@ import com.mensalito.api.service.ChargeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping(value = "/api/charges")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('OWNER')")
 public class ChargeController {
 
     private final ChargeService chargeService;
@@ -51,11 +53,9 @@ public class ChargeController {
         return ResponseEntity.ok(chargeService.updateStatus(id, dto.status()));
     }
 
-//    teste
     @PostMapping("/generate-charges")
     public ResponseEntity<String> generateCharges() {
         chargeService.generateMonthlyCharges();
         return ResponseEntity.ok("Cobranças geradas!");
     }
-
 }

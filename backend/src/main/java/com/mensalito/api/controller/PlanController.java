@@ -6,6 +6,7 @@ import com.mensalito.api.service.PlanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -32,6 +33,7 @@ public class PlanController {
         return ResponseEntity.ok(plan);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PostMapping
     public ResponseEntity<PlanResponseDTO> create(@RequestBody @Valid PlanRequestDTO dto) {
         PlanResponseDTO plan = planService.create(dto);
@@ -43,14 +45,15 @@ public class PlanController {
         return ResponseEntity.created(uri).body(plan);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}")
     public ResponseEntity<PlanResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid PlanRequestDTO dto) {
         return ResponseEntity.ok(planService.update(id, dto));
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}/deactivate")
     public ResponseEntity<PlanResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(planService.deactivate(id));
     }
-
 }

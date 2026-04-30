@@ -3,6 +3,7 @@ package com.mensalito.api.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,9 +30,19 @@ public class GlobalExceptionHandler {
         return buildMessage(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    @ExceptionHandler(InvalidInviteException.class)
+    public ResponseEntity<ResponseError> invalidInvite(InvalidInviteException ex, HttpServletRequest request) {
+        return buildMessage(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(PaymentGatewayException.class)
     public ResponseEntity<ResponseError> handlePaymentGateway(PaymentGatewayException ex, HttpServletRequest request) {
         return buildMessage(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ResponseError> accessDenied(AuthorizationDeniedException ex, HttpServletRequest request) {
+        return buildMessage(HttpStatus.FORBIDDEN, "Acesso negado", request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -6,6 +6,7 @@ import com.mensalito.api.service.StudentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -22,8 +23,7 @@ public class StudentController {
 
     @GetMapping
     public ResponseEntity<List<StudentResponseDTO>> findAll() {
-        List<StudentResponseDTO> students = studentService.findAll();
-        return ResponseEntity.ok(students);
+        return ResponseEntity.ok(studentService.findAll());
     }
 
     @GetMapping(value = "/{id}")
@@ -48,6 +48,7 @@ public class StudentController {
         return ResponseEntity.ok(studentService.update(id, dto));
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}/deactivate")
     public ResponseEntity<StudentResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(studentService.deactivate(id));

@@ -2,13 +2,12 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.ChangePasswordRequestDTO;
 import com.mensalito.api.dto.request.UpdateUserRequestDTO;
-import com.mensalito.api.dto.request.UserRequestDTO;
 import com.mensalito.api.dto.response.UserResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
-import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.User;
-import com.mensalito.api.repository.TenantRepository;
+import com.mensalito.api.model.enums.Role;
 import com.mensalito.api.repository.UserRepository;
+import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,8 +22,8 @@ import java.util.UUID;
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils securityUtils;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -32,62 +31,63 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
     }
 
-    public UserResponseDTO create(UserRequestDTO dto) {
-        Tenant tenant = tenantRepository.getReferenceById(dto.tenantId());
-
-        User user = User.builder()
-                .name(dto.name())
-                .email(dto.email())
-                .password(passwordEncoder.encode(dto.password()))
-                .tenant(tenant)
-                .build();
-
-        User saved = userRepository.save(user);
-
-        return toResponse(saved);
-    }
-
     public UserResponseDTO findByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
-
         return toResponse(user);
     }
 
     public UserResponseDTO findById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
-
         return toResponse(user);
     }
 
     public UserResponseDTO update(UUID id, UpdateUserRequestDTO dto) {
-        User user = userRepository.findById(id)
+        User authenticated = securityUtils.getAuthenticatedUser();
+        User target = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-        if (dto.name() != null) {
-            user.setName(dto.name());
-        }
-        if (dto.email() != null) {
-            user.setEmail(dto.email());
-        }
+        checkEditPermission(authenticated, target);
 
-        userRepository.save(user);
+        if (dto.name() != null) target.setName(dto.name());
+        if (dto.email() != null) target.setEmail(dto.email());
 
-        return toResponse(user);
+        userRepository.save(target);
+        return toResponse(target);
     }
 
     public UserResponseDTO changePassword(UUID id, ChangePasswordRequestDTO dto) {
-        User user = userRepository.findById(id)
+        User authenticated = securityUtils.getAuthenticatedUser();
+        User target = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
+        checkEditPermission(authenticated, target);
+
         if (dto.password() != null) {
-            user.setPassword(passwordEncoder.encode(dto.password()));
+            target.setPassword(passwordEncoder.encode(dto.password()));
         }
 
-        userRepository.save(user);
+        userRepository.save(target);
+        return toResponse(target);
+    }
 
-        return toResponse(user);
+    // OWNER pode editar qualquer usuário do próprio tenant
+    // TEACHER só pode editar a si mesmo
+    // Ninguém pode editar usuário de outro tenant
+    private void checkEditPermission(User authenticated, User target) {
+        boolean sameTenant = authenticated.getTenant().getId()
+                .equals(target.getTenant().getId());
+
+        if (!sameTenant) {
+            throw new org.springframework.security.access.AccessDeniedException("Acesso negado");
+        }
+
+        if (authenticated.getRole() == Role.TEACHER &&
+                !authenticated.getId().equals(target.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Professores só podem editar os próprios dados");
+        }
     }
 
     public UserResponseDTO toResponse(User user) {
@@ -99,5 +99,4 @@ public class UserService implements UserDetailsService {
                 user.getCreatedAt()
         );
     }
-
 }

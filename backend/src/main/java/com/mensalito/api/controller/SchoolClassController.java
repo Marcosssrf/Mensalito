@@ -6,6 +6,7 @@ import com.mensalito.api.service.SchoolClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -32,6 +33,7 @@ public class SchoolClassController {
         return ResponseEntity.ok(schoolClass);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PostMapping
     public ResponseEntity<SchoolClassResponseDTO> create(@RequestBody @Valid SchoolClassRequestDTO dto) {
         SchoolClassResponseDTO schoolClass = schoolClassService.create(dto);
@@ -43,14 +45,15 @@ public class SchoolClassController {
         return ResponseEntity.created(uri).body(schoolClass);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}")
     public ResponseEntity<SchoolClassResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid SchoolClassRequestDTO dto) {
         return ResponseEntity.ok(schoolClassService.update(id, dto));
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}/deactivate")
     public ResponseEntity<SchoolClassResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(schoolClassService.deactivate(id));
     }
-
 }

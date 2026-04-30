@@ -6,6 +6,7 @@ import com.mensalito.api.service.EnrollmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -38,6 +39,7 @@ public class EnrollmentController {
         return ResponseEntity.ok(enrollments);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PostMapping
     public ResponseEntity<EnrollmentResponseDTO> create(@RequestBody @Valid EnrollmentRequestDTO dto) {
         EnrollmentResponseDTO enrollment = enrollmentService.create(dto);
@@ -49,9 +51,9 @@ public class EnrollmentController {
         return ResponseEntity.created(uri).body(enrollment);
     }
 
+    @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}/deactivate")
     public ResponseEntity<EnrollmentResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(enrollmentService.deactivate(id));
     }
-
 }
