@@ -6,7 +6,9 @@ name: Build and deploy JAR app to Azure Web App - mensalito-api
 on:
   push:
     branches:
-      - main
+    - main
+    paths:
+    - 'backend/**'
   workflow_dispatch:
 
 jobs:
