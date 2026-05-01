@@ -26,3 +26,7 @@ ENCRYPTION_SECRET: test-encryption-secret-32chars-ok
 EVOLUTION_API_URL: http://localhost:8081
 EVOLUTION_API_KEY: test-evolution-key
 EVOLUTION_INSTANCE: test-instance
+
+app:
+  frontend-url: ${FRONTEND_URL}
+  admin-secret: ${ADMIN_SECRET}

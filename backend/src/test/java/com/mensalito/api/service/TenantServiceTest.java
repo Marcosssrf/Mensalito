@@ -62,7 +62,6 @@ class TenantServiceTest {
                 "joao@escola.com",
                 "34999999999",
                 "12345678000199"
-
         );
     }
 
@@ -112,6 +111,8 @@ class TenantServiceTest {
                 "12345678000199"
         );
 
+        // mock do securityUtils para simular OWNER do tenant correto
+        when(securityUtils.getAuthenticatedTenantId()).thenReturn(tenantId);
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
         when(tenantRepository.save(any(Tenant.class))).thenReturn(tenant);
 
@@ -122,8 +123,22 @@ class TenantServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar exceção ao atualizar tenant de outro owner")
+    void update_differentTenant() {
+        UUID otherTenantId = UUID.randomUUID();
+        when(securityUtils.getAuthenticatedTenantId()).thenReturn(otherTenantId);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> tenantService.update(tenantId, requestDTO));
+
+        verify(tenantRepository, never()).findById(any());
+        verify(tenantRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Deve lançar exceção ao atualizar tenant inexistente")
     void update_notFound() {
+        when(securityUtils.getAuthenticatedTenantId()).thenReturn(tenantId);
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
@@ -131,7 +146,6 @@ class TenantServiceTest {
 
         verify(tenantRepository, never()).save(any(Tenant.class));
     }
-
 
     @Test
     @DisplayName("Deve salvar a API key criptografada com sucesso")
