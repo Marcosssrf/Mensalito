@@ -17,7 +17,8 @@ public class CorsConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",   // frontend dev
-                "https://mensalito.com.br" // produção — troque pela sua URL
+                "https://marcosssrf.dev", // produção — troque pela sua URL
+                "https://www.marcosssrf.dev"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
