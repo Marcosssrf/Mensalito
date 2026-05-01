@@ -7,6 +7,7 @@ import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -28,7 +29,6 @@ public class TenantService {
                 .build();
 
         Tenant saved = tenantRepository.save(tenant);
-
         return toResponse(saved);
     }
 
@@ -42,28 +42,20 @@ public class TenantService {
     }
 
     public TenantResponseDTO update(UUID id, TenantRequestDTO dto) {
+        UUID authenticatedTenantId = securityUtils.getAuthenticatedTenantId();
+        if (!authenticatedTenantId.equals(id)) {
+            throw new AccessDeniedException("Acesso negado");
+        }
 
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
-        if (dto.name() != null) {
-            tenant.setName(dto.name());
-        }
-
-        if (dto.email() != null) {
-            tenant.setEmail(dto.email());
-        }
-
-        if (dto.phone() != null) {
-            tenant.setPhone(dto.phone());
-        }
-
-        if (dto.document() != null) {
-            tenant.setDocument(dto.document());
-        }
+        if (dto.name() != null) tenant.setName(dto.name());
+        if (dto.email() != null) tenant.setEmail(dto.email());
+        if (dto.phone() != null) tenant.setPhone(dto.phone());
+        if (dto.document() != null) tenant.setDocument(dto.document());
 
         Tenant saved = tenantRepository.save(tenant);
-
         return toResponse(saved);
     }
 
@@ -86,5 +78,4 @@ public class TenantService {
                 tenant.getCreatedAt()
         );
     }
-
 }

@@ -80,7 +80,11 @@ public class InviteService {
     public LoginResponseDTO registerWithInvite(RegisterWithInviteRequestDTO dto) {
         Invite invite = findValidInvite(dto.token());
 
-        String email = invite.getEmail() != null ? invite.getEmail() : extractEmailFromRequest(dto);
+        if (invite.getEmail() == null) {
+            throw new InvalidInviteException("Este convite não possui email associado. Solicite um novo convite ao dono da escola.");
+        }
+
+        String email = invite.getEmail();
 
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email já cadastrado");
@@ -117,12 +121,5 @@ public class InviteService {
         }
 
         return invite;
-    }
-
-    // Se o convite não tem email fixo, o professor informa o próprio email no body
-    // Nesse caso o RegisterWithInviteRequestDTO precisaria ter um campo email opcional
-    // Aqui lançamos exceção clara para forçar o dono a sempre informar o email no convite
-    private String extractEmailFromRequest(RegisterWithInviteRequestDTO dto) {
-        throw new InvalidInviteException("Este convite não possui email associado. Solicite um novo convite ao dono da escola.");
     }
 }

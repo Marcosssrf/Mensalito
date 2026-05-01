@@ -9,6 +9,7 @@ import com.mensalito.api.model.enums.Role;
 import com.mensalito.api.repository.UserRepository;
 import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -80,13 +81,12 @@ public class UserService implements UserDetailsService {
                 .equals(target.getTenant().getId());
 
         if (!sameTenant) {
-            throw new org.springframework.security.access.AccessDeniedException("Acesso negado");
+            throw new AccessDeniedException("Acesso negado");
         }
 
         if (authenticated.getRole() == Role.TEACHER &&
                 !authenticated.getId().equals(target.getId())) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Professores só podem editar os próprios dados");
+            throw new AccessDeniedException("Professores só podem editar os próprios dados");
         }
     }
 

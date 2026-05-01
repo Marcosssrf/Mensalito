@@ -3,6 +3,8 @@ package com.mensalito.api.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,8 +28,17 @@ public class GlobalExceptionHandler {
                 .stream()
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-
         return buildMessage(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ResponseError> tooManyRequests(TooManyRequestsException ex, HttpServletRequest request) {
+        return buildMessage(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ResponseError> badCredentials(BadCredentialsException ex, HttpServletRequest request) {
+        return buildMessage(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos", request);
     }
 
     @ExceptionHandler(InvalidInviteException.class)
@@ -40,8 +51,8 @@ public class GlobalExceptionHandler {
         return buildMessage(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(AuthorizationDeniedException.class)
-    public ResponseEntity<ResponseError> accessDenied(AuthorizationDeniedException ex, HttpServletRequest request) {
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ResponseError> accessDenied(RuntimeException ex, HttpServletRequest request) {
         return buildMessage(HttpStatus.FORBIDDEN, "Acesso negado", request);
     }
 

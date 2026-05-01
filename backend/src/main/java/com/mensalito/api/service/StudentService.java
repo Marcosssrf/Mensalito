@@ -61,6 +61,7 @@ public class StudentService {
             log.warn("Tenant {} sem API key do AbacatePay", tenant.getId());
             return toResponse(student);
         }
+
         String tenantApiKey = encryptionService.decrypt(encryptedKey);
         if (tenantApiKey != null) {
             AbacatePayCustomerRequest abacateRequest = new AbacatePayCustomerRequest(
@@ -98,26 +99,27 @@ public class StudentService {
         Student student = studentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
 
-        if (dto.name() != null) {
-            student.setName(dto.name());
-        }
-
-        if (dto.email() != null) {
-            student.setEmail(dto.email());
-        }
-
-        if (dto.phone() != null) {
-            student.setPhone(dto.phone());
-        }
-
-        if (dto.document() != null) {
+        if (dto.document() != null && !dto.document().equals(student.getDocument())) {
+            studentRepository.findByDocumentAndTenantId(dto.document(), tenantId)
+                    .ifPresent(s -> {
+                        throw new IllegalArgumentException("Já existe um aluno com o documento informado");
+                    });
             student.setDocument(dto.document());
         }
 
+        if (dto.email() != null && !dto.email().equals(student.getEmail())) {
+            studentRepository.findByEmailAndTenantId(dto.email(), tenantId)
+                    .ifPresent(s -> {
+                        throw new IllegalArgumentException("Já existe um aluno com o email informado");
+                    });
+            student.setEmail(dto.email());
+        }
+
+        if (dto.name() != null) student.setName(dto.name());
+        if (dto.phone() != null) student.setPhone(dto.phone());
+
         student = studentRepository.save(student);
-
         return toResponse(student);
-
     }
 
     public StudentResponseDTO deactivate(UUID id) {
@@ -140,5 +142,4 @@ public class StudentService {
                 student.getCreatedAt()
         );
     }
-
 }

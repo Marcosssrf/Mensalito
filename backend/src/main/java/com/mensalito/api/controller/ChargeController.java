@@ -53,9 +53,17 @@ public class ChargeController {
         return ResponseEntity.ok(chargeService.updateStatus(id, dto.status()));
     }
 
+    /**
+     * Gera as cobranças do dia manualmente.
+     * Por padrão respeita o cache do Redis (não gera duas vezes no mesmo dia).
+     * Use ?force=true para forçar a geração mesmo que já tenha rodado hoje.
+     */
     @PostMapping("/generate-charges")
-    public ResponseEntity<String> generateCharges() {
-        chargeService.generateMonthlyCharges();
-        return ResponseEntity.ok("Cobranças geradas!");
+    public ResponseEntity<String> generateCharges(
+            @RequestParam(defaultValue = "false") boolean force) {
+        chargeService.generateMonthlyCharges(force);
+        return ResponseEntity.ok(force
+                ? "Geração forçada executada."
+                : "Cobranças geradas (ou já haviam sido geradas hoje).");
     }
 }

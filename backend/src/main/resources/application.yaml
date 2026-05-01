@@ -45,3 +45,4 @@ evolution:
 
 app:
   frontend-url: ${FRONTEND_URL}
+  admin-secret: ${ADMIN_SECRET}

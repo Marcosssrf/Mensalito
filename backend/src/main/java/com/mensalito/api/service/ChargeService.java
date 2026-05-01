@@ -22,6 +22,7 @@ import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +46,9 @@ public class ChargeService {
     private final EncryptionService encryptionService;
     private final WhatsAppClient whatsAppClient;
     private final WhatsAppMessageBuilder messageBuilder;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String SCHEDULER_KEY_PREFIX = "scheduler:charges:";
 
     public ChargeResponseDTO create(ChargeRequestDTO dto) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
@@ -93,6 +98,17 @@ public class ChargeService {
     }
 
     public void generateMonthlyCharges() {
+        generateMonthlyCharges(false);
+    }
+
+    public void generateMonthlyCharges(boolean force) {
+        String redisKey = SCHEDULER_KEY_PREFIX + LocalDate.now();
+
+        if (!force && Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+            log.info("Cobranças do dia já foram geradas. Use force=true para forçar.");
+            return;
+        }
+
         int today = LocalDate.now().getDayOfMonth();
         log.info("Gerando cobranças para vencimento dia {}", today);
 
@@ -125,6 +141,7 @@ public class ChargeService {
         }
 
         log.info("Cobranças geradas: {}", generated);
+        redisTemplate.opsForValue().set(redisKey, String.valueOf(generated), 23, TimeUnit.HOURS);
     }
 
     public ChargeResponseDTO toResponse(Charge charge) {
@@ -142,14 +159,14 @@ public class ChargeService {
         );
     }
 
-    public boolean generatePayment(Charge saved) {
+    public void generatePayment(Charge saved) {
         Enrollment enrollment = saved.getEnrollment();
         String encryptedKey = enrollment.getTenant().getAbacatePayApiKey();
 
         if (encryptedKey == null) {
             log.warn("Tenant {} sem API key — pagamento não gerado para charge {}",
                     enrollment.getTenant().getId(), saved.getId());
-            return false;
+            return;
         }
 
         String tenantApiKey = encryptionService.decrypt(encryptedKey);
@@ -160,7 +177,6 @@ public class ChargeService {
         generatePix(saved, student, plan, tenantApiKey);
         sendWhatsAppNotification(saved);
 
-        return true;
     }
 
     private void generateCheckout(Charge charge, Student student, Plan plan, String tenantApiKey) {
