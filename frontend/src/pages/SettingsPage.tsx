@@ -55,7 +55,7 @@ export default function SettingsPage() {
     const { user } = useAuth()
 
     // ── School data ────────────────────────────────────────────────────────────
-    const [tenant, setTenant] = useState<Tenant | null>(null)
+    // const [tenant, setTenant] = useState<Tenant | null>(null)
     const [form, setForm] = useState({ name: '', email: '', phone: '', document: '' })
     const [schoolSave, setSchoolSave] = useState<SaveState>('idle')
 
@@ -80,7 +80,7 @@ export default function SettingsPage() {
         if (!user?.tenantId) return
         api.get<Tenant & { hasAbacatePayKey?: boolean }>(`/tenants/${user.tenantId}`)
             .then(r => {
-                setTenant(r.data)
+                // setTenant(r.data)
                 setForm({
                     name: r.data.name || '',
                     email: r.data.email || '',
@@ -226,9 +226,9 @@ export default function SettingsPage() {
     }
 
     // ─── Save button label ────────────────────────────────────────────────────
-    function saveBtnLabel(state: SaveState, labels = { idle: 'Salvar', saving: 'Salvando...', saved: 'Salvo!', error: 'Erro ao salvar' }) {
-        return labels[state]
-    }
+    // function saveBtnLabel(state: SaveState, labels = { idle: 'Salvar', saving: 'Salvando...', saved: 'Salvo!', error: 'Erro ao salvar' }) {
+    //     return labels[state]
+    // }
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
