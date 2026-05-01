@@ -87,4 +87,14 @@ export interface LoginResponse {
     token: string
     name: string
     tenantId: string
+    role: string
+}
+
+export interface RegisterRequest {
+    name: string
+    email: string
+    password: string
+    schoolName: string
+    schoolPhone: string
+    schoolDocument: string
 }
