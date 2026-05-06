@@ -4,12 +4,15 @@ import com.mensalito.api.dto.request.SchoolClassRequestDTO;
 import com.mensalito.api.dto.response.SchoolClassResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.SchoolClass;
+import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.SchoolClassRepository;
+import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,18 +22,23 @@ import java.util.UUID;
 public class SchoolClassService {
 
     private final SchoolClassRepository schoolClassRepository;
+    private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
 
     public SchoolClassResponseDTO create(SchoolClassRequestDTO dto) {
+        Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
         SchoolClass schoolClass = SchoolClass.builder()
                 .name(dto.name())
                 .description(dto.description())
-                .tenant(securityUtils.getAuthenticatedTenant())
+                .tenant(tenant)
+                .createdAt(LocalDateTime.now())
                 .build();
 
-        SchoolClass saved = schoolClassRepository.save(schoolClass);
+        schoolClass = schoolClassRepository.save(schoolClass);
 
-        return toResponse(saved);
+        return toResponse(schoolClass);
     }
 
     public List<SchoolClassResponseDTO> findAll() {
@@ -83,5 +91,4 @@ public class SchoolClassService {
                 schoolClass.getCreatedAt()
         );
     }
-
 }

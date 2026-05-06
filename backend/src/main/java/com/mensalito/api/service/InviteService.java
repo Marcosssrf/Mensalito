@@ -6,11 +6,13 @@ import com.mensalito.api.dto.response.InvitePreviewResponseDTO;
 import com.mensalito.api.dto.response.InviteResponseDTO;
 import com.mensalito.api.dto.response.LoginResponseDTO;
 import com.mensalito.api.exception.InvalidInviteException;
+import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Invite;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.User;
 import com.mensalito.api.model.enums.Role;
 import com.mensalito.api.repository.InviteRepository;
+import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.repository.UserRepository;
 import com.mensalito.api.security.JwtService;
 import com.mensalito.api.security.SecurityUtils;
@@ -29,6 +31,7 @@ public class InviteService {
 
     private final InviteRepository inviteRepository;
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
@@ -38,7 +41,8 @@ public class InviteService {
 
     @Transactional
     public InviteResponseDTO createInvite(InviteRequestDTO dto) {
-        Tenant tenant = securityUtils.getAuthenticatedTenant();
+        Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
         String token = UUID.randomUUID().toString().replace("-", "");
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);

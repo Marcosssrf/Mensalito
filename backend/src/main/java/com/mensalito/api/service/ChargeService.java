@@ -11,13 +11,11 @@ import com.mensalito.api.dto.abacatepay.response.AbacatePayPixResponse;
 import com.mensalito.api.dto.request.ChargeRequestDTO;
 import com.mensalito.api.dto.response.ChargeResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
-import com.mensalito.api.model.Charge;
-import com.mensalito.api.model.Enrollment;
-import com.mensalito.api.model.Plan;
-import com.mensalito.api.model.Student;
+import com.mensalito.api.model.*;
 import com.mensalito.api.model.enums.ChargeStatus;
 import com.mensalito.api.repository.ChargeRepository;
 import com.mensalito.api.repository.EnrollmentRepository;
+import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +38,7 @@ public class ChargeService {
 
     private final ChargeRepository chargeRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final AbacatePayClient abacatePayClient;
     private final AbacatePayConfig abacatePayConfig;
@@ -52,6 +51,10 @@ public class ChargeService {
 
     public ChargeResponseDTO create(ChargeRequestDTO dto) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
         Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(dto.enrollmentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
@@ -59,15 +62,15 @@ public class ChargeService {
                 .enrollment(enrollment)
                 .dueDate(dto.dueDate())
                 .amount(enrollment.getPlan().getAmount())
-                .tenant(securityUtils.getAuthenticatedTenant())
+                .tenant(tenant)
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        Charge saved = chargeRepository.save(charge);
+        charge = chargeRepository.save(charge);
 
-        generatePayment(saved);
+        generatePayment(charge);
 
-        return toResponse(saved);
+        return toResponse(charge);
     }
 
     public List<ChargeResponseDTO> findAll(UUID enrollmentId, ChargeStatus status, LocalDate dueDate) {
@@ -131,8 +134,8 @@ public class ChargeService {
                             .dueDate(dueDate)
                             .build();
 
-                    Charge saved = chargeRepository.save(charge);
-                    generatePayment(saved);
+                    charge = chargeRepository.save(charge);
+                    generatePayment(charge);
                     generated++;
                 }
             } catch (Exception e) {
@@ -159,13 +162,13 @@ public class ChargeService {
         );
     }
 
-    public void generatePayment(Charge saved) {
-        Enrollment enrollment = saved.getEnrollment();
+    public void generatePayment(Charge charge) {
+        Enrollment enrollment = charge.getEnrollment();
         String encryptedKey = enrollment.getTenant().getAbacatePayApiKey();
 
         if (encryptedKey == null) {
             log.warn("Tenant {} sem API key — pagamento não gerado para charge {}",
-                    enrollment.getTenant().getId(), saved.getId());
+                    enrollment.getTenant().getId(), charge.getId());
             return;
         }
 
@@ -173,10 +176,9 @@ public class ChargeService {
         Student student = enrollment.getStudent();
         Plan plan = enrollment.getPlan();
 
-        generateCheckout(saved, student, plan, tenantApiKey);
-        generatePix(saved, student, plan, tenantApiKey);
-        sendWhatsAppNotification(saved);
-
+        generateCheckout(charge, student, plan, tenantApiKey);
+        generatePix(charge, student, plan, tenantApiKey);
+        sendWhatsAppNotification(charge);
     }
 
     private void generateCheckout(Charge charge, Student student, Plan plan, String tenantApiKey) {
@@ -296,5 +298,4 @@ public class ChargeService {
         overdue3.forEach(charge -> sendReminderNotification(charge, 3));
         overdue7.forEach(charge -> sendReminderNotification(charge, 7));
     }
-
 }

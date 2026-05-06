@@ -9,12 +9,14 @@ import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.StudentRepository;
+import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,23 +30,11 @@ public class StudentService {
     private final SecurityUtils securityUtils;
     private final AbacatePayClient abacatePayClient;
     private final EncryptionService encryptionService;
+    private final TenantRepository tenantRepository;
 
     public StudentResponseDTO create(StudentRequestDTO dto) {
-        Tenant tenant = securityUtils.getAuthenticatedTenant();
-
-        if (dto.document() != null) {
-            studentRepository.findByDocumentAndTenantId(dto.document(), tenant.getId())
-                    .ifPresent(s -> {
-                        throw new IllegalArgumentException("Já existe um aluno com o documento informado");
-                    });
-        }
-
-        if (dto.email() != null) {
-            studentRepository.findByEmailAndTenantId(dto.email(), tenant.getId())
-                    .ifPresent(s -> {
-                        throw new IllegalArgumentException("Já existe um aluno com o email informado");
-                    });
-        }
+        Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
         Student student = Student.builder()
                 .name(dto.name())
@@ -52,28 +42,28 @@ public class StudentService {
                 .phone(dto.phone())
                 .document(dto.document())
                 .tenant(tenant)
+                .createdAt(LocalDateTime.now())
                 .build();
 
         student = studentRepository.save(student);
 
         String encryptedKey = tenant.getAbacatePayApiKey();
-        if (encryptedKey == null) {
-            log.warn("Tenant {} sem API key do AbacatePay", tenant.getId());
-            return toResponse(student);
-        }
-
-        String tenantApiKey = encryptionService.decrypt(encryptedKey);
-        if (tenantApiKey != null) {
-            AbacatePayCustomerRequest abacateRequest = new AbacatePayCustomerRequest(
-                    dto.name(), dto.email(), dto.phone(), dto.document()
+        if (encryptedKey != null) {
+            AbacatePayCustomerResponse customerResponse = abacatePayClient.createCustomer(
+                    new AbacatePayCustomerRequest(
+                            dto.name(),
+                            dto.email(),
+                            dto.phone(),
+                            dto.document()
+                    ), encryptionService.decrypt(encryptedKey)
             );
-            AbacatePayCustomerResponse response = abacatePayClient.createCustomer(abacateRequest, tenantApiKey);
-            if (response != null) {
-                student.setAbacatePayCustomerId(response.id());
-                student = studentRepository.save(student);
+
+            if (customerResponse == null) {
+                throw new RuntimeException("Falha ao criar cliente no AbacatePay");
             }
-        } else {
-            log.warn("Tenant {} sem API key do AbacatePay", tenant.getId());
+
+            student.setAbacatePayCustomerId(customerResponse.id());
+            student = studentRepository.save(student);
         }
 
         return toResponse(student);

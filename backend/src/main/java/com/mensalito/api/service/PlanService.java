@@ -9,6 +9,7 @@ import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Plan;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.PlanRepository;
+import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +26,14 @@ import java.util.UUID;
 public class PlanService {
 
     private final PlanRepository planRepository;
+    private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final AbacatePayClient abacatePayClient;
     private final EncryptionService encryptionService;
 
     public PlanResponseDTO create(PlanRequestDTO dto) {
-        Tenant tenant = securityUtils.getAuthenticatedTenant();
+        Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
         Plan plan = Plan.builder()
                 .name(dto.name())
@@ -39,28 +42,23 @@ public class PlanService {
                 .tenant(tenant)
                 .build();
 
-        Plan saved = planRepository.save(plan);
+        plan = planRepository.save(plan);
 
         String encryptedKey = tenant.getAbacatePayApiKey();
-        if (encryptedKey == null) {
-            log.warn("Tenant {} sem API key do AbacatePay", tenant.getId());
-            return toResponse(plan);
-        }
-        String tenantApiKey = encryptionService.decrypt(encryptedKey);
-        if (tenantApiKey != null) {
+        if (encryptedKey != null) {
             AbacatePayProductRequest abacateRequest = AbacatePayProductRequest.fromPlan(
-                    saved.getId().toString(), saved.getName(), saved.getAmount()
+                    plan.getId().toString(), plan.getName(), plan.getAmount()
             );
-            AbacatePayProductResponse response = abacatePayClient.createProduct(abacateRequest, tenantApiKey);
+            AbacatePayProductResponse response = abacatePayClient.createProduct(abacateRequest, encryptionService.decrypt(encryptedKey));
             if (response != null) {
-                saved.setAbacatePayProductId(response.id());
-                saved = planRepository.save(saved);
+                plan.setAbacatePayProductId(response.id());
+                plan = planRepository.save(plan);
             }
         } else {
             log.warn("Tenant {} sem API key do AbacatePay", tenant.getId());
         }
 
-        return toResponse(saved);
+        return toResponse(plan);
     }
 
     public List<PlanResponseDTO> findAll() {

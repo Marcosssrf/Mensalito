@@ -3,14 +3,8 @@ package com.mensalito.api.service;
 import com.mensalito.api.dto.request.EnrollmentRequestDTO;
 import com.mensalito.api.dto.response.EnrollmentResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
-import com.mensalito.api.model.Enrollment;
-import com.mensalito.api.model.Plan;
-import com.mensalito.api.model.SchoolClass;
-import com.mensalito.api.model.Student;
-import com.mensalito.api.repository.EnrollmentRepository;
-import com.mensalito.api.repository.PlanRepository;
-import com.mensalito.api.repository.SchoolClassRepository;
-import com.mensalito.api.repository.StudentRepository;
+import com.mensalito.api.model.*;
+import com.mensalito.api.repository.*;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -29,14 +23,21 @@ public class EnrollmentService {
     private final StudentRepository studentRepository;
     private final SchoolClassRepository schoolClassRepository;
     private final PlanRepository planRepository;
+    private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
 
     public EnrollmentResponseDTO create(EnrollmentRequestDTO dto) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
         Student student = studentRepository.findByIdAndTenantId(dto.studentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
+
         SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(dto.classId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
+
         Plan plan = planRepository.findByIdAndTenantId(dto.planId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
@@ -45,12 +46,12 @@ public class EnrollmentService {
                 .schoolClass(schoolClass)
                 .plan(plan)
                 .startDate(dto.startDate())
-                .tenant(securityUtils.getAuthenticatedTenant())
+                .tenant(tenant)
                 .build();
 
-        Enrollment saved = enrollmentRepository.save(enrollment);
+        enrollment = enrollmentRepository.save(enrollment);
 
-        return toResponse(saved);
+        return toResponse(enrollment);
     }
 
     public List<EnrollmentResponseDTO> findAll() {
@@ -65,7 +66,6 @@ public class EnrollmentService {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
         Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
-
         return toResponse(enrollment);
     }
 
@@ -101,5 +101,4 @@ public class EnrollmentService {
                 enrollment.getCreatedAt()
         );
     }
-
 }
