@@ -1,244 +1,259 @@
 import {useEffect, useState} from 'react'
-import {CheckCircle, MoreHorizontal, Plus, Search, XCircle} from 'lucide-react'
 import api from '@/services/api'
-import type {Student} from '@/types'
 
-const mockStudents: Student[] = [
-    { id: '1', name: 'Ana Clara Souza', email: 'ana@email.com', phone: '(34) 99123-4567', document: '123.456.789-00', active: true, createdAt: '2024-01-10' },
-    { id: '2', name: 'Bruno Mendes', email: 'bruno@email.com', phone: '(34) 98765-4321', document: '987.654.321-00', active: true, createdAt: '2024-02-15' },
-    { id: '3', name: 'Carla Fernandes', email: 'carla@email.com', phone: '(34) 99234-5678', document: '456.789.123-00', active: false, createdAt: '2024-03-20' },
-    { id: '4', name: 'Diego Santos', email: 'diego@email.com', phone: '(34) 99345-6789', document: '321.654.987-00', active: true, createdAt: '2024-04-05' },
-    { id: '5', name: 'Elena Costa', email: 'elena@email.com', phone: '(34) 99456-7890', document: '654.321.098-00', active: true, createdAt: '2024-04-12' },
-]
+interface Student {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  document: string | null
+  active: boolean
+  createdAt: string
+}
 
-type ModalState = { open: false } | { open: true; student: Partial<Student> }
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+}
+
+function fmtDate(s: string | null) {
+  if (!s) return '—'
+  const [date] = s.split('T')
+  const [y, m, d] = date.split('-')
+  return `${d}/${m}/${y}`
+}
+
+type Tab = 'Todos' | 'Ativos' | 'Inativos'
+
+interface StudentFormData {
+  name: string
+  email: string
+  phone: string
+  document: string
+}
+
+function StudentModal({
+                        initial,
+                        onClose,
+                        onSaved,
+                      }: {
+  initial?: Student
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [form, setForm] = useState<StudentFormData>({
+    name: initial?.name ?? '',
+    email: initial?.email ?? '',
+    phone: initial?.phone ?? '',
+    document: initial?.document ?? '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const isEdit = !!initial
+
+  async function submit() {
+    if (!form.name.trim()) { setError('Nome é obrigatório'); return }
+    setLoading(true); setError('')
+    try {
+      if (isEdit) {
+        // PATCH /api/students/{id}  body: StudentRequestDTO { name, email, phone, document }
+        await api.patch(`/students/${initial!.id}`, form)
+      } else {
+        // POST /api/students
+        await api.post('/students', form)
+      }
+      onSaved(); onClose()
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? e?.response?.data?.message ?? 'Erro ao salvar aluno')
+    } finally { setLoading(false) }
+  }
+
+  return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+            {isEdit ? 'Editar aluno' : 'Adicionar aluno'}
+          </h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
+            {isEdit ? 'Atualize os dados do aluno.' : 'Preencha os dados do novo aluno.'}
+          </p>
+          {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>}
+          {[
+            { label: 'Nome completo *', key: 'name' as const, placeholder: 'Ex: João da Silva', type: 'text' },
+            { label: 'E-mail', key: 'email' as const, placeholder: 'joao@email.com', type: 'email' },
+            { label: 'Telefone', key: 'phone' as const, placeholder: '(21) 99999-9999', type: 'text' },
+            { label: 'CPF / Documento', key: 'document' as const, placeholder: '000.000.000-00', type: 'text' },
+          ].map(({ label, key, placeholder, type }) => (
+              <div key={key} style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>{label}</label>
+                <input type={type} value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                       placeholder={placeholder}
+                       style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+          ))}
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
+            <button onClick={submit} disabled={loading}
+                    style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600 }}>
+              {loading ? 'Salvando...' : isEdit ? 'Salvar' : 'Adicionar'}
+            </button>
+          </div>
+        </div>
+      </div>
+  )
+}
 
 export default function StudentsPage() {
-    const [students, setStudents] = useState<Student[]>([])
-    const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
-    const [modal, setModal] = useState<ModalState>({ open: false })
-    const [saving, setSaving] = useState(false)
+  const [students, setStudents] = useState<Student[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<Tab>('Todos')
+  const [search, setSearch] = useState('')
+  const [modal, setModal] = useState<{ open: boolean; student?: Student }>({ open: false })
 
-    useEffect(() => {
-        api.get<Student[]>('/students')
-            .then(r => setStudents(r.data))
-            .catch(() => setStudents(mockStudents))
-            .finally(() => setLoading(false))
-    }, [])
+  function load() {
+    setLoading(true)
+    api.get<Student[]>('/students')
+        .then((r) => setStudents(r.data))
+        .catch(console.error)
+        .finally(() => setLoading(false))
+  }
 
-    const filtered = students.filter(s =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.email.toLowerCase().includes(search.toLowerCase())
-    )
+  useEffect(() => { load() }, [])
 
-    function openNew() {
-        setModal({ open: true, student: { name: '', email: '', phone: '', document: '', active: true } })
-    }
+  async function deactivate(id: string) {
+    // PATCH /api/students/{id}/deactivate
+    await api.patch(`/students/${id}/deactivate`)
+    load()
+  }
 
-    async function handleSave() {
-        if (!modal.open) return
-        setSaving(true)
-        try {
-            if (modal.student.id) {
-                await api.put(`/students/${modal.student.id}`, modal.student)
-                setStudents(prev => prev.map(s => s.id === modal.student.id ? { ...s, ...modal.student } as Student : s))
-            } else {
-                const res = await api.post<Student>('/students', modal.student)
-                setStudents(prev => [...prev, res.data])
-            }
-        } catch {
-            // mock: just update local state
-            if (modal.student.id) {
-                setStudents(prev => prev.map(s => s.id === modal.student.id ? { ...s, ...modal.student } as Student : s))
-            } else {
-                const newStudent: Student = {
-                    ...modal.student as Student,
-                    id: String(Date.now()),
-                    createdAt: new Date().toISOString().split('T')[0],
-                }
-                setStudents(prev => [...prev, newStudent])
-            }
-        } finally {
-            setSaving(false)
-            setModal({ open: false })
-        }
-    }
+  const filtered = students.filter((s) => {
+    const tabOk = tab === 'Todos' || (tab === 'Ativos' && s.active) || (tab === 'Inativos' && !s.active)
+    const q = search.toLowerCase()
+    return tabOk && (s.name.toLowerCase().includes(q) || (s.email ?? '').toLowerCase().includes(q))
+  })
 
-    async function toggleActive(student: Student) {
-        try {
-            await api.patch(`/students/${student.id}`, { active: !student.active })
-        } catch { /* noop */ }
-        setStudents(prev => prev.map(s => s.id === student.id ? { ...s, active: !s.active } : s))
-    }
+  return (
+      <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        {modal.open && (
+            <StudentModal
+                initial={modal.student}
+                onClose={() => setModal({ open: false })}
+                onSaved={load}
+            />
+        )}
 
-    return (
-        <div className="space-y-5" style={{ fontFamily: "'Geist', 'Inter', sans-serif" }}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-lg font-semibold text-zinc-900">Alunos</h1>
-                    <p className="text-sm text-zinc-400 mt-0.5">{students.filter(s => s.active).length} ativos</p>
-                </div>
-                <button
-                    onClick={openNew}
-                    className="inline-flex items-center gap-2 bg-zinc-900 text-white text-sm px-4 py-2 rounded-md hover:bg-zinc-700 transition-colors self-start sm:self-auto"
-                >
-                    <Plus size={14} />
-                    Novo aluno
-                </button>
-            </div>
-
-            {/* Search */}
-            <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar por nome ou email..."
-                    className="w-full pl-9 pr-4 py-2 text-sm border border-zinc-200 rounded-md outline-none focus:border-zinc-400 transition-colors"
-                />
-            </div>
-
-            {/* Table — desktop */}
-            <div className="hidden md:block border border-zinc-100 rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-zinc-50 border-b border-zinc-100">
-                        <tr>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Nome</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Email</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Telefone</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Status</th>
-                            <th className="px-4 py-3" />
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                        {loading ? (
-                            Array.from({ length: 4 }).map((_, i) => (
-                                <tr key={i}>
-                                    {Array.from({ length: 5 }).map((_, j) => (
-                                        <td key={j} className="px-4 py-3">
-                                            <div className="h-4 bg-zinc-100 rounded animate-pulse" />
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))
-                        ) : filtered.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-4 py-10 text-center text-sm text-zinc-400">
-                                    Nenhum aluno encontrado
-                                </td>
-                            </tr>
-                        ) : filtered.map(s => (
-                            <tr key={s.id} className="hover:bg-zinc-50 transition-colors">
-                                <td className="px-4 py-3 font-medium text-zinc-900">{s.name}</td>
-                                <td className="px-4 py-3 text-zinc-500">{s.email}</td>
-                                <td className="px-4 py-3 text-zinc-500">{s.phone}</td>
-                                <td className="px-4 py-3">
-                                    {s.active
-                                        ? <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><CheckCircle size={10} />Ativo</span>
-                                        : <span className="inline-flex items-center gap-1 text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full"><XCircle size={10} />Inativo</span>
-                                    }
-                                </td>
-                                <td className="px-4 py-3">
-                                    <div className="flex items-center gap-1 justify-end">
-                                        <button
-                                            onClick={() => setModal({ open: true, student: { ...s } })}
-                                            className="text-xs text-zinc-400 hover:text-zinc-900 px-2 py-1 rounded hover:bg-zinc-100 transition-colors"
-                                        >
-                                            Editar
-                                        </button>
-                                        <button
-                                            onClick={() => toggleActive(s)}
-                                            className="text-xs text-zinc-400 hover:text-zinc-900 px-2 py-1 rounded hover:bg-zinc-100 transition-colors"
-                                        >
-                                            {s.active ? 'Desativar' : 'Ativar'}
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Cards — mobile */}
-            <div className="md:hidden space-y-2">
-                {loading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-20 bg-zinc-100 rounded-lg animate-pulse" />
-                    ))
-                ) : filtered.length === 0 ? (
-                    <p className="text-center text-sm text-zinc-400 py-8">Nenhum aluno encontrado</p>
-                ) : filtered.map(s => (
-                    <div key={s.id} className="border border-zinc-100 rounded-lg p-4 bg-white">
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-zinc-900 truncate">{s.name}</p>
-                                <p className="text-xs text-zinc-400 mt-0.5 truncate">{s.email}</p>
-                                <p className="text-xs text-zinc-400">{s.phone}</p>
-                            </div>
-                            <div className="flex items-center gap-2 ml-2">
-                                {s.active
-                                    ? <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Ativo</span>
-                                    : <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">Inativo</span>
-                                }
-                                <button
-                                    onClick={() => setModal({ open: true, student: { ...s } })}
-                                    className="text-zinc-400 hover:text-zinc-900"
-                                >
-                                    <MoreHorizontal size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Modal */}
-            {modal.open && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/20">
-                    <div className="bg-white rounded-xl w-full max-w-sm shadow-xl">
-                        <div className="p-5 border-b border-zinc-100">
-                            <h2 className="text-sm font-semibold text-zinc-900">
-                                {modal.student.id ? 'Editar aluno' : 'Novo aluno'}
-                            </h2>
-                        </div>
-                        <div className="p-5 space-y-3">
-                            {[
-                                { field: 'name', label: 'Nome', placeholder: 'Ana Clara Souza' },
-                                { field: 'email', label: 'Email', placeholder: 'ana@email.com' },
-                                { field: 'phone', label: 'Telefone', placeholder: '(34) 99999-9999' },
-                                { field: 'document', label: 'CPF', placeholder: '000.000.000-00' },
-                            ].map(({ field, label, placeholder }) => (
-                                <div key={field} className="space-y-1">
-                                    <label className="text-xs text-zinc-500">{label}</label>
-                                    <input
-                                        value={(modal.student as Record<string, string>)[field] || ''}
-                                        onChange={e => setModal(m => m.open ? { ...m, student: { ...m.student, [field]: e.target.value } } : m)}
-                                        placeholder={placeholder}
-                                        className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                        <div className="p-5 border-t border-zinc-100 flex gap-2">
-                            <button
-                                onClick={() => setModal({ open: false })}
-                                className="flex-1 border border-zinc-200 text-sm py-2 rounded-md hover:bg-zinc-50 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="flex-1 bg-zinc-900 text-white text-sm py-2 rounded-md hover:bg-zinc-700 transition-colors disabled:opacity-40"
-                            >
-                                {saving ? 'Salvando...' : 'Salvar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>CADASTRO</p>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Alunos</h1>
+            <p style={{ fontSize: 14, color: '#6b7280' }}>Gerencie matrículas, contatos e turmas dos seus alunos.</p>
+          </div>
+          <button onClick={() => setModal({ open: true })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#111827', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+            </svg>
+            Adicionar aluno
+          </button>
         </div>
-    )
+
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+          {/* Toolbar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['Todos', 'Ativos', 'Inativos'] as Tab[]).map((t) => (
+                  <button key={t} onClick={() => setTab(t)} style={{
+                    padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                    background: tab === t ? '#f3f4f6' : 'transparent', color: tab === t ? '#111827' : '#6b7280',
+                  }}>{t}</button>
+              ))}
+            </div>
+            <div style={{ position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
+                   width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar nome, e-mail..."
+                     style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, color: '#374151', outline: 'none', width: 240 }} />
+            </div>
+          </div>
+
+          {/* Cabeçalho */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 0.8fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+            {['ALUNO', 'CONTATO', 'CADASTRO', 'STATUS', 'AÇÕES'].map((h) => (
+                <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em' }}>{h}</span>
+            ))}
+          </div>
+
+          {loading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Carregando...</div>
+          ) : filtered.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Nenhum aluno encontrado.</div>
+          ) : filtered.map((s, i) => (
+              <div key={s.id} style={{
+                display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 0.8fr',
+                padding: '16px 20px', alignItems: 'center', background: '#fff',
+                borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',
+              }}>
+                {/* Aluno */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
+                    {initials(s.name)}
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.name}</span>
+                </div>
+
+                {/* Contato */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {s.email && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <svg width="12" height="12" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                          <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                        <span style={{ fontSize: 13, color: '#6b7280' }}>{s.email}</span>
+                      </div>
+                  )}
+                  {s.phone && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <svg width="12" height="12" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.08 6.08l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                        </svg>
+                        <span style={{ fontSize: 13, color: '#6b7280' }}>{s.phone}</span>
+                      </div>
+                  )}
+                </div>
+
+                {/* Data de cadastro */}
+                <span style={{ fontSize: 13, color: '#6b7280' }}>{fmtDate(s.createdAt)}</span>
+
+                {/* Status */}
+                <span style={{
+                  fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                  background: s.active ? '#dcfce7' : '#f3f4f6',
+                  color: s.active ? '#16a34a' : '#9ca3af',
+                  display: 'inline-block',
+                }}>
+              {s.active ? 'Ativo' : 'Inativo'}
+            </span>
+
+                {/* Ações */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setModal({ open: true, student: s })}
+                          style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#374151' }}>
+                    Editar
+                  </button>
+                  {s.active && (
+                      <button onClick={() => deactivate(s.id)}
+                              style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #fecaca', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#ef4444' }}>
+                        Desativar
+                      </button>
+                  )}
+                </div>
+              </div>
+          ))}
+        </div>
+      </div>
+  )
 }

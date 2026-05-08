@@ -3,13 +3,6 @@ import {MoreHorizontal, Plus} from 'lucide-react'
 import api from '@/services/api'
 import type {Plan} from '@/types'
 
-const mockPlans: Plan[] = [
-    { id: '1', name: 'Básico', amount: 29900, dueDay: 5, active: true, createdAt: '2024-01-01' },
-    { id: '2', name: 'Intermediário', amount: 49900, dueDay: 10, active: true, createdAt: '2024-01-01' },
-    { id: '3', name: 'Avançado', amount: 79900, dueDay: 10, active: true, createdAt: '2024-01-01' },
-    { id: '4', name: 'VIP', amount: 129900, dueDay: 1, active: false, createdAt: '2024-01-01' },
-]
-
 function formatCurrency(val: number) {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
@@ -22,52 +15,73 @@ export default function PlansPage() {
     const [modal, setModal] = useState<ModalState>({ open: false })
     const [saving, setSaving] = useState(false)
     const [formAmount, setFormAmount] = useState('')
+    const [error, setError] = useState('')
 
-    useEffect(() => {
+    function load() {
+        setLoading(true)
         api.get<Plan[]>('/plans')
             .then(r => setPlans(r.data))
-            .catch(() => setPlans(mockPlans))
+            .catch(console.error)
             .finally(() => setLoading(false))
-    }, [])
+    }
+
+    useEffect(() => { load() }, [])
 
     function openNew() {
         setFormAmount('')
+        setError('')
         setModal({ open: true, plan: { name: '', amount: 0, dueDay: 10, active: true } })
     }
 
     function openEdit(plan: Plan) {
         setFormAmount(plan.amount.toFixed(2).replace('.', ','))
+        setError('')
         setModal({ open: true, plan: { ...plan } })
     }
 
     async function handleSave() {
         if (!modal.open) return
-        const amountCents = parseFloat(formAmount.replace(',', '.')) || 0
-        const payload = { ...modal.plan, amount: amountCents }
-        setSaving(true)
+        if (!modal.plan.name?.trim()) { setError('Nome é obrigatório'); return }
+        const amountVal = parseFloat(formAmount.replace(',', '.'))
+        if (!amountVal || amountVal <= 0) { setError('Valor deve ser maior que zero'); return }
+        if (!modal.plan.dueDay || modal.plan.dueDay < 1 || modal.plan.dueDay > 28) {
+            setError('Dia de vencimento deve ser entre 1 e 28'); return
+        }
+
+        // Backend espera BigDecimal (ex: 299.90), não centavos
+        const payload = {
+            name: modal.plan.name,
+            amount: amountVal,
+            dueDay: modal.plan.dueDay,
+        }
+
+        setSaving(true); setError('')
         try {
             if (modal.plan.id) {
-                await api.put(`/plans/${modal.plan.id}`, payload)
-                setPlans(prev => prev.map(p => p.id === modal.plan.id ? { ...p, ...payload } as Plan : p))
+                // PATCH /api/plans/{id}
+                const res = await api.patch<Plan>(`/plans/${modal.plan.id}`, payload)
+                setPlans(prev => prev.map(p => p.id === modal.plan.id ? res.data : p))
             } else {
+                // POST /api/plans
                 const res = await api.post<Plan>('/plans', payload)
                 setPlans(prev => [...prev, res.data])
             }
-        } catch {
-            if (modal.plan.id) {
-                setPlans(prev => prev.map(p => p.id === modal.plan.id ? { ...p, ...payload } as Plan : p))
-            } else {
-                setPlans(prev => [...prev, { ...payload, id: String(Date.now()), createdAt: new Date().toISOString().split('T')[0] } as Plan])
-            }
+            setModal({ open: false })
+        } catch (e: any) {
+            setError(e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao salvar plano')
         } finally {
             setSaving(false)
-            setModal({ open: false })
         }
     }
 
-    async function toggleActive(plan: Plan) {
-        try { await api.patch(`/plans/${plan.id}`, { active: !plan.active }) } catch { /* noop */ }
-        setPlans(prev => prev.map(p => p.id === plan.id ? { ...p, active: !p.active } : p))
+    async function deactivate(plan: Plan) {
+        try {
+            // PATCH /api/plans/{id}/deactivate
+            const res = await api.patch<Plan>(`/plans/${plan.id}/deactivate`)
+            setPlans(prev => prev.map(p => p.id === plan.id ? res.data : p))
+        } catch (e: any) {
+            console.error('Erro ao desativar plano:', e)
+        }
     }
 
     return (
@@ -116,12 +130,14 @@ export default function PlansPage() {
                                 </p>
                                 <p className="text-xs text-zinc-400 mt-1">Vencimento: dia {plan.dueDay}</p>
                             </div>
-                            <button
-                                onClick={() => toggleActive(plan)}
-                                className="text-xs text-zinc-400 hover:text-zinc-900 transition-colors text-left"
-                            >
-                                {plan.active ? 'Desativar' : 'Reativar'}
-                            </button>
+                            {plan.active && (
+                                <button
+                                    onClick={() => deactivate(plan)}
+                                    className="text-xs text-zinc-400 hover:text-red-500 transition-colors text-left"
+                                >
+                                    Desativar
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -136,8 +152,13 @@ export default function PlansPage() {
                             </h2>
                         </div>
                         <div className="p-5 space-y-3">
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 rounded-md px-3 py-2 text-xs text-red-600">
+                                    {error}
+                                </div>
+                            )}
                             <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Nome</label>
+                                <label className="text-xs text-zinc-500">Nome *</label>
                                 <input
                                     value={modal.plan.name || ''}
                                     onChange={e => setModal(m => m.open ? { ...m, plan: { ...m.plan, name: e.target.value } } : m)}
@@ -146,16 +167,16 @@ export default function PlansPage() {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Valor (R$)</label>
+                                <label className="text-xs text-zinc-500">Valor (R$) *</label>
                                 <input
                                     value={formAmount}
                                     onChange={e => setFormAmount(e.target.value)}
-                                    placeholder="299,00"
+                                    placeholder="299,90"
                                     className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors"
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Dia de vencimento</label>
+                                <label className="text-xs text-zinc-500">Dia de vencimento (1–28) *</label>
                                 <input
                                     type="number"
                                     min={1}

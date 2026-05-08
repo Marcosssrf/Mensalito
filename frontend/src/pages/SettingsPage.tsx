@@ -1,511 +1,622 @@
 import {useEffect, useRef, useState} from 'react'
 import {useAuth} from '@/contexts/AuthContext'
 import api from '@/services/api'
-import type {Tenant} from '@/types'
-import {
-    AlertCircle,
-    Building2,
-    CheckCircle2,
-    KeyRound,
-    Loader2,
-    RefreshCw,
-    Smartphone,
-    Wifi,
-    WifiOff
-} from 'lucide-react'
 
+type Tab = 'Escola' | 'Conta' | 'Cobrança' | 'Integrações' | 'Convites' | 'Plano'
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
-function Section({ title, icon: Icon, children }: {
-    title: string
-    icon: React.ElementType
-    children: React.ReactNode
+interface TenantData {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  document: string | null
+  active: boolean
+  createdAt: string
+}
+
+interface InviteResponse {
+  id: string
+  email: string
+  role: 'OWNER' | 'TEACHER'
+  inviteUrl: string
+  expiresAt: string
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb',
+  borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none',
+  boxSizing: 'border-box', background: '#fff',
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', alignItems: 'start', gap: 20, paddingBottom: 20, borderBottom: '1px solid #f3f4f6', marginBottom: 20 }}>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 500, color: '#374151', margin: 0 }}>{label}</p>
+          {hint && <p style={{ fontSize: 12, color: '#9ca3af', margin: '4px 0 0' }}>{hint}</p>}
+        </div>
+        <div>{children}</div>
+      </div>
+  )
+}
+
+function IntegrationBadge({ connected, label }: { connected: boolean; label?: string }) {
+  return (
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        padding: '6px 14px', borderRadius: 8,
+        background: connected ? '#ecfdf5' : '#f9fafb',
+        border: `1px solid ${connected ? '#a7f3d0' : '#e5e7eb'}`,
+      }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: connected ? '#10b981' : '#d1d5db' }} />
+        <span style={{ fontSize: 13, fontWeight: 500, color: connected ? '#065f46' : '#6b7280' }}>
+        {connected ? (label ? `Conectado · ${label}` : 'Conectado') : 'Não conectado'}
+      </span>
+      </div>
+  )
+}
+
+function IntegrationCard({ acronym, name, description, connected, connectedLabel, onManage }: {
+  acronym: string; name: string; description: string
+  connected: boolean; connectedLabel?: string; onManage: () => void
 }) {
-    return (
-        <div className="bg-white border border-zinc-100 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2.5">
-                <Icon size={15} className="text-zinc-400" />
-                <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+  return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #f3f4f6' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
+            {acronym}
+          </div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>{name}</p>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>{description}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <IntegrationBadge connected={connected} label={connectedLabel} />
+          <button onClick={onManage}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#374151' }}>
+            Gerenciar
+            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15,3 21,3 21,9" /><line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+  )
+}
+
+// Modal AbacatePay — PUT /api/tenants/me/api-key
+function AbacatePayModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [key, setKey] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function save() {
+    if (!key.trim()) { setError('Insira a chave de API'); return }
+    setLoading(true)
+    try {
+      await api.put('/tenants/me/api-key', { abacatePayApiKey: key })
+      onSaved(); onClose()
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? e?.response?.data?.message ?? 'Erro ao salvar chave')
+    } finally { setLoading(false) }
+  }
+
+  return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>AbacatePay · Chave de API</h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
+            Sua chave é armazenada de forma criptografada e nunca exibida novamente.
+          </p>
+          {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>}
+          <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Chave de API</label>
+          <input type="password" value={key} onChange={(e) => setKey(e.target.value)}
+                 placeholder="eyJ..." autoComplete="off" style={{ ...inputStyle, marginBottom: 24 }} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
+            <button onClick={save} disabled={loading}
+                    style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600 }}>
+              {loading ? 'Salvando...' : 'Salvar chave'}
+            </button>
+          </div>
+        </div>
+      </div>
+  )
+}
+
+// Modal WhatsApp — Evolution API
+function WhatsAppModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
+  const [url, setUrl] = useState(() => localStorage.getItem('evo_url') ?? '')
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('evo_key') ?? '')
+  const [instance, setInstance] = useState(() => localStorage.getItem('evo_instance') ?? '')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'qr' | 'connected' | 'error'>('idle')
+  const [qr, setQr] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState('')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+
+  const headers = { 'Content-Type': 'application/json', apikey: apiKey }
+
+  async function isConnected() {
+    try {
+      const r = await fetch(`${url}/instance/connectionState/${instance}`, { headers })
+      const d = await r.json()
+      return d?.instance?.state === 'open' || d?.state === 'open'
+    } catch { return false }
+  }
+
+  function saveToStorage() {
+    localStorage.setItem('evo_url', url)
+    localStorage.setItem('evo_key', apiKey)
+    localStorage.setItem('evo_instance', instance)
+  }
+
+  async function connect() {
+    if (!url || !apiKey || !instance) { setErrorMsg('Preencha URL, chave e instância.'); setStatus('error'); return }
+    saveToStorage()
+    setStatus('loading'); setErrorMsg('')
+    if (await isConnected()) { setStatus('connected'); onConnected(); return }
+    try {
+      await fetch(`${url}/instance/create`, { method: 'POST', headers, body: JSON.stringify({ instanceName: instance, qrcode: true }) }).catch(() => {})
+      const r = await fetch(`${url}/instance/connect/${instance}`, { headers })
+      const d = await r.json()
+      const qrCode = d?.base64 || d?.qrcode?.base64 || d?.code
+      if (qrCode) {
+        setQr(qrCode); setStatus('qr')
+        pollRef.current = setInterval(async () => {
+          if (await isConnected()) { clearInterval(pollRef.current!); setStatus('connected'); onConnected() }
+        }, 3000)
+      } else { setErrorMsg('Não foi possível gerar o QR Code.'); setStatus('error') }
+    } catch { setErrorMsg('Erro de conexão com a Evolution API.'); setStatus('error') }
+  }
+
+  return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>WhatsApp · Evolution API</h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Configure sua instância para envio de mensagens automáticas.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+            {[
+              { label: 'URL da Evolution API', value: url, setter: setUrl, placeholder: 'https://evo.suaempresa.com', type: 'text' },
+              { label: 'API Key', value: apiKey, setter: setApiKey, placeholder: '••••••••', type: 'password' },
+              { label: 'Nome da instância', value: instance, setter: setInstance, placeholder: 'mensalito', type: 'text' },
+            ].map(({ label, value, setter, placeholder, type }) => (
+                <div key={label}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>{label}</label>
+                  <input type={type} value={value} onChange={(e) => setter(e.target.value)} placeholder={placeholder} autoComplete="off" style={inputStyle} />
+                </div>
+            ))}
+          </div>
+          {status === 'error' && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{errorMsg}</div>}
+          {status === 'connected' && (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#065f46' }}>WhatsApp conectado!</span>
+              </div>
+          )}
+          {status === 'qr' && qr && (
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <img src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`} alt="QR Code"
+                     style={{ width: 200, height: 200, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                <p style={{ fontSize: 13, color: '#6b7280', marginTop: 10 }}>Escaneie com o WhatsApp → Dispositivos conectados</p>
+              </div>
+          )}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Fechar</button>
+            {status !== 'connected' && (
+                <button onClick={connect} disabled={status === 'loading'}
+                        style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600 }}>
+                  {status === 'loading' ? 'Conectando...' : status === 'qr' ? 'Gerar novo QR' : 'Conectar'}
+                </button>
+            )}
+          </div>
+        </div>
+      </div>
+  )
+}
+
+// Aba Convites — POST /api/invites
+function InvitesTab() {
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<'TEACHER' | 'OWNER'>('TEACHER')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [invite, setInvite] = useState<InviteResponse | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  async function createInvite() {
+    if (!email.trim()) { setError('Insira um e-mail'); return }
+    setLoading(true); setError(''); setInvite(null)
+    try {
+      const res = await api.post<InviteResponse>('/invites', { email, role })
+      setInvite(res.data)
+      setEmail('')
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao criar convite')
+    } finally { setLoading(false) }
+  }
+
+  function copyLink() {
+    if (!invite?.inviteUrl) return
+    navigator.clipboard.writeText(invite.inviteUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Convites</h2>
+        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
+          Convide professores para acessar o sistema. O link expira em 24 horas.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 440 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>E-mail do convidado</label>
+            <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="professor@escola.com"
+                style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Função</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['TEACHER', 'OWNER'] as const).map(r => (
+                  <button
+                      key={r}
+                      onClick={() => setRole(r)}
+                      style={{
+                        padding: '8px 20px', borderRadius: 8, border: `1px solid ${role === r ? '#111827' : '#e5e7eb'}`,
+                        background: role === r ? '#111827' : '#fff',
+                        color: role === r ? '#fff' : '#374151',
+                        fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                      }}
+                  >
+                    {r === 'TEACHER' ? 'Professor' : 'Dono'}
+                  </button>
+              ))}
             </div>
-            <div className="p-5">{children}</div>
+          </div>
+
+          {error && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626' }}>{error}</div>
+          )}
+
+          {invite && (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '16px 18px' }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#065f46', marginBottom: 8 }}>✓ Convite criado para {invite.email}</p>
+                <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 10 }}>
+                  Expira em: {new Date(invite.expiresAt).toLocaleString('pt-BR')}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 12px' }}>
+              <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {invite.inviteUrl}
+              </span>
+                  <button
+                      onClick={copyLink}
+                      style={{ flexShrink: 0, fontSize: 12, padding: '4px 12px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#374151' }}
+                  >
+                    {copied ? '✓ Copiado' : 'Copiar'}
+                  </button>
+                </div>
+              </div>
+          )}
+
+          <button
+              onClick={createInvite}
+              disabled={loading}
+              style={{ padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600, opacity: loading ? 0.6 : 1 }}
+          >
+            {loading ? 'Criando...' : 'Criar convite'}
+          </button>
         </div>
-    )
+      </div>
+  )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-    return (
-        <div className="space-y-1.5">
-            <label className="text-xs text-zinc-500">{label}</label>
-            {children}
+// Aba Conta — PATCH /api/users/{id} + PATCH /api/users/{id}/password
+function AccountTab() {
+  const { user } = useAuth()
+  const [nameForm, setNameForm] = useState({ name: '', email: '' })
+  const [pwForm, setPwForm] = useState({ password: '', confirm: '' })
+  const [nameSave, setNameSave] = useState<SaveState>('idle')
+  const [pwSave, setPwSave] = useState<SaveState>('idle')
+  const [pwError, setPwError] = useState('')
+
+  useEffect(() => {
+    if (!user?.tenantId) return
+    // GET /api/users/email/{email} não existe, usa o user do token
+    const stored = localStorage.getItem('user')
+    if (stored) {
+      const u = JSON.parse(stored)
+      setNameForm({ name: u.name ?? '', email: '' })
+    }
+  }, [user])
+
+  async function saveProfile() {
+    if (!user) return
+    const stored = localStorage.getItem('user')
+    const u = stored ? JSON.parse(stored) : null
+    if (!u?.id) return
+    setNameSave('saving')
+    try {
+      // PATCH /api/users/{id}  body: UpdateUserRequestDTO { name, email }
+      await api.patch(`/users/${u.id}`, { name: nameForm.name, email: nameForm.email || undefined })
+      // Atualiza localStorage
+      localStorage.setItem('user', JSON.stringify({ ...u, name: nameForm.name }))
+      localStorage.setItem('userName', nameForm.name)
+      setNameSave('saved')
+      setTimeout(() => setNameSave('idle'), 2500)
+    } catch {
+      setNameSave('error')
+      setTimeout(() => setNameSave('idle'), 2500)
+    }
+  }
+
+  async function changePassword() {
+    setPwError('')
+    if (!pwForm.password || pwForm.password.length < 6) { setPwError('Senha deve ter no mínimo 6 caracteres'); return }
+    if (pwForm.password !== pwForm.confirm) { setPwError('As senhas não coincidem'); return }
+    const stored = localStorage.getItem('user')
+    const u = stored ? JSON.parse(stored) : null
+    if (!u?.id) return
+    setPwSave('saving')
+    try {
+      // PATCH /api/users/{id}/password  body: ChangePasswordRequestDTO { password }
+      await api.patch(`/users/${u.id}/password`, { password: pwForm.password })
+      setPwForm({ password: '', confirm: '' })
+      setPwSave('saved')
+      setTimeout(() => setPwSave('idle'), 2500)
+    } catch (e: any) {
+      setPwError(e?.response?.data?.message ?? 'Erro ao alterar senha')
+      setPwSave('error')
+      setTimeout(() => setPwSave('idle'), 2500)
+    }
+  }
+
+  return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Perfil */}
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Meu perfil</h2>
+              <p style={{ fontSize: 13, color: '#6b7280' }}>Nome e e-mail da sua conta.</p>
+            </div>
+            <button onClick={saveProfile} style={{
+              padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#fff',
+              background: nameSave === 'saved' ? '#10b981' : nameSave === 'error' ? '#ef4444' : '#111827',
+            }}>
+              {nameSave === 'saving' ? 'Salvando...' : nameSave === 'saved' ? '✓ Salvo' : nameSave === 'error' ? 'Erro' : 'Salvar'}
+            </button>
+          </div>
+          <Field label="Nome">
+            <input value={nameForm.name} onChange={e => setNameForm(f => ({ ...f, name: e.target.value }))} placeholder="Seu nome" style={inputStyle} />
+          </Field>
+          <Field label="Novo e-mail" hint="Opcional: deixe em branco para não alterar">
+            <input type="email" value={nameForm.email} onChange={e => setNameForm(f => ({ ...f, email: e.target.value }))} placeholder="novo@email.com" style={inputStyle} />
+          </Field>
         </div>
-    )
-}
 
-const inputCls = "w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-
-type WaStatus = 'idle' | 'loading' | 'qr' | 'connected' | 'error'
-
-interface WaState {
-    status: WaStatus
-    qrBase64?: string
-    errorMsg?: string
+        {/* Senha */}
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Alterar senha</h2>
+              <p style={{ fontSize: 13, color: '#6b7280' }}>Mínimo 6 caracteres.</p>
+            </div>
+            <button onClick={changePassword} style={{
+              padding: '8px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#fff',
+              background: pwSave === 'saved' ? '#10b981' : pwSave === 'error' ? '#ef4444' : '#111827',
+            }}>
+              {pwSave === 'saving' ? 'Salvando...' : pwSave === 'saved' ? '✓ Alterada' : pwSave === 'error' ? 'Erro' : 'Alterar'}
+            </button>
+          </div>
+          {pwError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{pwError}</div>
+          )}
+          <Field label="Nova senha">
+            <input type="password" value={pwForm.password} onChange={e => setPwForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" style={inputStyle} />
+          </Field>
+          <Field label="Confirmar senha">
+            <input type="password" value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} placeholder="••••••••" style={inputStyle} />
+          </Field>
+        </div>
+      </div>
+  )
 }
 
 export default function SettingsPage() {
-    const { user } = useAuth()
+  const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<Tab>('Escola')
+  const [tenant, setTenant] = useState<TenantData | null>(null)
+  const [form, setForm] = useState({ name: '', email: '', phone: '', document: '' })
+  const [saveState, setSaveState] = useState<SaveState>('idle')
 
-    // ── School data ────────────────────────────────────────────────────────────
-    // const [tenant, setTenant] = useState<Tenant | null>(null)
-    const [form, setForm] = useState({ name: '', email: '', phone: '', document: '' })
-    const [schoolSave, setSchoolSave] = useState<SaveState>('idle')
+  const [abacateConnected, setAbacateConnected] = useState(() => localStorage.getItem('abacate_configured') === '1')
+  const [showAbacateModal, setShowAbacateModal] = useState(false)
 
-    // ── AbacatePay ────────────────────────────────────────────────────────────
-    const [apiKey, setApiKey] = useState('')
-    const [hasKey, setHasKey] = useState(false)
-    const [editingKey, setEditingKey] = useState(false)
-    const [keySave, setKeySave] = useState<SaveState>('idle')
+  const [waConnected, setWaConnected] = useState(false)
+  const [showWaModal, setShowWaModal] = useState(false)
 
-    // ── WhatsApp / Evolution ──────────────────────────────────────────────────
-    const [wa, setWa] = useState<WaState>({ status: 'idle' })
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    if (!user?.tenantId) return
+    api.get<TenantData>(`/tenants/${user.tenantId}`)
+        .then((r) => {
+          setTenant(r.data)
+          setForm({
+            name: r.data.name ?? '',
+            email: r.data.email ?? '',
+            phone: r.data.phone ?? '',
+            document: r.data.document ?? '',
+          })
+          localStorage.setItem('tenantName', r.data.name ?? '')
+        })
+        .catch(console.error)
+  }, [user?.tenantId])
 
-    // ── Evolution base URL (user configures in this same settings page) ───────
-    const [evoUrl, setEvoUrl] = useState(() => localStorage.getItem('evo_url') || '')
-    const [evoKey, setEvoKey] = useState(() => localStorage.getItem('evo_key') || '')
-    const [evoInstance, setEvoInstance] = useState(() => localStorage.getItem('evo_instance') || '')
-    const [evoSave, setEvoSave] = useState<SaveState>('idle')
+  useEffect(() => {
+    const url = localStorage.getItem('evo_url')
+    const key = localStorage.getItem('evo_key')
+    const inst = localStorage.getItem('evo_instance')
+    if (!url || !key || !inst) { setWaConnected(false); return }
+    fetch(`${url}/instance/connectionState/${inst}`, { headers: { apikey: key } })
+        .then((r) => r.json())
+        .then((d) => setWaConnected(d?.instance?.state === 'open' || d?.state === 'open'))
+        .catch(() => setWaConnected(false))
+  }, [showWaModal])
 
-    // ─── Load tenant ──────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (!user?.tenantId) return
-        api.get<Tenant & { hasAbacatePayKey?: boolean }>(`/tenants/${user.tenantId}`)
-            .then(r => {
-                // setTenant(r.data)
-                setForm({
-                    name: r.data.name || '',
-                    email: r.data.email || '',
-                    phone: r.data.phone || '',
-                    document: r.data.document || '',
-                })
-                // Backend may return hasAbacatePayKey boolean
-                if (typeof r.data.hasAbacatePayKey === 'boolean') {
-                    setHasKey(r.data.hasAbacatePayKey)
-                }
-            })
-            .catch(() => {})
-    }, [user?.tenantId])
-
-    // ─── Stop polling on unmount ───────────────────────────────────────────────
-    useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
-
-    // ─── Save school data ──────────────────────────────────────────────────────
-    async function saveSchool() {
-        if (!user?.tenantId) return
-        setSchoolSave('saving')
-        try {
-            await api.patch(`/tenants/${user.tenantId}`, form)
-            setSchoolSave('saved')
-            setTimeout(() => setSchoolSave('idle'), 2500)
-        } catch {
-            setSchoolSave('error')
-            setTimeout(() => setSchoolSave('idle'), 2500)
-        }
+  async function saveSchool() {
+    if (!user?.tenantId) return
+    if (!form.name.trim()) return
+    setSaveState('saving')
+    try {
+      // PATCH /api/tenants/{id}  body: TenantRequestDTO { name, email, phone, document }
+      await api.patch(`/tenants/${user.tenantId}`, form)
+      localStorage.setItem('tenantName', form.name)
+      setSaveState('saved')
+      setTimeout(() => setSaveState('idle'), 2500)
+    } catch {
+      setSaveState('error')
+      setTimeout(() => setSaveState('idle'), 2500)
     }
+  }
 
-    // ─── Save AbacatePay key ───────────────────────────────────────────────────
-    async function saveApiKey() {
-        if (!apiKey.trim()) return
-        setKeySave('saving')
-        try {
-            await api.put('/tenants/me/api-key', { abacatePayApiKey: apiKey })
-            setHasKey(true)
-            setApiKey('')
-            setEditingKey(false)
-            setKeySave('saved')
-            setTimeout(() => setKeySave('idle'), 2500)
-        } catch {
-            setKeySave('error')
-            setTimeout(() => setKeySave('idle'), 2500)
-        }
-    }
+  const waInstance = localStorage.getItem('evo_instance') ?? undefined
+  const isOwner = user?.role === 'OWNER'
+  const tabs: Tab[] = isOwner
+      ? ['Escola', 'Conta', 'Cobrança', 'Integrações', 'Convites', 'Plano']
+      : ['Escola', 'Conta']
 
-    // ─── Save Evolution config locally ────────────────────────────────────────
-    function saveEvoConfig() {
-        localStorage.setItem('evo_url', evoUrl)
-        localStorage.setItem('evo_key', evoKey)
-        localStorage.setItem('evo_instance', evoInstance)
-        setEvoSave('saved')
-        setTimeout(() => setEvoSave('idle'), 2000)
-    }
+  return (
+      <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        {showAbacateModal && (
+            <AbacatePayModal onClose={() => setShowAbacateModal(false)} onSaved={() => {
+              localStorage.setItem('abacate_configured', '1')
+              setAbacateConnected(true)
+            }} />
+        )}
+        {showWaModal && <WhatsAppModal onClose={() => setShowWaModal(false)} onConnected={() => setWaConnected(true)} />}
 
-    // ─── Evolution API helpers (called from browser, bypasses Spring) ──────────
-    function evoHeaders() {
-        return { 'Content-Type': 'application/json', apikey: evoKey }
-    }
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>CONTA</p>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Configurações</h1>
+            <p style={{ fontSize: 14, color: '#6b7280' }}>Dados da escola, integrações de pagamento e preferências de cobrança.</p>
+          </div>
+          {activeTab === 'Escola' && (
+              <button onClick={saveSchool} style={{
+                padding: '10px 20px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff',
+                background: saveState === 'saved' ? '#10b981' : saveState === 'error' ? '#ef4444' : '#111827',
+              }}>
+                {saveState === 'saving' ? 'Salvando...' : saveState === 'saved' ? '✓ Salvo' : saveState === 'error' ? 'Erro' : 'Salvar alterações'}
+              </button>
+          )}
+        </div>
 
-    async function checkConnectionStatus(): Promise<boolean> {
-        try {
-            const res = await fetch(`${evoUrl}/instance/connectionState/${evoInstance}`, {
-                headers: evoHeaders(),
-            })
-            const data = await res.json()
-            // Evolution API returns { instance: { state: "open" | "close" | ... } }
-            return data?.instance?.state === 'open' || data?.state === 'open'
-        } catch {
-            return false
-        }
-    }
+        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 32 }}>
+          {/* Sidebar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {tabs.map((t) => (
+                <button key={t} onClick={() => setActiveTab(t)} style={{
+                  padding: '9px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left',
+                  fontSize: 14, fontWeight: activeTab === t ? 600 : 400,
+                  color: activeTab === t ? '#111827' : '#6b7280',
+                  background: activeTab === t ? '#f3f4f6' : 'transparent',
+                }}>{t}</button>
+            ))}
+          </div>
 
-    async function connectWhatsApp() {
-        if (!evoUrl || !evoKey || !evoInstance) {
-            setWa({ status: 'error', errorMsg: 'Configure a URL, chave e instância da Evolution API primeiro.' })
-            return
-        }
-
-        setWa({ status: 'loading' })
-
-        // Check if already connected
-        const already = await checkConnectionStatus()
-        if (already) {
-            setWa({ status: 'connected' })
-            return
-        }
-
-        try {
-            // Try to create instance (may already exist — ignore 4xx)
-            await fetch(`${evoUrl}/instance/create`, {
-                method: 'POST',
-                headers: evoHeaders(),
-                body: JSON.stringify({ instanceName: evoInstance, qrcode: true }),
-            }).catch(() => {})
-
-            // Fetch QR code
-            const res = await fetch(`${evoUrl}/instance/connect/${evoInstance}`, {
-                headers: evoHeaders(),
-            })
-            const data = await res.json()
-
-            // Evolution returns base64 qrcode in different shapes depending on version
-            const qr: string | undefined =
-                data?.base64 ||
-                data?.qrcode?.base64 ||
-                data?.code
-
-            if (qr) {
-                setWa({ status: 'qr', qrBase64: qr })
-                startPolling()
-            } else {
-                setWa({ status: 'error', errorMsg: 'Não foi possível gerar o QR Code. Verifique as configurações.' })
-            }
-        } catch (e) {
-            setWa({ status: 'error', errorMsg: 'Erro de conexão com a Evolution API. Verifique a URL.' })
-        }
-    }
-
-    function startPolling() {
-        if (pollRef.current) clearInterval(pollRef.current)
-        pollRef.current = setInterval(async () => {
-            const connected = await checkConnectionStatus()
-            if (connected) {
-                clearInterval(pollRef.current!)
-                pollRef.current = null
-                setWa({ status: 'connected' })
-            }
-        }, 3000)
-    }
-
-    async function disconnectWhatsApp() {
-        try {
-            await fetch(`${evoUrl}/instance/logout/${evoInstance}`, {
-                method: 'DELETE',
-                headers: evoHeaders(),
-            })
-        } catch { /* noop */ }
-        if (pollRef.current) clearInterval(pollRef.current)
-        setWa({ status: 'idle' })
-    }
-
-    // ─── Save button label ────────────────────────────────────────────────────
-    // function saveBtnLabel(state: SaveState, labels = { idle: 'Salvar', saving: 'Salvando...', saved: 'Salvo!', error: 'Erro ao salvar' }) {
-    //     return labels[state]
-    // }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    return (
-        <div className="space-y-5 max-w-2xl" style={{ fontFamily: "'Geist', 'Inter', sans-serif" }}>
-            <div>
-                <h1 className="text-lg font-semibold text-zinc-900">Configurações</h1>
-                <p className="text-sm text-zinc-400 mt-0.5">Gerencie os dados e integrações da sua escola</p>
-            </div>
-
-            {/* ── Dados da escola ─────────────────────────────────────────── */}
-            <Section title="Dados da escola" icon={Building2}>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Conteúdo */}
+          <div>
+            {activeTab === 'Escola' && (
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Dados da escola</h2>
+                  <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Informações que aparecem nos boletos e mensagens enviadas.</p>
+                  {tenant === null ? (
+                      <p style={{ color: '#9ca3af', fontSize: 14 }}>Carregando...</p>
+                  ) : (
+                      <>
                         <Field label="Nome da escola">
-                            <input
-                                value={form.name}
-                                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                                placeholder="Escola de Inglês"
-                                className={inputCls}
-                            />
+                          <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Academia Gracie" style={inputStyle} />
                         </Field>
-                        <Field label="Email">
-                            <input
-                                type="email"
-                                value={form.email}
-                                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                                placeholder="contato@escola.com"
-                                className={inputCls}
-                            />
+                        <Field label="CNPJ / CPF">
+                          <input value={form.document ?? ''} onChange={(e) => setForm((f) => ({ ...f, document: e.target.value }))} placeholder="00.000.000/0000-00" style={inputStyle} />
+                        </Field>
+                        <Field label="E-mail de contato">
+                          <input type="email" value={form.email ?? ''} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="contato@escola.com.br" style={inputStyle} />
                         </Field>
                         <Field label="Telefone">
-                            <input
-                                value={form.phone}
-                                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                                placeholder="(34) 99999-9999"
-                                className={inputCls}
-                            />
+                          <input value={form.phone ?? ''} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(21) 99888-1010" style={inputStyle} />
                         </Field>
-                        <Field label="CPF / CNPJ">
-                            <input
-                                value={form.document}
-                                onChange={e => setForm(f => ({ ...f, document: e.target.value }))}
-                                placeholder="Somente números"
-                                className={inputCls}
-                            />
-                        </Field>
-                    </div>
-                    <div className="flex justify-end">
-                        <SaveButton state={schoolSave} onClick={saveSchool} />
-                    </div>
+                      </>
+                  )}
                 </div>
-            </Section>
+            )}
 
-            {/* ── AbacatePay ─────────────────────────────────────────────── */}
-            <Section title="AbacatePay" icon={KeyRound}>
-                <div className="space-y-4">
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                        Sua chave é armazenada de forma criptografada e nunca é exibida novamente por segurança.
+            {activeTab === 'Conta' && <AccountTab />}
+
+            {activeTab === 'Cobrança' && (
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Cobrança</h2>
+                  <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Padrões aplicados às mensalidades.</p>
+                  <Field label="Multa por atraso">
+                    <input defaultValue="2%" style={{ ...inputStyle, width: 100 }} />
+                  </Field>
+                  <Field label="Juros ao mês">
+                    <input defaultValue="1%" style={{ ...inputStyle, width: 100 }} />
+                  </Field>
+                  <Field label="Tolerância antes de marcar como atrasado">
+                    <input defaultValue="3 dias" style={{ ...inputStyle, width: 130 }} />
+                  </Field>
+                </div>
+            )}
+
+            {activeTab === 'Integrações' && (
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Integrações</h2>
+                  <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>Conexões com serviços externos.</p>
+                  <IntegrationCard
+                      acronym="AS" name="AbacatePay" description="Boletos e PIX automáticos"
+                      connected={abacateConnected}
+                      connectedLabel={abacateConnected ? 'Configurado' : undefined}
+                      onManage={() => setShowAbacateModal(true)}
+                  />
+                  <IntegrationCard
+                      acronym="EV" name="Evolution API" description="Disparo de mensagens via WhatsApp"
+                      connected={waConnected}
+                      connectedLabel={waConnected && waInstance ? waInstance : undefined}
+                      onManage={() => setShowWaModal(true)}
+                  />
+                </div>
+            )}
+
+            {activeTab === 'Convites' && <InvitesTab />}
+
+            {activeTab === 'Plano' && (
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Plano atual</h2>
+                  <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Gerencie sua assinatura do Mensalito.</p>
+                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '20px 24px' }}>
+                    <p style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600, letterSpacing: '0.06em', marginBottom: 8 }}>PLANO PADRÃO</p>
+                    <p style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
+                      R$ 229<span style={{ fontSize: 14, fontWeight: 400, color: '#6b7280' }}>/mês</span>
                     </p>
-
-                    {hasKey && !editingKey ? (
-                        <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-                            <div className="flex items-center gap-2">
-                                <CheckCircle2 size={15} className="text-emerald-600" />
-                                <span className="text-sm text-emerald-700 font-medium">Chave cadastrada</span>
-                            </div>
-                            <button
-                                onClick={() => setEditingKey(true)}
-                                className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors"
-                            >
-                                Alterar
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {hasKey && (
-                                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                                    Ao salvar, a chave atual será substituída.
-                                </p>
-                            )}
-                            <Field label="Chave de API">
-                                <input
-                                    type="password"
-                                    value={apiKey}
-                                    onChange={e => setApiKey(e.target.value)}
-                                    placeholder="eyJ..."
-                                    autoComplete="off"
-                                    className={inputCls}
-                                />
-                            </Field>
-                            <div className="flex gap-2 justify-end">
-                                {hasKey && (
-                                    <button
-                                        onClick={() => { setEditingKey(false); setApiKey('') }}
-                                        className="text-xs text-zinc-400 hover:text-zinc-700 px-3 py-2 rounded-md border border-zinc-200 hover:bg-zinc-50 transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
-                                )}
-                                <SaveButton state={keySave} onClick={saveApiKey} label="Salvar chave" />
-                            </div>
-                        </div>
-                    )}
+                    <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Até 150 alunos · Cobranças automáticas · WhatsApp · Dashboard</p>
+                  </div>
                 </div>
-            </Section>
-
-            {/* ── Evolution API config ────────────────────────────────────── */}
-            <Section title="WhatsApp (Evolution API)" icon={Smartphone}>
-                <div className="space-y-5">
-
-                    {/* Config fields */}
-                    <div className="space-y-3">
-                        <p className="text-xs text-zinc-400 leading-relaxed">
-                            Configure sua instância da Evolution API para envio de mensagens via WhatsApp.
-                            Essas configurações ficam salvas no seu navegador.
-                        </p>
-                        <div className="space-y-3">
-                            <Field label="URL da Evolution API">
-                                <input
-                                    value={evoUrl}
-                                    onChange={e => setEvoUrl(e.target.value)}
-                                    placeholder="https://evolution.suaempresa.com"
-                                    className={inputCls}
-                                />
-                            </Field>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <Field label="API Key">
-                                    <input
-                                        type="password"
-                                        value={evoKey}
-                                        onChange={e => setEvoKey(e.target.value)}
-                                        placeholder="••••••••"
-                                        autoComplete="off"
-                                        className={inputCls}
-                                    />
-                                </Field>
-                                <Field label="Nome da instância">
-                                    <input
-                                        value={evoInstance}
-                                        onChange={e => setEvoInstance(e.target.value)}
-                                        placeholder="mensalito"
-                                        className={inputCls}
-                                    />
-                                </Field>
-                            </div>
-                        </div>
-                        <div className="flex justify-end">
-                            <button
-                                onClick={saveEvoConfig}
-                                className="text-xs px-3 py-2 border border-zinc-200 rounded-md hover:bg-zinc-50 transition-colors text-zinc-600"
-                            >
-                                {evoSave === 'saved' ? '✓ Configurações salvas' : 'Salvar configurações'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-zinc-100" />
-
-                    {/* QR / Connection area */}
-                    <div className="space-y-3">
-                        <p className="text-xs text-zinc-500 font-medium">Conexão do WhatsApp</p>
-
-                        {wa.status === 'idle' && (
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                                <div className="flex items-center gap-2 text-zinc-400">
-                                    <WifiOff size={14} />
-                                    <span className="text-sm">Não conectado</span>
-                                </div>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    className="inline-flex items-center gap-2 text-sm bg-zinc-900 text-white px-4 py-2 rounded-md hover:bg-zinc-700 transition-colors"
-                                >
-                                    Gerar QR Code
-                                </button>
-                            </div>
-                        )}
-
-                        {wa.status === 'loading' && (
-                            <div className="flex items-center gap-2 text-zinc-400">
-                                <Loader2 size={14} className="animate-spin" />
-                                <span className="text-sm">Conectando...</span>
-                            </div>
-                        )}
-
-                        {wa.status === 'error' && (
-                            <div className="space-y-3">
-                                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg">
-                                    <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
-                                    <p className="text-xs text-red-600">{wa.errorMsg}</p>
-                                </div>
-                                <button
-                                    onClick={() => setWa({ status: 'idle' })}
-                                    className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors"
-                                >
-                                    Tentar novamente
-                                </button>
-                            </div>
-                        )}
-
-                        {wa.status === 'connected' && (
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                        <Wifi size={14} className="text-emerald-600" />
-                                        <span className="text-sm text-emerald-700 font-medium">WhatsApp conectado</span>
-                                    </div>
-                                    <button
-                                        onClick={disconnectWhatsApp}
-                                        className="text-xs text-zinc-400 hover:text-red-500 transition-colors"
-                                    >
-                                        Desconectar
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {wa.status === 'qr' && wa.qrBase64 && (
-                            <div className="space-y-3">
-                                <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-5 flex flex-col items-center gap-4">
-                                    <div className="bg-white p-3 rounded-lg shadow-sm border border-zinc-100">
-                                        <img
-                                            src={wa.qrBase64.startsWith('data:') ? wa.qrBase64 : `data:image/png;base64,${wa.qrBase64}`}
-                                            alt="QR Code WhatsApp"
-                                            className="w-48 h-48 object-contain"
-                                        />
-                                    </div>
-                                    <div className="text-center space-y-1">
-                                        <p className="text-sm text-zinc-700 font-medium">Escaneie com o WhatsApp</p>
-                                        <p className="text-xs text-zinc-400">
-                                            Abra o WhatsApp → Menu → Dispositivos conectados → Conectar dispositivo
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-zinc-400">
-                                        <Loader2 size={12} className="animate-spin" />
-                                        Aguardando conexão...
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={connectWhatsApp}
-                                    className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 transition-colors"
-                                >
-                                    <RefreshCw size={12} />
-                                    Gerar novo QR Code
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </Section>
+            )}
+          </div>
         </div>
-    )
-}
-
-// ─── Save Button ──────────────────────────────────────────────────────────────
-
-function SaveButton({ state, onClick, label = 'Salvar' }: {
-    state: SaveState
-    onClick: () => void
-    label?: string
-}) {
-    const isLoading = state === 'saving'
-    const isSaved = state === 'saved'
-    const isError = state === 'error'
-
-    return (
-        <button
-            onClick={onClick}
-            disabled={isLoading}
-            className={`inline-flex items-center gap-2 text-sm px-4 py-2 rounded-md transition-colors disabled:opacity-50 ${
-                isSaved ? 'bg-emerald-600 text-white' :
-                isError ? 'bg-red-500 text-white' :
-                'bg-zinc-900 text-white hover:bg-zinc-700'
-            }`}
-        >
-            {isLoading && <Loader2 size={13} className="animate-spin" />}
-            {isSaved && <CheckCircle2 size={13} />}
-            {isLoading ? 'Salvando...' : isSaved ? 'Salvo!' : isError ? 'Erro ao salvar' : label}
-        </button>
-    )
+      </div>
+  )
 }

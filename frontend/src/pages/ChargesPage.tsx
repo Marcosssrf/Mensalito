@@ -1,223 +1,381 @@
 import {useEffect, useState} from 'react'
-import {AlertCircle, CheckCircle, Clock, Copy, ExternalLink, Search, XCircle} from 'lucide-react'
 import api from '@/services/api'
-import type {Charge} from '@/types'
 
-const mockCharges: Charge[] = [
-    { id: '1', studentName: 'Ana Clara Souza', amount: 29900, dueDate: '2024-05-05', status: 'PAID', paymentDate: '2024-05-03', pixCode: null, boletoUrl: null, checkoutUrl: 'https://pay.example.com/1', createdAt: '2024-04-30' },
-    { id: '2', studentName: 'Bruno Mendes', amount: 49900, dueDate: '2024-05-10', status: 'PENDING', paymentDate: null, pixCode: '00020126580014BR.GOV.BCB.PIX...', boletoUrl: null, checkoutUrl: 'https://pay.example.com/2', createdAt: '2024-05-01' },
-    { id: '3', studentName: 'Carla Fernandes', amount: 79900, dueDate: '2024-04-10', status: 'OVERDUE', paymentDate: null, pixCode: '00020126580014BR.GOV.BCB.PIX...', boletoUrl: null, checkoutUrl: 'https://pay.example.com/3', createdAt: '2024-04-01' },
-    { id: '4', studentName: 'Diego Santos', amount: 29900, dueDate: '2024-05-05', status: 'PENDING', paymentDate: null, pixCode: '00020126580014BR.GOV.BCB.PIX...', boletoUrl: null, checkoutUrl: 'https://pay.example.com/4', createdAt: '2024-04-30' },
-    { id: '5', studentName: 'Elena Costa', amount: 49900, dueDate: '2024-05-10', status: 'PAID', paymentDate: '2024-05-08', pixCode: null, boletoUrl: null, checkoutUrl: 'https://pay.example.com/5', createdAt: '2024-05-01' },
-    { id: '6', studentName: 'Felipe Rocha', amount: 79900, dueDate: '2024-05-01', status: 'OVERDUE', paymentDate: null, pixCode: null, boletoUrl: 'https://boleto.example.com/6', checkoutUrl: null, createdAt: '2024-04-01' },
-]
-
-function formatCurrency(val: number) {
-    return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+interface Charge {
+  id: string
+  studentName: string
+  amount: number
+  dueDate: string
+  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'REFUNDED' | 'LOST' | 'DISPUTED'
+  paymentDate: string | null
+  pixCode: string | null
+  boletoUrl: string | null
+  checkoutUrl: string | null
+  createdAt: string
 }
 
-function formatDate(d: string) {
-    if (!d) return '–'
-    return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
+interface Enrollment {
+  id: string
+  studentName: string
+  className: string
+  planName: string
+  amount: number
+  active: boolean
 }
 
-const statusConfig = {
-    PENDING:   { label: 'Pendente',   icon: Clock,          cls: 'text-amber-600 bg-amber-50' },
-    PAID:      { label: 'Pago',       icon: CheckCircle,    cls: 'text-emerald-600 bg-emerald-50' },
-    OVERDUE:   { label: 'Vencido',    icon: AlertCircle,    cls: 'text-red-600 bg-red-50' },
-    CANCELLED: { label: 'Cancelado',  icon: XCircle,        cls: 'text-zinc-400 bg-zinc-100' },
-    REFUNDED:  { label: 'Reembolso',  icon: XCircle,        cls: 'text-zinc-400 bg-zinc-100' },
-    LOST:      { label: 'Perdido',    icon: XCircle,        cls: 'text-zinc-400 bg-zinc-100' },
-    DISPUTED:  { label: 'Disputado',  icon: AlertCircle,    cls: 'text-orange-600 bg-orange-50' },
+interface DashboardData {
+  expectedRevenue: number
+  receivedRevenue: number
+  overdueRevenue: number
+  totalActiveStudents: number
+  totalPendingCharges: number
+  totalPaidCharges: number
+  totalOverdueCharges: number
 }
 
-type FilterStatus = 'ALL' | Charge['status']
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  PENDING:   { label: 'Pendente',    color: '#d97706' },
+  PAID:      { label: 'Pago',        color: '#059669' },
+  OVERDUE:   { label: 'Atrasado',    color: '#dc2626' },
+  CANCELLED: { label: 'Cancelado',   color: '#6b7280' },
+  REFUNDED:  { label: 'Reembolsado', color: '#2563eb' },
+  LOST:      { label: 'Perdido',     color: '#6b7280' },
+  DISPUTED:  { label: 'Disputado',   color: '#ea580c' },
+}
+
+function fmt(v: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+}
+
+function fmtDate(d: string | null) {
+  if (!d) return '—'
+  const [, m, day] = d.split('-')
+  return `${day}/${m}`
+}
+
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
+// Modal para criar cobrança manual — POST /api/charges { enrollmentId, dueDate }
+function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([])
+  const [loadingData, setLoadingData] = useState(true)
+  const [form, setForm] = useState({ enrollmentId: '', dueDate: todayStr() })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.get<Enrollment[]>('/enrollments')
+        .then(r => setEnrollments(r.data.filter(e => e.active)))
+        .catch(console.error)
+        .finally(() => setLoadingData(false))
+  }, [])
+
+  async function submit() {
+    if (!form.enrollmentId) { setError('Selecione uma matrícula'); return }
+    if (!form.dueDate) { setError('Informe a data de vencimento'); return }
+    setSaving(true); setError('')
+    try {
+      // POST /api/charges  body: ChargeRequestDTO { enrollmentId, dueDate }
+      await api.post('/charges', form)
+      onCreated(); onClose()
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao criar cobrança')
+    } finally { setSaving(false) }
+  }
+
+  return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Nova cobrança</h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Crie uma cobrança avulsa para uma matrícula ativa.</p>
+
+          {error && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>
+          )}
+
+          {loadingData ? (
+              <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', padding: '16px 0' }}>Carregando matrículas...</p>
+          ) : (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Matrícula *</label>
+                  <select
+                      value={form.enrollmentId}
+                      onChange={e => setForm(f => ({ ...f, enrollmentId: e.target.value }))}
+                      style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', background: '#fff', color: '#111827' }}
+                  >
+                    <option value="">Selecione uma matrícula...</option>
+                    {enrollments.map(e => (
+                        <option key={e.id} value={e.id}>
+                          {e.studentName} — {e.className} ({fmt(e.amount)})
+                        </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Data de vencimento *</label>
+                  <input
+                      type="date"
+                      value={form.dueDate}
+                      min={todayStr()}
+                      onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
+                      style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
+            <button onClick={submit} disabled={saving || loadingData}
+                    style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'Criando...' : 'Criar cobrança'}
+            </button>
+          </div>
+        </div>
+      </div>
+  )
+}
+
+type Tab = 'Todos' | 'Inadimplentes' | 'Pagos'
 
 export default function ChargesPage() {
-    const [charges, setCharges] = useState<Charge[]>([])
-    const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
-    const [filter, setFilter] = useState<FilterStatus>('ALL')
-    const [copied, setCopied] = useState<string | null>(null)
+  const [charges, setCharges] = useState<Charge[]>([])
+  const [dash, setDash] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<Tab>('Todos')
+  const [search, setSearch] = useState('')
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [generatingCharges, setGeneratingCharges] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
-    useEffect(() => {
-        api.get<Charge[]>('/charges')
-            .then(r => setCharges(r.data))
-            .catch(() => setCharges(mockCharges))
-            .finally(() => setLoading(false))
-    }, [])
+  function load() {
+    setLoading(true)
+    Promise.all([
+      api.get<Charge[]>('/charges'),
+      api.get<DashboardData>('/dashboard'),
+    ])
+        .then(([c, d]) => { setCharges(c.data); setDash(d.data) })
+        .catch(console.error)
+        .finally(() => setLoading(false))
+  }
 
-    function copyPix(code: string, id: string) {
-        navigator.clipboard.writeText(code).then(() => {
-            setCopied(id)
-            setTimeout(() => setCopied(null), 2000)
-        })
-    }
+  useEffect(() => { load() }, [])
 
-    const filtered = charges.filter(c => {
-        const matchSearch = c.studentName.toLowerCase().includes(search.toLowerCase())
-        const matchFilter = filter === 'ALL' || c.status === filter
-        return matchSearch && matchFilter
-    })
+  async function markPaid(id: string) {
+    setUpdatingId(id)
+    try {
+      // PATCH /api/charges/{id}/status  body: { status: "PAID" }
+      await api.patch(`/charges/${id}/status`, { status: 'PAID' })
+      load()
+    } finally { setUpdatingId(null) }
+  }
 
-    const filters: { key: FilterStatus; label: string }[] = [
-        { key: 'ALL', label: 'Todas' },
-        { key: 'PENDING', label: 'Pendentes' },
-        { key: 'OVERDUE', label: 'Vencidas' },
-        { key: 'PAID', label: 'Pagas' },
-    ]
+  async function markCancelled(id: string) {
+    setUpdatingId(id)
+    try {
+      await api.patch(`/charges/${id}/status`, { status: 'CANCELLED' })
+      load()
+    } finally { setUpdatingId(null) }
+  }
 
-    return (
-        <div className="space-y-5" style={{ fontFamily: "'Geist', 'Inter', sans-serif" }}>
-            <div>
-                <h1 className="text-lg font-semibold text-zinc-900">Cobranças</h1>
-                <p className="text-sm text-zinc-400 mt-0.5">
-                    {charges.filter(c => c.status === 'PENDING').length} pendentes ·{' '}
-                    {charges.filter(c => c.status === 'OVERDUE').length} vencidas
-                </p>
-            </div>
+  async function generateCharges(force: boolean) {
+    setGeneratingCharges(true)
+    try {
+      await api.post(`/charges/generate-charges?force=${force}`)
+      load()
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro ao gerar cobranças')
+    } finally { setGeneratingCharges(false) }
+  }
 
-            {/* Search + filter */}
-            <div className="space-y-3">
-                <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Buscar por aluno..."
-                        className="w-full pl-9 pr-4 py-2 text-sm border border-zinc-200 rounded-md outline-none focus:border-zinc-400 transition-colors"
-                    />
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                    {filters.map(f => (
-                        <button
-                            key={f.key}
-                            onClick={() => setFilter(f.key)}
-                            className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                                filter === f.key
-                                    ? 'bg-zinc-900 text-white border-zinc-900'
-                                    : 'border-zinc-200 text-zinc-500 hover:border-zinc-400'
-                            }`}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+  function copyPix(id: string, code: string) {
+    navigator.clipboard.writeText(code)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
-            {/* Desktop table */}
-            <div className="hidden md:block border border-zinc-100 rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-zinc-50 border-b border-zinc-100">
-                        <tr>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Aluno</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Valor</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Vencimento</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Status</th>
-                            <th className="text-left px-4 py-3 text-xs text-zinc-400 font-medium">Pago em</th>
-                            <th className="px-4 py-3 text-xs text-zinc-400 font-medium text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                        {loading ? (
-                            Array.from({ length: 4 }).map((_, i) => (
-                                <tr key={i}>{Array.from({ length: 6 }).map((_, j) => (
-                                    <td key={j} className="px-4 py-3"><div className="h-4 bg-zinc-100 rounded animate-pulse" /></td>
-                                ))}</tr>
-                            ))
-                        ) : filtered.length === 0 ? (
-                            <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-zinc-400">Nenhuma cobrança encontrada</td></tr>
-                        ) : filtered.map(c => {
-                            const cfg = statusConfig[c.status]
-                            const Icon = cfg.icon
-                            return (
-                                <tr key={c.id} className="hover:bg-zinc-50 transition-colors">
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{c.studentName}</td>
-                                    <td className="px-4 py-3 text-zinc-900 font-medium">{formatCurrency(c.amount)}</td>
-                                    <td className="px-4 py-3 text-zinc-500">{formatDate(c.dueDate)}</td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cfg.cls}`}>
-                                            <Icon size={10} />{cfg.label}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-zinc-500">{formatDate(c.paymentDate || '')}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-1 justify-end">
-                                            {c.pixCode && (
-                                                <button
-                                                    onClick={() => copyPix(c.pixCode!, c.id)}
-                                                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-900 px-2 py-1 rounded hover:bg-zinc-100 transition-colors"
-                                                >
-                                                    <Copy size={11} />
-                                                    {copied === c.id ? 'Copiado!' : 'PIX'}
-                                                </button>
-                                            )}
-                                            {c.checkoutUrl && (
-                                                <a
-                                                    href={c.checkoutUrl}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-900 px-2 py-1 rounded hover:bg-zinc-100 transition-colors"
-                                                >
-                                                    <ExternalLink size={11} />Link
-                                                </a>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
-            </div>
+  const filtered = charges.filter((c) => {
+    const tabOk =
+        tab === 'Todos' ||
+        (tab === 'Inadimplentes' && (c.status === 'OVERDUE' || c.status === 'PENDING')) ||
+        (tab === 'Pagos' && c.status === 'PAID')
+    return tabOk && c.studentName.toLowerCase().includes(search.toLowerCase())
+  })
 
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-2">
-                {loading ? Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="h-24 bg-zinc-100 rounded-lg animate-pulse" />
-                )) : filtered.map(c => {
-                    const cfg = statusConfig[c.status]
-                    const Icon = cfg.icon
-                    return (
-                        <div key={c.id} className="border border-zinc-100 rounded-lg p-4 bg-white">
-                            <div className="flex items-start justify-between mb-2">
-                                <div>
-                                    <p className="text-sm font-medium text-zinc-900">{c.studentName}</p>
-                                    <p className="text-xs text-zinc-400">Vence {formatDate(c.dueDate)}</p>
-                                </div>
-                                <div className="flex flex-col items-end gap-1">
-                                    <p className="text-sm font-semibold text-zinc-900">{formatCurrency(c.amount)}</p>
-                                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cfg.cls}`}>
-                                        <Icon size={10} />{cfg.label}
-                                    </span>
-                                </div>
-                            </div>
-                            {(c.pixCode || c.checkoutUrl) && (
-                                <div className="flex gap-2 mt-2 pt-2 border-t border-zinc-50">
-                                    {c.pixCode && (
-                                        <button
-                                            onClick={() => copyPix(c.pixCode!, c.id)}
-                                            className="flex-1 inline-flex items-center justify-center gap-1 text-xs text-zinc-500 border border-zinc-200 py-1.5 rounded-md hover:bg-zinc-50"
-                                        >
-                                            <Copy size={11} />{copied === c.id ? 'Copiado!' : 'Copiar PIX'}
-                                        </button>
-                                    )}
-                                    {c.checkoutUrl && (
-                                        <a
-                                            href={c.checkoutUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="flex-1 inline-flex items-center justify-center gap-1 text-xs text-zinc-500 border border-zinc-200 py-1.5 rounded-md hover:bg-zinc-50"
-                                        >
-                                            <ExternalLink size={11} />Ver link
-                                        </a>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )
-                })}
-            </div>
+  const kpis = [
+    {
+      label: 'A RECEBER',
+      value: loading ? '—' : fmt(dash?.expectedRevenue ?? 0),
+      sub: `${dash?.totalPendingCharges ?? 0} cobranças em aberto`,
+    },
+    {
+      label: 'RECEBIDO NO MÊS',
+      value: loading ? '—' : fmt(dash?.receivedRevenue ?? 0),
+      sub: `${dash?.totalPaidCharges ?? 0} pagamentos confirmados`,
+    },
+    {
+      label: 'EM ATRASO',
+      value: loading ? '—' : fmt(dash?.overdueRevenue ?? 0),
+      sub: `${dash?.totalOverdueCharges ?? 0} cobranças vencidas`,
+    },
+    {
+      label: 'TOTAL ALUNOS ATIVOS',
+      value: loading ? '—' : String(dash?.totalActiveStudents ?? 0),
+      sub: 'alunos com matrícula ativa',
+    },
+  ]
+
+  return (
+      <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        {showNewModal && <NewChargeModal onClose={() => setShowNewModal(false)} onCreated={load} />}
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>FINANCEIRO</p>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Cobranças</h1>
+            <p style={{ fontSize: 14, color: '#6b7280' }}>Mensalidades, baixas manuais e cobranças avulsas.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+                onClick={() => setShowNewModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#374151' }}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nova cobrança
+            </button>
+            <button
+                onClick={() => generateCharges(false)}
+                disabled={generatingCharges}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#fff', opacity: generatingCharges ? 0.6 : 1 }}>
+              {generatingCharges ? 'Gerando...' : 'Gerar cobranças do mês'}
+            </button>
+          </div>
         </div>
-    )
+
+        {/* KPIs */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 1, background: '#e5e7eb',
+          border: '1px solid #e5e7eb', borderRadius: 12,
+          overflow: 'hidden', marginBottom: 32,
+        }}>
+          {kpis.map((k) => (
+              <div key={k.label} style={{ background: '#fff', padding: '24px 28px' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 12 }}>{k.label}</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: 0 }}>{k.value}</p>
+                <p style={{ fontSize: 13, color: '#6b7280', marginTop: 6 }}>{k.sub}</p>
+              </div>
+          ))}
+        </div>
+
+        {/* Tabela */}
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>
+          Cobranças de {new Date().toLocaleDateString('pt-BR', { month: 'long' })}
+        </h2>
+        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+          Acompanhe pagamentos, registre baixas manuais e acesse links de pagamento.
+        </p>
+
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+          {/* Toolbar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['Todos', 'Inadimplentes', 'Pagos'] as Tab[]).map((t) => (
+                  <button key={t} onClick={() => setTab(t)} style={{
+                    padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                    background: tab === t ? '#f3f4f6' : 'transparent', color: tab === t ? '#111827' : '#6b7280',
+                  }}>{t}</button>
+              ))}
+            </div>
+            <div style={{ position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
+                   width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar aluno..."
+                     style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, color: '#374151', outline: 'none', width: 240 }} />
+            </div>
+          </div>
+
+          {/* Cabeçalho tabela */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.4fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+            {['ALUNO', 'VALOR', 'VENCIMENTO', 'STATUS', 'AÇÕES'].map((h) => (
+                <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em' }}>{h}</span>
+            ))}
+          </div>
+
+          {loading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Carregando...</div>
+          ) : filtered.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Nenhuma cobrança encontrada.</div>
+          ) : filtered.map((c, i) => {
+            const st = STATUS_META[c.status] ?? { label: c.status, color: '#6b7280' }
+            return (
+                <div key={c.id} style={{
+                  display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.4fr',
+                  padding: '14px 20px', alignItems: 'center', background: '#fff',
+                  borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
+                      {initials(c.studentName)}
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: '#111827' }}>{c.studentName}</span>
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{fmt(c.amount)}</span>
+                  <span style={{ fontSize: 14, color: '#374151' }}>{fmtDate(c.dueDate)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.color }} />
+                    <span style={{ fontSize: 13, color: st.color, fontWeight: 500 }}>{st.label}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(c.status === 'PENDING' || c.status === 'OVERDUE') && (
+                        <button onClick={() => markPaid(c.id)} disabled={updatingId === c.id}
+                                style={{ fontSize: 12, padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#374151' }}>
+                          {updatingId === c.id ? '...' : 'Baixa manual'}
+                        </button>
+                    )}
+                    {(c.status === 'PENDING' || c.status === 'OVERDUE') && (
+                        <button onClick={() => markCancelled(c.id)} disabled={updatingId === c.id}
+                                style={{ fontSize: 12, padding: '4px 9px', border: '1px solid #fecaca', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#ef4444' }}>
+                          Cancelar
+                        </button>
+                    )}
+                    {c.checkoutUrl && (
+                        <a href={c.checkoutUrl} target="_blank" rel="noreferrer"
+                           style={{ fontSize: 12, color: '#6b7280', textDecoration: 'none', padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                          Link
+                        </a>
+                    )}
+                    {c.pixCode && (
+                        <button onClick={() => copyPix(c.id, c.pixCode!)}
+                                title="Copiar código PIX"
+                                style={{ fontSize: 12, padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6, background: copiedId === c.id ? '#dcfce7' : '#fff', cursor: 'pointer', color: copiedId === c.id ? '#16a34a' : '#374151' }}>
+                          {copiedId === c.id ? '✓ Copiado' : 'PIX'}
+                        </button>
+                    )}
+                    {c.boletoUrl && (
+                        <a href={c.boletoUrl} target="_blank" rel="noreferrer"
+                           style={{ fontSize: 12, color: '#6b7280', textDecoration: 'none', padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                          Boleto
+                        </a>
+                    )}
+                  </div>
+                </div>
+            )
+          })}
+        </div>
+      </div>
+  )
 }
