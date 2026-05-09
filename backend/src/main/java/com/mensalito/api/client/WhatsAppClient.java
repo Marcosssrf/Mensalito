@@ -17,11 +17,19 @@ public class WhatsAppClient {
     private final EvolutionConfig config;
     private final RestClient restClient = RestClient.create();
 
-    public void sendText(String phone, String message) {
+    /**
+     * Envia mensagem usando a instância específica do tenant.
+     * Cada escola tem sua própria instância no Evolution e só envia para seus alunos.
+     */
+    public void sendText(String instanceName, String phone, String message) {
+        if (instanceName == null || instanceName.isBlank()) {
+            log.warn("WhatsApp não enviado para {}: instanceName do tenant está vazio", phone);
+            return;
+        }
         try {
             String normalized = normalizePhone(phone);
             restClient.post()
-                    .uri(config.getApiUrl() + "/message/sendText/" + config.getInstance())
+                    .uri(config.getApiUrl() + "/message/sendText/" + instanceName)
                     .header("apikey", config.getApiKey())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of(
@@ -31,9 +39,9 @@ public class WhatsAppClient {
                     .retrieve()
                     .toBodilessEntity();
 
-            log.info("WhatsApp enviado para {}", normalized);
+            log.info("WhatsApp enviado via instância '{}' para {}", instanceName, normalized);
         } catch (Exception e) {
-            log.error("Erro ao enviar WhatsApp para {}: {}", phone, e.getMessage());
+            log.error("Erro ao enviar WhatsApp via instância '{}' para {}: {}", instanceName, phone, e.getMessage());
         }
     }
 

@@ -1,10 +1,15 @@
 import {useEffect, useState} from 'react'
-import {MoreHorizontal, Plus} from 'lucide-react'
 import api from '@/services/api'
 import type {Plan} from '@/types'
 
 function formatCurrency(val: number) {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb',
+    borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none',
+    boxSizing: 'border-box', background: '#fff',
 }
 
 type ModalState = { open: false } | { open: true; plan: Partial<Plan> }
@@ -47,36 +52,24 @@ export default function PlansPage() {
         if (!modal.plan.dueDay || modal.plan.dueDay < 1 || modal.plan.dueDay > 28) {
             setError('Dia de vencimento deve ser entre 1 e 28'); return
         }
-
-        // Backend espera BigDecimal (ex: 299.90), não centavos
-        const payload = {
-            name: modal.plan.name,
-            amount: amountVal,
-            dueDay: modal.plan.dueDay,
-        }
-
+        const payload = { name: modal.plan.name, amount: amountVal, dueDay: modal.plan.dueDay }
         setSaving(true); setError('')
         try {
             if (modal.plan.id) {
-                // PATCH /api/plans/{id}
                 const res = await api.patch<Plan>(`/plans/${modal.plan.id}`, payload)
                 setPlans(prev => prev.map(p => p.id === modal.plan.id ? res.data : p))
             } else {
-                // POST /api/plans
                 const res = await api.post<Plan>('/plans', payload)
                 setPlans(prev => [...prev, res.data])
             }
             setModal({ open: false })
         } catch (e: any) {
             setError(e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao salvar plano')
-        } finally {
-            setSaving(false)
-        }
+        } finally { setSaving(false) }
     }
 
     async function deactivate(plan: Plan) {
         try {
-            // PATCH /api/plans/{id}/deactivate
             const res = await api.patch<Plan>(`/plans/${plan.id}/deactivate`)
             setPlans(prev => prev.map(p => p.id === plan.id ? res.data : p))
         } catch (e: any) {
@@ -84,99 +77,146 @@ export default function PlansPage() {
         }
     }
 
+    const activePlans = plans.filter(p => p.active)
+    const inactivePlans = plans.filter(p => !p.active)
+
     return (
-        <div className="space-y-5" style={{ fontFamily: "'Geist', 'Inter', sans-serif" }}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
                 <div>
-                    <h1 className="text-lg font-semibold text-zinc-900">Planos</h1>
-                    <p className="text-sm text-zinc-400 mt-0.5">{plans.filter(p => p.active).length} ativos</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>PLANOS</p>
+                    <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Planos</h1>
+                    <p style={{ fontSize: 14, color: '#6b7280' }}>{activePlans.length} ativo{activePlans.length !== 1 ? 's' : ''}</p>
                 </div>
                 <button
                     onClick={openNew}
-                    className="inline-flex items-center gap-2 bg-zinc-900 text-white text-sm px-4 py-2 rounded-md hover:bg-zinc-700 transition-colors self-start sm:self-auto"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#111827', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}
                 >
-                    <Plus size={14} /> Novo plano
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Novo plano
                 </button>
             </div>
 
+            {/* Grid de planos */}
             {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-32 bg-zinc-100 rounded-lg animate-pulse" />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                    {[1, 2, 3].map(i => (
+                        <div key={i} style={{ height: 140, background: '#f3f4f6', borderRadius: 12, animation: 'pulse 1.5s ease-in-out infinite' }} />
                     ))}
                 </div>
             ) : plans.length === 0 ? (
-                <div className="text-center py-12 text-sm text-zinc-400">Nenhum plano criado</div>
+                <div style={{ textAlign: 'center', padding: '80px 0', color: '#9ca3af', fontSize: 14 }}>
+                    <svg width="40" height="40" fill="none" stroke="#d1d5db" strokeWidth="1.5" viewBox="0 0 24 24" style={{ margin: '0 auto 12px', display: 'block' }}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                    </svg>
+                    Nenhum plano criado ainda
+                    <br />
+                    <button onClick={openNew} style={{ marginTop: 16, padding: '8px 20px', background: '#111827', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                        Criar primeiro plano
+                    </button>
+                </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {plans.map(plan => (
-                        <div
-                            key={plan.id}
-                            className={`border rounded-lg p-5 flex flex-col gap-3 ${plan.active ? 'border-zinc-100 bg-white' : 'border-zinc-100 bg-zinc-50 opacity-60'}`}
-                        >
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs text-zinc-400 mb-1">{plan.active ? 'Ativo' : 'Inativo'}</p>
-                                    <p className="text-sm font-semibold text-zinc-900">{plan.name}</p>
+                <>
+                    {/* Ativos */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                        {activePlans.map(plan => (
+                            <div key={plan.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981', background: '#ecfdf5', padding: '2px 8px', borderRadius: 20, letterSpacing: '0.04em' }}>ATIVO</span>
+                                        <p style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginTop: 8 }}>{plan.name}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => openEdit(plan)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4, borderRadius: 6, lineHeight: 0 }}
+                                        title="Editar"
+                                    >
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                                    </button>
                                 </div>
-                                <button onClick={() => openEdit(plan)} className="text-zinc-300 hover:text-zinc-600 transition-colors">
-                                    <MoreHorizontal size={16} />
-                                </button>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-semibold tracking-tight text-zinc-900">
-                                    {formatCurrency(plan.amount)}
-                                    <span className="text-sm font-normal text-zinc-400 ml-1">/mês</span>
-                                </p>
-                                <p className="text-xs text-zinc-400 mt-1">Vencimento: dia {plan.dueDay}</p>
-                            </div>
-                            {plan.active && (
+
+                                <div>
+                                    <p style={{ fontSize: 26, fontWeight: 700, color: '#111827', letterSpacing: '-0.5px', margin: 0 }}>
+                                        {formatCurrency(plan.amount)}
+                                        <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>/mês</span>
+                                    </p>
+                                    <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Vencimento: dia {plan.dueDay}</p>
+                                </div>
+
                                 <button
                                     onClick={() => deactivate(plan)}
-                                    className="text-xs text-zinc-400 hover:text-red-500 transition-colors text-left"
+                                    style={{ fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: 'auto' }}
+                                    onMouseOver={e => (e.currentTarget.style.color = '#ef4444')}
+                                    onMouseOut={e => (e.currentTarget.style.color = '#9ca3af')}
                                 >
                                     Desativar
                                 </button>
-                            )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Inativos */}
+                    {inactivePlans.length > 0 && (
+                        <div style={{ marginTop: 32 }}>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 12 }}>INATIVOS</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                                {inactivePlans.map(plan => (
+                                    <div key={plan.id} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, opacity: 0.7 }}>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 8 }}>INATIVO</p>
+                                        <p style={{ fontSize: 15, fontWeight: 600, color: '#374151' }}>{plan.name}</p>
+                                        <p style={{ fontSize: 22, fontWeight: 700, color: '#374151', margin: '8px 0 4px' }}>
+                                            {formatCurrency(plan.amount)}
+                                            <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>/mês</span>
+                                        </p>
+                                        <p style={{ fontSize: 12, color: '#9ca3af' }}>Vencimento: dia {plan.dueDay}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    ))}
-                </div>
+                    )}
+                </>
             )}
 
+            {/* Modal */}
             {modal.open && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/20">
-                    <div className="bg-white rounded-xl w-full max-w-sm shadow-xl">
-                        <div className="p-5 border-b border-zinc-100">
-                            <h2 className="text-sm font-semibold text-zinc-900">
-                                {modal.plan.id ? 'Editar plano' : 'Novo plano'}
-                            </h2>
-                        </div>
-                        <div className="p-5 space-y-3">
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 rounded-md px-3 py-2 text-xs text-red-600">
-                                    {error}
-                                </div>
-                            )}
-                            <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Nome *</label>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 24 }}>
+                            {modal.plan.id ? 'Editar plano' : 'Novo plano'}
+                        </h2>
+
+                        {error && (
+                            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>
+                                {error}
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div>
+                                <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Nome *</label>
                                 <input
                                     value={modal.plan.name || ''}
                                     onChange={e => setModal(m => m.open ? { ...m, plan: { ...m.plan, name: e.target.value } } : m)}
-                                    placeholder="Ex: Básico"
-                                    className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors"
+                                    placeholder="Ex: Básico, Intermediário..."
+                                    style={inputStyle}
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Valor (R$) *</label>
+
+                            <div>
+                                <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Valor (R$) *</label>
                                 <input
                                     value={formAmount}
                                     onChange={e => setFormAmount(e.target.value)}
                                     placeholder="299,90"
-                                    className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors"
+                                    style={inputStyle}
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Dia de vencimento (1–28) *</label>
+
+                            <div>
+                                <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Dia de vencimento (1–28) *</label>
                                 <input
                                     type="number"
                                     min={1}
@@ -184,15 +224,23 @@ export default function PlansPage() {
                                     value={modal.plan.dueDay || ''}
                                     onChange={e => setModal(m => m.open ? { ...m, plan: { ...m.plan, dueDay: Number(e.target.value) } } : m)}
                                     placeholder="10"
-                                    className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors"
+                                    style={{ ...inputStyle, width: 120 }}
                                 />
                             </div>
                         </div>
-                        <div className="p-5 border-t border-zinc-100 flex gap-2">
-                            <button onClick={() => setModal({ open: false })} className="flex-1 border border-zinc-200 text-sm py-2 rounded-md hover:bg-zinc-50 transition-colors">
+
+                        <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+                            <button
+                                onClick={() => setModal({ open: false })}
+                                style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}
+                            >
                                 Cancelar
                             </button>
-                            <button onClick={handleSave} disabled={saving} className="flex-1 bg-zinc-900 text-white text-sm py-2 rounded-md hover:bg-zinc-700 transition-colors disabled:opacity-40">
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600, opacity: saving ? 0.6 : 1 }}
+                            >
                                 {saving ? 'Salvando...' : 'Salvar'}
                             </button>
                         </div>

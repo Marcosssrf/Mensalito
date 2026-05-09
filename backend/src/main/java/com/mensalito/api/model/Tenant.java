@@ -40,6 +40,9 @@ public class Tenant {
     @Column
     private String abacatePayApiKey;
 
+    @Column
+    private String evolutionInstanceName;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

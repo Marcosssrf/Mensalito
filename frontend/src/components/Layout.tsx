@@ -1,43 +1,121 @@
 import {NavLink, Outlet, useNavigate} from 'react-router-dom'
 import {useAuth} from '@/contexts/AuthContext'
 import {useEffect, useRef, useState} from 'react'
+import api from '@/services/api'
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
 }
 
 const NAV = [
-  { to: '/app/dashboard', label: 'Visão geral', icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
-  { to: '/app/students',  label: 'Alunos',      icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { to: '/app/charges',   label: 'Cobranças',   icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> },
-  { to: '/app/classes',   label: 'Turmas',      icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg> },
-  { to: '/app/settings',  label: 'Configurações', icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+  { to: '/app/dashboard',   label: 'Visão geral',  icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
+  { to: '/app/students',    label: 'Alunos',       icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+  { to: '/app/plans',       label: 'Planos',       icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg> },
+  { to: '/app/enrollments', label: 'Matrículas',   icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16,11 18,13 22,9"/></svg> },
+  { to: '/app/charges',     label: 'Cobranças',    icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> },
+  { to: '/app/classes',     label: 'Turmas',       icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg> },
+  { to: '/app/settings',    label: 'Configurações', icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
 ]
 
 function WABadge() {
-  const [connected, setConnected] = useState<boolean | null>(null)
-  const [instance, setInstance] = useState('')
+  const [status, setStatus] = useState<'loading' | 'connected' | 'disconnected'>('loading')
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null)
+  const [instanceName, setInstanceName] = useState<string | null>(null)
+  const { user } = useAuth()
+
   useEffect(() => {
-    const url = localStorage.getItem('evo_url')
-    const key = localStorage.getItem('evo_key')
-    const inst = localStorage.getItem('evo_instance') ?? ''
-    setInstance(inst)
-    if (!url || !key || !inst) { setConnected(false); return }
-    fetch(`${url}/instance/connectionState/${inst}`, { headers: { apikey: key } })
-      .then(r => r.json())
-      .then(d => setConnected(d?.instance?.state === 'open' || d?.state === 'open'))
-      .catch(() => setConnected(false))
-  }, [])
-  if (connected === null) return null
+    if (!user) return
+    api.get<{ connected: boolean; instanceName: string | null; qrCodeBase64: string | null; phoneNumber: string | null }>('/tenants/me/whatsapp')
+      .then(r => {
+        if (r.data.connected) {
+          setStatus('connected')
+          setPhoneNumber(r.data.phoneNumber ?? null)
+          setInstanceName(r.data.instanceName ?? null)
+        } else {
+          setStatus('disconnected')
+        }
+      })
+      .catch(() => setStatus('disconnected'))
+  }, [user])
+
+  const connected = status === 'connected'
+
+  // Mostra número formatado, ou instanceName como fallback, ou "Conectado"
+  const connectedLabel = phoneNumber ?? instanceName ?? 'Conectado'
+
   return (
-    <div style={{ margin: '8px 10px 4px', padding: '10px 12px', borderRadius: 8, background: connected ? '#ecfdf5' : '#f9fafb', border: `1px solid ${connected ? '#a7f3d0' : '#e5e7eb'}` }}>
+    <div style={{
+      margin: '4px 10px',
+      padding: '10px 12px',
+      borderRadius: 8,
+      background: connected ? '#ecfdf5' : '#f9fafb',
+      border: `1px solid ${connected ? '#a7f3d0' : '#e5e7eb'}`,
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: connected ? '#10b981' : '#d1d5db' }} />
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: status === 'loading' ? '#fcd34d' : connected ? '#10b981' : '#d1d5db',
+          flexShrink: 0,
+        }} />
         <span style={{ fontSize: 12, fontWeight: 600, color: connected ? '#065f46' : '#9ca3af' }}>
-          {connected ? 'WhatsApp conectado' : 'WhatsApp desconectado'}
+          WhatsApp
         </span>
       </div>
-      {connected && instance && <p style={{ fontSize: 11, color: '#6b7280', margin: '3px 0 0 14px' }}>{instance}</p>}
+      <p style={{ fontSize: 11, margin: '3px 0 0 14px', color: '#6b7280' }}>
+        {status === 'loading' && 'Verificando...'}
+        {status === 'disconnected' && 'Desconectado'}
+        {status === 'connected' && connectedLabel}
+      </p>
+    </div>
+  )
+}
+
+function AbacateBadge() {
+  const [configured, setConfigured] = useState<boolean | null>(null)
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (!user) return
+    // Try to get the real status from the API
+    api.get<{ hasAbacatePayKey?: boolean }>(`/tenants/${user.tenantId}`)
+      .then(r => {
+        if (r.data.hasAbacatePayKey !== undefined) {
+          const val = r.data.hasAbacatePayKey
+          setConfigured(val)
+          localStorage.setItem('abacate_configured', val ? '1' : '0')
+        } else {
+          // fallback to localStorage if backend doesn't return the field yet
+          setConfigured(localStorage.getItem('abacate_configured') === '1')
+        }
+      })
+      .catch(() => {
+        setConfigured(localStorage.getItem('abacate_configured') === '1')
+      })
+  }, [user])
+
+  if (configured === null) return null
+
+  return (
+    <div style={{
+      margin: '4px 10px',
+      padding: '10px 12px',
+      borderRadius: 8,
+      background: configured ? '#ecfdf5' : '#f9fafb',
+      border: `1px solid ${configured ? '#a7f3d0' : '#e5e7eb'}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: configured ? '#10b981' : '#d1d5db',
+          flexShrink: 0,
+        }} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: configured ? '#065f46' : '#9ca3af' }}>
+          AbacatePay
+        </span>
+      </div>
+      <p style={{ fontSize: 11, margin: '3px 0 0 14px', color: '#6b7280' }}>
+        {configured ? 'Configurado' : 'Não configurado'}
+      </p>
     </div>
   )
 }
@@ -101,6 +179,7 @@ export default function Layout() {
           ))}
           <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', padding: '0 10px', margin: '16px 0 8px' }}>STATUS</p>
           <WABadge />
+          <AbacateBadge />
         </nav>
       </aside>
       <div style={{ marginLeft: 220, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

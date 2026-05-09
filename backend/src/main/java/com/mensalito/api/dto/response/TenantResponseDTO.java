@@ -10,7 +10,8 @@ public record TenantResponseDTO(
         String phone,
         String document,
         Boolean active,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Boolean hasAbacatePayKey
 
 ) {
 }

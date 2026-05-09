@@ -1,5 +1,5 @@
-import {useEffect, useState} from 'react'
-import {CheckCircle, Plus, Search, XCircle} from 'lucide-react'
+import {useEffect, useRef, useState} from 'react'
+import {CheckCircle, ChevronDown, Plus, Search, X, XCircle} from 'lucide-react'
 import api from '@/services/api'
 import type {Enrollment} from '@/types'
 
@@ -18,6 +18,144 @@ function formatDate(d: string) {
 
 function today() {
     return new Date().toISOString().split('T')[0]
+}
+
+interface ComboboxOption { id: string; label: string; sublabel?: string }
+
+function Combobox({
+    label,
+    placeholder,
+    options,
+    value,
+    onChange,
+}: {
+    label: string
+    placeholder: string
+    options: ComboboxOption[]
+    value: string
+    onChange: (id: string) => void
+}) {
+    const [query, setQuery] = useState('')
+    const [open, setOpen] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    const selected = options.find(o => o.id === value)
+
+    const filtered = query.trim() === ''
+        ? options
+        : options.filter(o =>
+            o.label.toLowerCase().includes(query.toLowerCase()) ||
+            (o.sublabel ?? '').toLowerCase().includes(query.toLowerCase())
+        )
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false)
+                setQuery('')
+            }
+        }
+        document.addEventListener('mousedown', handler)
+        return () => document.removeEventListener('mousedown', handler)
+    }, [])
+
+    function handleSelect(id: string) {
+        onChange(id)
+        setQuery('')
+        setOpen(false)
+    }
+
+    function handleClear(e: React.MouseEvent) {
+        e.stopPropagation()
+        onChange('')
+        setQuery('')
+        setOpen(false)
+    }
+
+    function handleOpen() {
+        setOpen(true)
+        setQuery('')
+        setTimeout(() => inputRef.current?.focus(), 0)
+    }
+
+    return (
+        <div className="space-y-1" ref={ref}>
+            <label className="text-xs text-zinc-500">{label} *</label>
+            <div className="relative">
+                {/* Trigger / input */}
+                {open ? (
+                    <div className="flex items-center gap-2 w-full border border-zinc-400 rounded-md px-3 py-2 bg-white">
+                        <Search size={13} className="text-zinc-400 shrink-0" />
+                        <input
+                            ref={inputRef}
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            placeholder={`Buscar ${placeholder.toLowerCase()}...`}
+                            className="flex-1 text-sm outline-none bg-transparent text-zinc-900 placeholder:text-zinc-400"
+                        />
+                        {query && (
+                            <button onClick={() => setQuery('')} className="text-zinc-300 hover:text-zinc-500">
+                                <X size={13} />
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={handleOpen}
+                        className="flex items-center justify-between w-full border border-zinc-200 rounded-md px-3 py-2 bg-white text-sm hover:border-zinc-400 transition-colors text-left"
+                    >
+                        {selected ? (
+                            <span className="text-zinc-900 truncate">{selected.label}</span>
+                        ) : (
+                            <span className="text-zinc-400">{placeholder}</span>
+                        )}
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                            {selected && (
+                                <span
+                                    role="button"
+                                    onClick={handleClear}
+                                    className="text-zinc-300 hover:text-zinc-500 p-0.5 rounded"
+                                >
+                                    <X size={12} />
+                                </span>
+                            )}
+                            <ChevronDown size={13} className="text-zinc-400" />
+                        </div>
+                    </button>
+                )}
+
+                {/* Dropdown */}
+                {open && (
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-zinc-200 rounded-lg shadow-lg overflow-hidden">
+                        <div className="max-h-48 overflow-y-auto">
+                            {filtered.length === 0 ? (
+                                <p className="px-3 py-3 text-xs text-zinc-400 text-center">Nenhum resultado</p>
+                            ) : filtered.map(o => (
+                                <button
+                                    key={o.id}
+                                    type="button"
+                                    onClick={() => handleSelect(o.id)}
+                                    className={`w-full text-left px-3 py-2.5 hover:bg-zinc-50 transition-colors flex items-center justify-between gap-2 ${o.id === value ? 'bg-zinc-50' : ''}`}
+                                >
+                                    <span className="text-sm text-zinc-900 truncate">{o.label}</span>
+                                    {o.sublabel && (
+                                        <span className="text-xs text-zinc-400 shrink-0">{o.sublabel}</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        {options.length > 8 && (
+                            <div className="border-t border-zinc-100 px-3 py-1.5">
+                                <p className="text-xs text-zinc-400">{filtered.length} de {options.length} resultados</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
 }
 
 function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -58,7 +196,6 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
 
         setSaving(true); setError('')
         try {
-            // POST /api/enrollments → EnrollmentRequestDTO { studentId, classId, planId, startDate }
             await api.post('/enrollments', form)
             onCreated(); onClose()
         } catch (e: any) {
@@ -68,6 +205,14 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
 
     const selectedPlan = plans.find(p => p.id === form.planId)
 
+    const studentOptions: ComboboxOption[] = students.map(s => ({ id: s.id, label: s.name }))
+    const classOptions: ComboboxOption[] = classes.map(c => ({ id: c.id, label: c.name }))
+    const planOptions: ComboboxOption[] = plans.map(p => ({
+        id: p.id,
+        label: p.name,
+        sublabel: `${formatCurrency(p.amount)}/mês`,
+    }))
+
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/20">
             <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
@@ -76,7 +221,7 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
                     <p className="text-xs text-zinc-400 mt-0.5">Vincule um aluno a uma turma e plano.</p>
                 </div>
 
-                <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+                <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-md px-3 py-2 text-xs text-red-600">
                             {error}
@@ -87,47 +232,29 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
                         <p className="text-sm text-zinc-400 text-center py-4">Carregando dados...</p>
                     ) : (
                         <>
-                            <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Aluno *</label>
-                                <select
-                                    value={form.studentId}
-                                    onChange={e => setForm(f => ({ ...f, studentId: e.target.value }))}
-                                    className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors bg-white"
-                                >
-                                    <option value="">Selecione um aluno...</option>
-                                    {students.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <Combobox
+                                label="Aluno"
+                                placeholder="Selecione um aluno..."
+                                options={studentOptions}
+                                value={form.studentId}
+                                onChange={id => setForm(f => ({ ...f, studentId: id }))}
+                            />
 
-                            <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Turma *</label>
-                                <select
-                                    value={form.classId}
-                                    onChange={e => setForm(f => ({ ...f, classId: e.target.value }))}
-                                    className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors bg-white"
-                                >
-                                    <option value="">Selecione uma turma...</option>
-                                    {classes.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <Combobox
+                                label="Turma"
+                                placeholder="Selecione uma turma..."
+                                options={classOptions}
+                                value={form.classId}
+                                onChange={id => setForm(f => ({ ...f, classId: id }))}
+                            />
 
-                            <div className="space-y-1">
-                                <label className="text-xs text-zinc-500">Plano *</label>
-                                <select
-                                    value={form.planId}
-                                    onChange={e => setForm(f => ({ ...f, planId: e.target.value }))}
-                                    className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors bg-white"
-                                >
-                                    <option value="">Selecione um plano...</option>
-                                    {plans.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.amount)}/mês</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <Combobox
+                                label="Plano"
+                                placeholder="Selecione um plano..."
+                                options={planOptions}
+                                value={form.planId}
+                                onChange={id => setForm(f => ({ ...f, planId: id }))}
+                            />
 
                             <div className="space-y-1">
                                 <label className="text-xs text-zinc-500">Data de início *</label>
@@ -198,7 +325,8 @@ export default function EnrollmentsPage() {
     )
 
     return (
-        <div className="space-y-5" style={{ fontFamily: "'Geist', 'Inter', sans-serif" }}>
+        <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto', fontFamily: "'Geist', 'Inter', sans-serif" }}>
+        <div className="space-y-5">
             {showModal && <NewEnrollmentModal onClose={() => setShowModal(false)} onCreated={load} />}
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -303,6 +431,7 @@ export default function EnrollmentsPage() {
                     </div>
                 ))}
             </div>
+        </div>
         </div>
     )
 }

@@ -1,17 +1,21 @@
 package com.mensalito.api.service;
 
+import com.mensalito.api.client.EvolutionInstanceClient;
 import com.mensalito.api.dto.request.TenantRequestDTO;
 import com.mensalito.api.dto.response.TenantResponseDTO;
+import com.mensalito.api.dto.response.WhatsAppStatusResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TenantService {
@@ -19,6 +23,7 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final EncryptionService encryptionService;
+    private final EvolutionInstanceClient evolutionInstanceClient;
 
     public TenantResponseDTO create(TenantRequestDTO dto) {
         Tenant tenant = Tenant.builder()
@@ -29,6 +34,16 @@ public class TenantService {
                 .build();
 
         Tenant saved = tenantRepository.save(tenant);
+
+        try {
+            String instanceName = evolutionInstanceClient.createInstance(dto.name());
+            saved.setEvolutionInstanceName(instanceName);
+            saved = tenantRepository.save(saved);
+            log.info("Instância Evolution '{}' associada ao tenant {}", instanceName, saved.getId());
+        } catch (Exception e) {
+            log.error("Falha ao criar instância Evolution para tenant {}: {}", saved.getId(), e.getMessage());
+        }
+
         return toResponse(saved);
     }
 
@@ -67,6 +82,106 @@ public class TenantService {
         tenantRepository.save(tenant);
     }
 
+    public WhatsAppStatusResponseDTO reprovisionWhatsApp() {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
+        log.info("[TenantService] Re-provisionando instância Evolution para tenant '{}' ({})", tenant.getName(), tenantId);
+
+        try {
+            String instanceName = evolutionInstanceClient.createInstance(tenant.getName());
+            tenant.setEvolutionInstanceName(instanceName);
+            tenantRepository.save(tenant);
+            log.info("[TenantService] Instância '{}' re-provisionada para tenant {}", instanceName, tenantId);
+
+            var conn = evolutionInstanceClient.checkConnection(instanceName);
+            if (conn.connected()) {
+                String phoneNumber = extractPhone(conn.ownerJid(), instanceName);
+                return new WhatsAppStatusResponseDTO(true, instanceName, null, phoneNumber);
+            }
+            String qrCode = evolutionInstanceClient.getQrCode(instanceName);
+            return new WhatsAppStatusResponseDTO(false, instanceName, qrCode, null);
+
+        } catch (Exception e) {
+            log.error("[TenantService] Falha ao re-provisionar Evolution para tenant {}: {}", tenantId, e.getMessage());
+            throw new RuntimeException("Falha ao criar instância WhatsApp: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Retorna o status da conexão WhatsApp do tenant autenticado.
+     * Nunca lança exceção — erros de comunicação com a Evolution retornam
+     * connected=false e qrCodeBase64=null, que o front trata exibindo mensagem amigável.
+     */
+    public WhatsAppStatusResponseDTO getWhatsAppStatus() {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
+        String instanceName = tenant.getEvolutionInstanceName();
+
+        // Se não tem instância ainda, tenta criar
+        if (instanceName == null || instanceName.isBlank()) {
+            try {
+                instanceName = evolutionInstanceClient.createInstance(tenant.getName());
+                tenant.setEvolutionInstanceName(instanceName);
+                tenantRepository.save(tenant);
+            } catch (Exception e) {
+                log.error("Erro ao criar instância Evolution tardiamente para tenant {}: {}", tenantId, e.getMessage());
+                return new WhatsAppStatusResponseDTO(false, null, null, null);
+            }
+        }
+
+        // Verifica conexão e obtém ownerJid numa única chamada
+        EvolutionInstanceClient.ConnectionResult conn = null;
+        try {
+            conn = evolutionInstanceClient.checkConnection(instanceName);
+        } catch (Exception e) {
+            log.warn("[TenantService] Erro ao verificar conexão de '{}': {}", instanceName, e.getMessage());
+        }
+
+        if (conn != null && conn.connected()) {
+            String phoneNumber = extractPhone(conn.ownerJid(), instanceName);
+            return new WhatsAppStatusResponseDTO(true, instanceName, null, phoneNumber);
+        }
+
+        // Busca QR Code — nunca deixa estourar
+        String qrCode = null;
+        try {
+            qrCode = evolutionInstanceClient.getQrCode(instanceName);
+        } catch (Exception e) {
+            log.warn("[TenantService] Erro ao buscar QR Code de '{}': {}", instanceName, e.getMessage());
+        }
+
+        return new WhatsAppStatusResponseDTO(false, instanceName, qrCode, null);
+    }
+
+    /**
+     * Extrai e formata o número de telefone a partir do ownerJid.
+     * Se ownerJid estiver nulo, tenta via fetchInstances como fallback.
+     */
+    private String extractPhone(String ownerJid, String instanceName) {
+        if (ownerJid != null && !ownerJid.isBlank()) {
+            String formatted = evolutionInstanceClient.formatOwnerJid(ownerJid);
+            if (formatted != null) {
+                log.info("[TenantService] Número extraído do connectionState para '{}': {}", instanceName, formatted);
+                return formatted;
+            }
+        }
+        // Fallback: tenta fetchInstances
+        try {
+            String phone = evolutionInstanceClient.getPhoneNumber(instanceName);
+            if (phone != null) {
+                log.info("[TenantService] Número extraído via fetchInstances para '{}': {}", instanceName, phone);
+            }
+            return phone;
+        } catch (Exception e) {
+            log.warn("[TenantService] Fallback getPhoneNumber falhou para '{}': {}", instanceName, e.getMessage());
+            return null;
+        }
+    }
+
     private TenantResponseDTO toResponse(Tenant tenant) {
         return new TenantResponseDTO(
                 tenant.getId(),
@@ -75,7 +190,8 @@ public class TenantService {
                 tenant.getPhone(),
                 tenant.getDocument(),
                 tenant.getActive(),
-                tenant.getCreatedAt()
+                tenant.getCreatedAt(),
+                tenant.getAbacatePayApiKey() != null && !tenant.getAbacatePayApiKey().isBlank()
         );
     }
 }

@@ -7,6 +7,7 @@ import com.mensalito.api.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -23,7 +25,17 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<LoginResponseDTO> register(@RequestBody @Valid RegisterRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(dto));
+        // 1. Cadastra tenant + user em transação própria
+        LoginResponseDTO response = authService.register(dto);
+
+        // 2. Provisiona instância Evolution APÓS o commit — falha aqui NÃO afeta o cadastro
+        try {
+            authService.provisionEvolutionInstanceAfterRegister(response.tenantId(), dto.schoolName());
+        } catch (Exception e) {
+            log.warn("[AuthController] Falha ao provisionar Evolution (não bloqueia cadastro): {}", e.getMessage());
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
@@ -41,9 +53,6 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Retorna quantas tentativas ainda restam para o IP atual.
-     */
     @GetMapping("/login-attempts")
     public ResponseEntity<Map<String, Long>> getLoginAttempts(HttpServletRequest request) {
         String clientIp = getClientIp(request);
@@ -51,9 +60,6 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("remainingAttempts", remaining));
     }
 
-    /**
-     * Desbloqueia um IP específico. Requer token de OWNER.
-     */
     @DeleteMapping("/login-attempts/{ip}")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<Void> unlockIp(@PathVariable String ip) {
@@ -61,14 +67,6 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Desbloqueia o próprio IP sem precisar de token.
-     * Protegido por um segredo de admin definido em ADMIN_SECRET no .env.
-     * Útil quando você se bloqueou e não tem token disponível.
-     *
-     * Exemplo: POST /api/auth/unlock
-     * Body: { "secret": "meu-segredo-admin" }
-     */
     @PostMapping("/unlock")
     public ResponseEntity<Void> unlockMe(
             @RequestBody Map<String, String> body,

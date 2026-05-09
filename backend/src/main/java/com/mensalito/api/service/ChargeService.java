@@ -278,14 +278,26 @@ public class ChargeService {
             log.warn("Aluno {} sem telefone, WhatsApp não enviado", student.getId());
             return;
         }
-        whatsAppClient.sendText(student.getPhone(), messageBuilder.buildChargeNotification(charge));
+        String instanceName = charge.getTenant().getEvolutionInstanceName();
+        if (instanceName == null || instanceName.isBlank()) {
+            log.warn("Tenant {} sem instância Evolution configurada, WhatsApp não enviado para aluno {}",
+                    charge.getTenant().getId(), student.getId());
+            return;
+        }
+        whatsAppClient.sendText(instanceName, student.getPhone(), messageBuilder.buildChargeNotification(charge));
     }
 
     private void sendReminderNotification(Charge charge, int daysOverdue) {
         Student student = charge.getEnrollment().getStudent();
         if (student.getPhone() == null) return;
-        whatsAppClient.sendText(student.getPhone(), messageBuilder.buildReminderNotification(charge, daysOverdue));
-        log.info("Lembrete D+{} enviado para {}", daysOverdue, student.getName());
+        String instanceName = charge.getTenant().getEvolutionInstanceName();
+        if (instanceName == null || instanceName.isBlank()) {
+            log.warn("Tenant {} sem instância Evolution — lembrete D+{} não enviado para {}",
+                    charge.getTenant().getId(), daysOverdue, student.getName());
+            return;
+        }
+        whatsAppClient.sendText(instanceName, student.getPhone(), messageBuilder.buildReminderNotification(charge, daysOverdue));
+        log.info("Lembrete D+{} enviado para {} via instância '{}'", daysOverdue, student.getName(), instanceName);
     }
 
     public void sendOverdueReminders() {

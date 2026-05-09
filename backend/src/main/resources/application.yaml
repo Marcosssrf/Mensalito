@@ -41,7 +41,7 @@ encryption:
 evolution:
   api-url: ${EVOLUTION_API_URL}
   api-key: ${EVOLUTION_API_KEY}
-  instance: ${EVOLUTION_INSTANCE}
+  instance: ${EVOLUTION_INSTANCE:}
 
 app:
   frontend-url: ${FRONTEND_URL}

@@ -1,5 +1,6 @@
 package com.mensalito.api.service;
 
+import com.mensalito.api.client.EvolutionInstanceClient;
 import com.mensalito.api.dto.request.LoginRequestDTO;
 import com.mensalito.api.dto.request.RegisterRequestDTO;
 import com.mensalito.api.dto.response.LoginResponseDTO;
@@ -11,6 +12,7 @@ import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.repository.UserRepository;
 import com.mensalito.api.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,8 +23,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -37,6 +41,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final StringRedisTemplate redisTemplate;
+    private final EvolutionInstanceClient evolutionInstanceClient;
 
     @Value("${app.admin-secret}")
     private String adminSecret;
@@ -44,6 +49,10 @@ public class AuthService {
     @Transactional
     public LoginResponseDTO register(RegisterRequestDTO dto) {
         if (userRepository.existsByEmail(dto.email())) {
+            throw new IllegalArgumentException("Email já cadastrado");
+        }
+
+        if (tenantRepository.existsByEmail(dto.email())) {
             throw new IllegalArgumentException("Email já cadastrado");
         }
 
@@ -69,6 +78,20 @@ public class AuthService {
         return new LoginResponseDTO(token, user.getName(), tenant.getId(), user.getRole());
     }
 
+    public void provisionEvolutionInstanceAfterRegister(UUID tenantId, String schoolName) {
+        try {
+            String instanceName = evolutionInstanceClient.createInstance(schoolName);
+            Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
+            if (tenant != null) {
+                tenant.setEvolutionInstanceName(instanceName);
+                tenantRepository.save(tenant);
+                log.info("[AuthService] Instância Evolution '{}' provisionada para tenant {}", instanceName, tenantId);
+            }
+        } catch (Exception e) {
+            log.error("[AuthService] Falha ao provisionar Evolution para tenant {}: {}", tenantId, e.getMessage());
+        }
+    }
+
     public LoginResponseDTO login(LoginRequestDTO dto, String clientIp) {
         checkRateLimit(clientIp);
 
@@ -77,7 +100,6 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(dto.email(), dto.password())
             );
 
-            // login bem-sucedido — limpa as tentativas
             redisTemplate.delete(LOGIN_ATTEMPTS_PREFIX + clientIp);
 
             User user = (User) auth.getPrincipal();
@@ -93,7 +115,6 @@ public class AuthService {
     public void logout(String token) {
         jwtService.invalidateToken(token);
     }
-
 
     public void unlockIpWithSecret(String ip, String secret) {
         if (!adminSecret.equals(secret)) {
@@ -113,6 +134,7 @@ public class AuthService {
         long used = Long.parseLong(attempts);
         return Math.max(0, MAX_ATTEMPTS - used);
     }
+
     private void checkRateLimit(String clientIp) {
         String key = LOGIN_ATTEMPTS_PREFIX + clientIp;
         String attempts = redisTemplate.opsForValue().get(key);

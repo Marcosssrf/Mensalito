@@ -3,6 +3,33 @@ import {Link, useNavigate} from 'react-router-dom'
 import {useAuth} from '@/contexts/AuthContext'
 import type {RegisterRequest} from '@/types'
 
+function maskDocument(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14)
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 10) {
+    return digits
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d{1,4})$/, '$1-$2')
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d{1,4})$/, '$1-$2')
+}
+
 export default function RegisterPage() {
   const [form, setForm] = useState<RegisterRequest>({
     name: '',
@@ -119,8 +146,9 @@ export default function RegisterPage() {
                 name="schoolPhone"
                 type="tel"
                 value={form.schoolPhone}
-                onChange={handleChange}
+                onChange={(e) => setForm(prev => ({ ...prev, schoolPhone: maskPhone(e.target.value) }))}
                 placeholder="(34) 99999-9999"
+                maxLength={15}
                 className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
               />
             </div>
@@ -133,8 +161,9 @@ export default function RegisterPage() {
                 name="schoolDocument"
                 type="text"
                 value={form.schoolDocument}
-                onChange={handleChange}
-                placeholder="Somente números"
+                onChange={(e) => setForm(prev => ({ ...prev, schoolDocument: maskDocument(e.target.value) }))}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                maxLength={18}
                 className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
               />
             </div>

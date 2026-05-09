@@ -2,6 +2,33 @@ import {useEffect, useRef, useState} from 'react'
 import {useAuth} from '@/contexts/AuthContext'
 import api from '@/services/api'
 
+function maskDocument(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14)
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 10) {
+    return digits
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d{1,4})$/, '$1-$2')
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d{1,4})$/, '$1-$2')
+}
+
 type Tab = 'Escola' | 'Conta' | 'Cobrança' | 'Integrações' | 'Convites' | 'Plano'
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -13,6 +40,7 @@ interface TenantData {
   document: string | null
   active: boolean
   createdAt: string
+  hasAbacatePayKey?: boolean
 }
 
 interface InviteResponse {
@@ -128,89 +156,113 @@ function AbacatePayModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 }
 
 // Modal WhatsApp — Evolution API
+// Modal WhatsApp — busca QR Code do backend (Evolution API gerenciada pelo servidor)
 function WhatsAppModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
-  const [url, setUrl] = useState(() => localStorage.getItem('evo_url') ?? '')
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('evo_key') ?? '')
-  const [instance, setInstance] = useState(() => localStorage.getItem('evo_instance') ?? '')
-  const [status, setStatus] = useState<'idle' | 'loading' | 'qr' | 'connected' | 'error'>('idle')
+  const [status, setStatus] = useState<'loading' | 'qr' | 'connected' | 'error'>('loading')
   const [qr, setQr] = useState<string | null>(null)
+  const [instanceName, setInstanceName] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+  useEffect(() => {
+    loadStatus()
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [])
 
-  const headers = { 'Content-Type': 'application/json', apikey: apiKey }
-
-  async function isConnected() {
+  async function loadStatus() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    setStatus('loading')
+    setErrorMsg('')
     try {
-      const r = await fetch(`${url}/instance/connectionState/${instance}`, { headers })
-      const d = await r.json()
-      return d?.instance?.state === 'open' || d?.state === 'open'
-    } catch { return false }
-  }
+      const res = await api.get<{ connected: boolean; instanceName: string | null; qrCodeBase64: string | null }>('/tenants/me/whatsapp')
+      const data = res.data
+      setInstanceName(data.instanceName)
 
-  function saveToStorage() {
-    localStorage.setItem('evo_url', url)
-    localStorage.setItem('evo_key', apiKey)
-    localStorage.setItem('evo_instance', instance)
-  }
+      if (data.connected) {
+        setStatus('connected')
+        onConnected()
+        return
+      }
 
-  async function connect() {
-    if (!url || !apiKey || !instance) { setErrorMsg('Preencha URL, chave e instância.'); setStatus('error'); return }
-    saveToStorage()
-    setStatus('loading'); setErrorMsg('')
-    if (await isConnected()) { setStatus('connected'); onConnected(); return }
-    try {
-      await fetch(`${url}/instance/create`, { method: 'POST', headers, body: JSON.stringify({ instanceName: instance, qrcode: true }) }).catch(() => {})
-      const r = await fetch(`${url}/instance/connect/${instance}`, { headers })
-      const d = await r.json()
-      const qrCode = d?.base64 || d?.qrcode?.base64 || d?.code
-      if (qrCode) {
-        setQr(qrCode); setStatus('qr')
+      if (data.qrCodeBase64) {
+        setQr(data.qrCodeBase64)
+        setStatus('qr')
+        // Polling a cada 4s para detectar quando o QR for escaneado
         pollRef.current = setInterval(async () => {
-          if (await isConnected()) { clearInterval(pollRef.current!); setStatus('connected'); onConnected() }
-        }, 3000)
-      } else { setErrorMsg('Não foi possível gerar o QR Code.'); setStatus('error') }
-    } catch { setErrorMsg('Erro de conexão com a Evolution API.'); setStatus('error') }
+          try {
+            const poll = await api.get<{ connected: boolean; instanceName: string | null; qrCodeBase64: string | null }>('/tenants/me/whatsapp')
+            if (poll.data.connected) {
+              clearInterval(pollRef.current!)
+              setStatus('connected')
+              onConnected()
+            } else if (poll.data.qrCodeBase64 && poll.data.qrCodeBase64 !== qr) {
+              setQr(poll.data.qrCodeBase64)
+            }
+          } catch { /* ignora erros de polling */ }
+        }, 4000)
+      } else {
+        setErrorMsg('Não foi possível gerar o QR Code. Verifique as configurações da Evolution API no servidor.')
+        setStatus('error')
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao conectar com o servidor.')
+      setStatus('error')
+    }
   }
 
   return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>WhatsApp · Evolution API</h2>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Configure sua instância para envio de mensagens automáticas.</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-            {[
-              { label: 'URL da Evolution API', value: url, setter: setUrl, placeholder: 'https://evo.suaempresa.com', type: 'text' },
-              { label: 'API Key', value: apiKey, setter: setApiKey, placeholder: '••••••••', type: 'password' },
-              { label: 'Nome da instância', value: instance, setter: setInstance, placeholder: 'mensalito', type: 'text' },
-            ].map(({ label, value, setter, placeholder, type }) => (
-                <div key={label}>
-                  <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>{label}</label>
-                  <input type={type} value={value} onChange={(e) => setter(e.target.value)} placeholder={placeholder} autoComplete="off" style={inputStyle} />
-                </div>
-            ))}
-          </div>
-          {status === 'error' && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{errorMsg}</div>}
-          {status === 'connected' && (
-              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#065f46' }}>WhatsApp conectado!</span>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>WhatsApp · Conectar</h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
+            Escaneie o QR Code com o WhatsApp para ativar o envio de mensagens automáticas da sua escola.
+          </p>
+
+          {status === 'loading' && (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 14 }}>
+                <div style={{ width: 36, height: 36, border: '3px solid #e5e7eb', borderTopColor: '#111827', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+                Carregando QR Code...
               </div>
           )}
+
+          {status === 'error' && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{errorMsg}</div>
+          )}
+
+          {status === 'connected' && (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 28 }}>✅</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#065f46' }}>WhatsApp conectado!</span>
+                {instanceName && <span style={{ fontSize: 12, color: '#6b7280' }}>Instância: {instanceName}</span>}
+              </div>
+          )}
+
           {status === 'qr' && qr && (
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <img src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`} alt="QR Code"
-                     style={{ width: 200, height: 200, border: '1px solid #e5e7eb', borderRadius: 8 }} />
-                <p style={{ fontSize: 13, color: '#6b7280', marginTop: 10 }}>Escaneie com o WhatsApp → Dispositivos conectados</p>
+                <img
+                    src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`}
+                    alt="QR Code WhatsApp"
+                    style={{ width: 220, height: 220, border: '1px solid #e5e7eb', borderRadius: 10, margin: '0 auto' }}
+                />
+                <p style={{ fontSize: 13, color: '#6b7280', marginTop: 10 }}>
+                  Abra o WhatsApp → <strong>Dispositivos conectados</strong> → Escanear QR Code
+                </p>
+                {instanceName && (
+                    <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                      Instância: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{instanceName}</code>
+                    </p>
+                )}
               </div>
           )}
+
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Fechar</button>
             {status !== 'connected' && (
-                <button onClick={connect} disabled={status === 'loading'}
-                        style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600 }}>
-                  {status === 'loading' ? 'Conectando...' : status === 'qr' ? 'Gerar novo QR' : 'Conectar'}
+                <button onClick={loadStatus} disabled={status === 'loading'}
+                        style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600, opacity: status === 'loading' ? 0.6 : 1 }}>
+                  {status === 'loading' ? 'Carregando...' : 'Atualizar QR Code'}
                 </button>
             )}
           </div>
@@ -443,6 +495,7 @@ export default function SettingsPage() {
 
   const [abacateConnected, setAbacateConnected] = useState(() => localStorage.getItem('abacate_configured') === '1')
   const [showAbacateModal, setShowAbacateModal] = useState(false)
+  const [showAbacateConfirm, setShowAbacateConfirm] = useState(false)
 
   const [waConnected, setWaConnected] = useState(false)
   const [showWaModal, setShowWaModal] = useState(false)
@@ -459,20 +512,22 @@ export default function SettingsPage() {
             document: r.data.document ?? '',
           })
           localStorage.setItem('tenantName', r.data.name ?? '')
+          // sync abacate status from API if the field is present
+          if (r.data.hasAbacatePayKey !== undefined) {
+            const configured = r.data.hasAbacatePayKey
+            setAbacateConnected(configured)
+            localStorage.setItem('abacate_configured', configured ? '1' : '0')
+          }
         })
         .catch(console.error)
   }, [user?.tenantId])
 
   useEffect(() => {
-    const url = localStorage.getItem('evo_url')
-    const key = localStorage.getItem('evo_key')
-    const inst = localStorage.getItem('evo_instance')
-    if (!url || !key || !inst) { setWaConnected(false); return }
-    fetch(`${url}/instance/connectionState/${inst}`, { headers: { apikey: key } })
-        .then((r) => r.json())
-        .then((d) => setWaConnected(d?.instance?.state === 'open' || d?.state === 'open'))
+    if (!user?.tenantId) return
+    api.get<{ connected: boolean; instanceName: string | null; qrCodeBase64: string | null }>('/tenants/me/whatsapp')
+        .then((r) => setWaConnected(r.data.connected))
         .catch(() => setWaConnected(false))
-  }, [showWaModal])
+  }, [showWaModal, user?.tenantId])
 
   async function saveSchool() {
     if (!user?.tenantId) return
@@ -490,7 +545,6 @@ export default function SettingsPage() {
     }
   }
 
-  const waInstance = localStorage.getItem('evo_instance') ?? undefined
   const isOwner = user?.role === 'OWNER'
   const tabs: Tab[] = isOwner
       ? ['Escola', 'Conta', 'Cobrança', 'Integrações', 'Convites', 'Plano']
@@ -498,6 +552,35 @@ export default function SettingsPage() {
 
   return (
       <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        {showAbacateConfirm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Trocar chave do AbacatePay?</h2>
+                <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
+                  Você já possui uma chave configurada. Ao substituir, a chave anterior será permanentemente removida.
+                </p>
+                <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 28 }}>
+                  Cobranças em andamento podem ser afetadas caso a nova chave seja de uma conta diferente.
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {/* Cancelar em destaque (escuro) para ser o botão "natural" de clicar */}
+                  <button
+                    onClick={() => setShowAbacateConfirm(false)}
+                    style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}
+                  >
+                    Cancelar
+                  </button>
+                  {/* Trocar em cor fraca para desincentivar o clique impulsivo */}
+                  <button
+                    onClick={() => { setShowAbacateConfirm(false); setShowAbacateModal(true) }}
+                    style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#6b7280' }}
+                  >
+                    Sim, trocar
+                  </button>
+                </div>
+              </div>
+            </div>
+        )}
         {showAbacateModal && (
             <AbacatePayModal onClose={() => setShowAbacateModal(false)} onSaved={() => {
               localStorage.setItem('abacate_configured', '1')
@@ -550,13 +633,13 @@ export default function SettingsPage() {
                           <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Academia Gracie" style={inputStyle} />
                         </Field>
                         <Field label="CNPJ / CPF">
-                          <input value={form.document ?? ''} onChange={(e) => setForm((f) => ({ ...f, document: e.target.value }))} placeholder="00.000.000/0000-00" style={inputStyle} />
+                          <input value={form.document ?? ''} onChange={(e) => setForm((f) => ({ ...f, document: maskDocument(e.target.value) }))} placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18} style={inputStyle} />
                         </Field>
                         <Field label="E-mail de contato">
                           <input type="email" value={form.email ?? ''} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="contato@escola.com.br" style={inputStyle} />
                         </Field>
                         <Field label="Telefone">
-                          <input value={form.phone ?? ''} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="(21) 99888-1010" style={inputStyle} />
+                          <input value={form.phone ?? ''} onChange={(e) => setForm((f) => ({ ...f, phone: maskPhone(e.target.value) }))} placeholder="(21) 99888-1010" maxLength={15} style={inputStyle} />
                         </Field>
                       </>
                   )}
@@ -589,12 +672,12 @@ export default function SettingsPage() {
                       acronym="AS" name="AbacatePay" description="Boletos e PIX automáticos"
                       connected={abacateConnected}
                       connectedLabel={abacateConnected ? 'Configurado' : undefined}
-                      onManage={() => setShowAbacateModal(true)}
+                      onManage={() => abacateConnected ? setShowAbacateConfirm(true) : setShowAbacateModal(true)}
                   />
                   <IntegrationCard
                       acronym="EV" name="Evolution API" description="Disparo de mensagens via WhatsApp"
                       connected={waConnected}
-                      connectedLabel={waConnected && waInstance ? waInstance : undefined}
+                      connectedLabel={waConnected ? 'Conectado' : undefined}
                       onManage={() => setShowWaModal(true)}
                   />
                 </div>

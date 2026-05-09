@@ -1,6 +1,37 @@
 import {useEffect, useState} from 'react'
 import api from '@/services/api'
 
+function maskDocument(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14)
+  if (digits.length <= 11) {
+    // CPF: 000.000.000-00
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  // CNPJ: 00.000.000/0000-00
+  return digits
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 10) {
+    // (00) 0000-0000
+    return digits
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d{1,4})$/, '$1-$2')
+  }
+  // (00) 00000-0000
+  return digits
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d{1,4})$/, '$1-$2')
+}
+
 interface Student {
   id: string
   name: string
@@ -81,8 +112,6 @@ function StudentModal({
           {[
             { label: 'Nome completo *', key: 'name' as const, placeholder: 'Ex: João da Silva', type: 'text' },
             { label: 'E-mail', key: 'email' as const, placeholder: 'joao@email.com', type: 'email' },
-            { label: 'Telefone', key: 'phone' as const, placeholder: '(21) 99999-9999', type: 'text' },
-            { label: 'CPF / Documento', key: 'document' as const, placeholder: '000.000.000-00', type: 'text' },
           ].map(({ label, key, placeholder, type }) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>{label}</label>
@@ -91,6 +120,28 @@ function StudentModal({
                        style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }} />
               </div>
           ))}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Telefone</label>
+            <input
+              type="text"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: maskPhone(e.target.value) }))}
+              placeholder="(21) 99999-9999"
+              maxLength={15}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>CPF / Documento</label>
+            <input
+              type="text"
+              value={form.document}
+              onChange={(e) => setForm((f) => ({ ...f, document: maskDocument(e.target.value) }))}
+              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              maxLength={18}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
             <button onClick={submit} disabled={loading}
@@ -220,7 +271,7 @@ export default function StudentsPage() {
                         <svg width="12" height="12" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24">
                           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.08 6.08l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                         </svg>
-                        <span style={{ fontSize: 13, color: '#6b7280' }}>{s.phone}</span>
+                        <span style={{ fontSize: 13, color: '#6b7280' }}>{maskPhone(s.phone)}</span>
                       </div>
                   )}
                 </div>
@@ -233,7 +284,7 @@ export default function StudentsPage() {
                   fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                   background: s.active ? '#dcfce7' : '#f3f4f6',
                   color: s.active ? '#16a34a' : '#9ca3af',
-                  display: 'inline-block',
+                  display: 'inline-block', width: 'fit-content',
                 }}>
               {s.active ? 'Ativo' : 'Inativo'}
             </span>
