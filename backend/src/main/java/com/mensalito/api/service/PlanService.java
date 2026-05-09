@@ -81,12 +81,16 @@ public class PlanService {
         Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
-        if (dto.name() != null) {
+        boolean needsAbacateSync = false;
+
+        if (dto.name() != null && !dto.name().equals(plan.getName())) {
             plan.setName(dto.name());
+            needsAbacateSync = true;
         }
 
-        if (dto.amount() != null) {
+        if (dto.amount() != null && dto.amount().compareTo(plan.getAmount()) != 0) {
             plan.setAmount(dto.amount());
+            needsAbacateSync = true;
         }
 
         if (dto.dueDay() != null) {
@@ -94,6 +98,23 @@ public class PlanService {
         }
 
         plan = planRepository.save(plan);
+
+        if (needsAbacateSync && plan.getAbacatePayProductId() != null) {
+            Tenant tenant = tenantRepository.findById(tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+            String encryptedKey = tenant.getAbacatePayApiKey();
+            if (encryptedKey != null) {
+                try {
+                    AbacatePayProductRequest abacateRequest = AbacatePayProductRequest.fromPlan(
+                            plan.getId().toString(), plan.getName(), plan.getAmount()
+                    );
+                    abacatePayClient.createProduct(abacateRequest, encryptionService.decrypt(encryptedKey));
+                    log.info("Plano {} sincronizado com AbacatePay após update", plan.getId());
+                } catch (Exception e) {
+                    log.error("Falha ao sincronizar plano {} com AbacatePay: {}", plan.getId(), e.getMessage());
+                }
+            }
+        }
 
         return toResponse(plan);
     }
@@ -103,6 +124,15 @@ public class PlanService {
         Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         plan.setActive(false);
+        plan = planRepository.save(plan);
+        return toResponse(plan);
+    }
+
+    public PlanResponseDTO reactivate(UUID id) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
+        plan.setActive(true);
         plan = planRepository.save(plan);
         return toResponse(plan);
     }

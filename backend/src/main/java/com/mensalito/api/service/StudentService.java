@@ -14,10 +14,11 @@ import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -69,12 +70,10 @@ public class StudentService {
         return toResponse(student);
     }
 
-    public List<StudentResponseDTO> findAll() {
+    public Page<StudentResponseDTO> findAll(Pageable pageable) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
-        return studentRepository.findByTenantId(tenantId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return studentRepository.findByTenantId(tenantId, pageable)
+                .map(this::toResponse);
     }
 
     public StudentResponseDTO findById(UUID id) {
@@ -117,6 +116,15 @@ public class StudentService {
         Student student = studentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         student.setActive(false);
+        student = studentRepository.save(student);
+        return toResponse(student);
+    }
+
+    public StudentResponseDTO reactivate(UUID id) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Student student = studentRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
+        student.setActive(true);
         student = studentRepository.save(student);
         return toResponse(student);
     }

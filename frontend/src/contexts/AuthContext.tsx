@@ -6,6 +6,7 @@ export interface LoginResponse {
   token: string
   name: string
   tenantId: string
+  userId: string
   role: 'OWNER' | 'TEACHER'
 }
 export interface LoginRequest { email: string; password: string }
@@ -33,8 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', u.token)
     localStorage.setItem('user', JSON.stringify(u))
     localStorage.setItem('userName', u.name)
+    // Usa /tenants/me em vez de /tenants/{id} — mais seguro e não expõe o UUID na URL
     try {
-      const t = await api.get(`/tenants/${u.tenantId}`)
+      const t = await api.get('/tenants/me')
       localStorage.setItem('tenantName', t.data.name ?? '')
     } catch { localStorage.setItem('tenantName', '') }
     setUser(u)

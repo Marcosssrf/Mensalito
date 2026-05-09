@@ -77,15 +77,24 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    private static final String TRUSTED_PROXY_HEADER = "X-Forwarded-For";
+
     private String getClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+        String remoteAddr = request.getRemoteAddr();
+        boolean isLoopback = "127.0.0.1".equals(remoteAddr)
+                || "0:0:0:0:0:0:0:1".equals(remoteAddr)
+                || "::1".equals(remoteAddr);
+
+        if (isLoopback || authService.isTrustedProxy(remoteAddr)) {
+            String forwarded = request.getHeader(TRUSTED_PROXY_HEADER);
+            if (forwarded != null && !forwarded.isBlank()) {
+                // Pega o primeiro IP da cadeia (o cliente original)
+                return forwarded.split(",")[0].trim();
+            }
         }
-        String ip = request.getRemoteAddr();
-        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
-            return "127.0.0.1";
-        }
-        return ip;
+
+        return "127.0.0.1".equals(remoteAddr) ? remoteAddr
+                : ("0:0:0:0:0:0:0:1".equals(remoteAddr) || "::1".equals(remoteAddr)) ? "127.0.0.1"
+                : remoteAddr;
     }
 }

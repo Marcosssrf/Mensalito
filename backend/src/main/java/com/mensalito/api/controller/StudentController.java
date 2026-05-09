@@ -5,13 +5,16 @@ import com.mensalito.api.dto.response.StudentResponseDTO;
 import com.mensalito.api.service.StudentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,8 +25,10 @@ public class StudentController {
     private final StudentService studentService;
 
     @GetMapping
-    public ResponseEntity<List<StudentResponseDTO>> findAll() {
-        return ResponseEntity.ok(studentService.findAll());
+    public ResponseEntity<Page<StudentResponseDTO>> findAll(
+            @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(studentService.findAll(pageable));
     }
 
     @GetMapping(value = "/{id}")
@@ -52,5 +57,11 @@ public class StudentController {
     @PatchMapping(value = "/{id}/deactivate")
     public ResponseEntity<StudentResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(studentService.deactivate(id));
+    }
+
+    @PreAuthorize("hasRole('OWNER')")
+    @PatchMapping(value = "/{id}/reactivate")
+    public ResponseEntity<StudentResponseDTO> reactivate(@PathVariable UUID id) {
+        return ResponseEntity.ok(studentService.reactivate(id));
     }
 }

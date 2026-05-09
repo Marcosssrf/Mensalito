@@ -34,6 +34,7 @@ abacatepay:
   base-url: https://api.abacatepay.com/v2
   return-url: ${ABACATEPAY_RETURN_URL}
   completion-url: ${ABACATEPAY_COMPLETION_URL}
+  webhook-secret: ${ABACATEPAY_WEBHOOK_SECRET:}
 
 encryption:
   secret: ${ENCRYPTION_SECRET}
@@ -46,3 +47,4 @@ evolution:
 app:
   frontend-url: ${FRONTEND_URL}
   admin-secret: ${ADMIN_SECRET}
+  trusted-proxies: ${TRUSTED_PROXIES:}

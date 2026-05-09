@@ -24,14 +24,6 @@ public class EvolutionInstanceClient {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestClient restClient = RestClient.create();
 
-    /**
-     * Cria uma instância na Evolution API com o nome sanitizado da escola.
-     * Idempotente: se já existir (409), retorna o nome sem erro.
-     *
-     * NUNCA propaga exceção — falha de provisionamento não pode derrubar o cadastro.
-     * Retorna o instanceName mesmo em caso de erro para que o tenant seja salvo
-     * e a conexão possa ser feita posteriormente via Configurações → WhatsApp.
-     */
     public String createInstance(String schoolName) {
         String instanceName = sanitizeInstanceName(schoolName);
 
@@ -88,18 +80,8 @@ public class EvolutionInstanceClient {
         return instanceName;
     }
 
-    /**
-     * Verifica se a instância está conectada ao WhatsApp.
-     */
-    /**
-     * Resultado da verificação de conexão — estado + número do dono (quando disponível).
-     */
     public record ConnectionResult(boolean connected, String ownerJid) {}
 
-    /**
-     * Verifica se a instância está conectada e retorna o ownerJid quando disponível.
-     * A Evolution API retorna ownerJid/owner no objeto instance quando state=open.
-     */
     public ConnectionResult checkConnection(String instanceName) {
         try {
             String body = restClient.get()
@@ -162,17 +144,10 @@ public class EvolutionInstanceClient {
         }
     }
 
-    /**
-     * Compatibilidade retroativa — delega ao novo checkConnection.
-     */
     public boolean isConnected(String instanceName) {
         return checkConnection(instanceName).connected();
     }
 
-    /**
-     * Obtém o QR Code (base64 ou string) da instância para conexão com WhatsApp.
-     * Retorna null se já estiver conectado ou em caso de erro.
-     */
     public String getQrCode(String instanceName) {
         try {
             String body = restClient.get()
@@ -209,17 +184,12 @@ public class EvolutionInstanceClient {
         }
     }
 
-    /** Formata um ownerJid (ex: "5511999998888@s.whatsapp.net") para exibição. */
     public String formatOwnerJid(String ownerJid) {
         if (ownerJid == null || ownerJid.isBlank()) return null;
         String number = ownerJid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@g.us", "");
         return formatPhoneNumber(number);
     }
 
-    /**
-     * Obtém o número de telefone conectado à instância via Evolution API.
-     * Retorna null se não estiver conectado ou em caso de erro.
-     */
     public String getPhoneNumber(String instanceName) {
         try {
             String body = restClient.get()
@@ -272,9 +242,6 @@ public class EvolutionInstanceClient {
         }
     }
 
-    /**
-     * Formata número E.164 para exibição (+55 11 99999-8888).
-     */
     private String formatPhoneNumber(String raw) {
         if (raw == null) return null;
         String digits = raw.replaceAll("\\D", "");
@@ -291,10 +258,7 @@ public class EvolutionInstanceClient {
         return "+" + digits;
     }
 
-    /**
-     * Sanitiza o nome da escola para nome de instância válido na Evolution API.
-     * Remove acentos, caracteres especiais; converte espaços em hífens. Máx 50 chars.
-     */
+
     public String sanitizeInstanceName(String schoolName) {
         if (schoolName == null || schoolName.isBlank()) {
             return "escola-" + System.currentTimeMillis();
@@ -332,7 +296,6 @@ public class EvolutionInstanceClient {
         return null;
     }
 
-    /** Retorna o primeiro valor não-nulo e não-vazio da lista. */
     private String firstNonNull(String... values) {
         for (String v : values) {
             if (v != null && !v.isBlank()) return v;

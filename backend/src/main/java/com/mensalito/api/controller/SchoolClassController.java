@@ -56,4 +56,10 @@ public class SchoolClassController {
     public ResponseEntity<SchoolClassResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(schoolClassService.deactivate(id));
     }
+
+    @PreAuthorize("hasRole('OWNER')")
+    @PatchMapping(value = "/{id}/reactivate")
+    public ResponseEntity<SchoolClassResponseDTO> reactivate(@PathVariable UUID id) {
+        return ResponseEntity.ok(schoolClassService.reactivate(id));
+    }
 }

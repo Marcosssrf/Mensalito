@@ -47,13 +47,30 @@ public class TenantService {
         return toResponse(saved);
     }
 
-    public Tenant findById(UUID id) {
-        return tenantRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+    public TenantResponseDTO findById(UUID id) {
+        return toResponse(findByIdInternal(id));
+    }
+
+    public TenantResponseDTO getAuthenticatedTenant() {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        return toResponse(findByIdInternal(tenantId));
+    }
+
+    public TenantResponseDTO findByIdForOwner(UUID id) {
+        UUID authenticatedTenantId = securityUtils.getAuthenticatedTenantId();
+        if (!authenticatedTenantId.equals(id)) {
+            throw new AccessDeniedException("Acesso negado");
+        }
+        return toResponse(findByIdInternal(id));
     }
 
     public TenantResponseDTO findByIdResponse(UUID id) {
-        return toResponse(findById(id));
+        return findByIdForOwner(id);
+    }
+
+    public com.mensalito.api.model.Tenant findByIdInternal(UUID id) {
+        return tenantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
     }
 
     public TenantResponseDTO update(UUID id, TenantRequestDTO dto) {
@@ -109,11 +126,6 @@ public class TenantService {
         }
     }
 
-    /**
-     * Retorna o status da conexão WhatsApp do tenant autenticado.
-     * Nunca lança exceção — erros de comunicação com a Evolution retornam
-     * connected=false e qrCodeBase64=null, que o front trata exibindo mensagem amigável.
-     */
     public WhatsAppStatusResponseDTO getWhatsAppStatus() {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
         Tenant tenant = tenantRepository.findById(tenantId)
@@ -157,10 +169,6 @@ public class TenantService {
         return new WhatsAppStatusResponseDTO(false, instanceName, qrCode, null);
     }
 
-    /**
-     * Extrai e formata o número de telefone a partir do ownerJid.
-     * Se ownerJid estiver nulo, tenta via fetchInstances como fallback.
-     */
     private String extractPhone(String ownerJid, String instanceName) {
         if (ownerJid != null && !ownerJid.isBlank()) {
             String formatted = evolutionInstanceClient.formatOwnerJid(ownerJid);

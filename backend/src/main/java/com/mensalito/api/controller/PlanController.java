@@ -56,4 +56,10 @@ public class PlanController {
     public ResponseEntity<PlanResponseDTO> deactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(planService.deactivate(id));
     }
+
+    @PreAuthorize("hasRole('OWNER')")
+    @PatchMapping(value = "/{id}/reactivate")
+    public ResponseEntity<PlanResponseDTO> reactivate(@PathVariable UUID id) {
+        return ResponseEntity.ok(planService.reactivate(id));
+    }
 }

@@ -116,6 +116,13 @@ public class AuthService {
         jwtService.invalidateToken(token);
     }
 
+    @Value("${app.trusted-proxies:}")
+    private java.util.List<String> trustedProxies;
+
+    public boolean isTrustedProxy(String ip) {
+        return trustedProxies != null && trustedProxies.contains(ip);
+    }
+
     public void unlockIpWithSecret(String ip, String secret) {
         if (!adminSecret.equals(secret)) {
             throw new org.springframework.security.access.AccessDeniedException("Segredo inválido");

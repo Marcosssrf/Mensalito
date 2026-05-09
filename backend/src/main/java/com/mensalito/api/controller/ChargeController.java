@@ -2,11 +2,17 @@ package com.mensalito.api.controller;
 
 import com.mensalito.api.dto.request.ChargeRequestDTO;
 import com.mensalito.api.dto.request.ChargeStatusRequestDTO;
+import com.mensalito.api.dto.request.ManualChargeRequestDTO;
+import com.mensalito.api.dto.request.ManualPaymentRequestDTO;
 import com.mensalito.api.dto.response.ChargeResponseDTO;
 import com.mensalito.api.model.enums.ChargeStatus;
 import com.mensalito.api.service.ChargeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +20,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,13 +31,13 @@ public class ChargeController {
     private final ChargeService chargeService;
 
     @GetMapping
-    public ResponseEntity<List<ChargeResponseDTO>> findAll(
+    public ResponseEntity<Page<ChargeResponseDTO>> findAll(
             @RequestParam(required = false) UUID enrollmentId,
             @RequestParam(required = false) ChargeStatus status,
-            @RequestParam(required = false) LocalDate dueDate
+            @RequestParam(required = false) LocalDate dueDate,
+            @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        List<ChargeResponseDTO> charges = chargeService.findAll(enrollmentId, status, dueDate);
-        return ResponseEntity.ok(charges);
+        return ResponseEntity.ok(chargeService.findAll(enrollmentId, status, dueDate, pageable));
     }
 
     @PostMapping
@@ -46,12 +51,57 @@ public class ChargeController {
         return ResponseEntity.created(uri).body(charge);
     }
 
+    /**
+     * Cria uma cobrança MANUAL, sem acionar qualquer gateway de pagamento.
+     * O valor pode ser customizado; se omitido, usa o valor do plano da matrícula.
+     */
+    @PostMapping("/manual")
+    public ResponseEntity<ChargeResponseDTO> createManual(@RequestBody @Valid ManualChargeRequestDTO dto) {
+        ChargeResponseDTO charge = chargeService.createManual(dto);
+        URI uri = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .replacePath("/api/charges/{id}")
+                .buildAndExpand(charge.id())
+                .toUri();
+        return ResponseEntity.created(uri).body(charge);
+    }
+
+    // --------------------------------------------------------------- PATCH --
+
+    /**
+     * Atualiza o status de uma cobrança de forma genérica (compatibilidade).
+     */
     @PatchMapping(value = "/{id}/status")
     public ResponseEntity<ChargeResponseDTO> updateStatus(
             @PathVariable UUID id,
             @RequestBody ChargeStatusRequestDTO dto) {
         return ResponseEntity.ok(chargeService.updateStatus(id, dto.status()));
     }
+
+    /**
+     * Confirma o pagamento de uma cobrança manualmente (baixa manual).
+     * Registra o método de pagamento, a data e uma observação opcional.
+     * Não interage com o AbacatePay.
+     *
+     * Body: { "paymentMethod": "PIX", "paymentDate": "2025-05-09", "notes": "..." }
+     */
+    @PatchMapping("/{id}/confirm-payment")
+    public ResponseEntity<ChargeResponseDTO> confirmManualPayment(
+            @PathVariable UUID id,
+            @RequestBody @Valid ManualPaymentRequestDTO dto) {
+        return ResponseEntity.ok(chargeService.confirmManualPayment(id, dto));
+    }
+
+    /**
+     * Cancela uma cobrança pendente ou em atraso.
+     * Cobranças já pagas não podem ser canceladas por este endpoint.
+     */
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<ChargeResponseDTO> cancel(@PathVariable UUID id) {
+        return ResponseEntity.ok(chargeService.cancel(id));
+    }
+
+    // ----------------------------------------------------------------- UTIL --
 
     /**
      * Gera as cobranças do dia manualmente.

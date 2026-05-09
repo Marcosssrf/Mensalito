@@ -206,8 +206,12 @@ export default function ClassesPage() {
 
   useEffect(() => { load() }, [])
 
-  async function deactivate(id: string) {
-    await api.patch(`/classes/${id}/deactivate`)
+  async function toggleActive(id: string, currentlyActive: boolean) {
+    if (currentlyActive) {
+      await api.patch(`/classes/${id}/deactivate`)
+    } else {
+      await api.patch(`/classes/${id}/reactivate`)
+    }
     load()
   }
 
@@ -257,7 +261,7 @@ export default function ClassesPage() {
                       key={cls.id}
                       cls={cls}
                       onEdit={() => setModal({ open: true, cls })}
-                      onDeactivate={() => deactivate(cls.id)}
+                      onDeactivate={() => toggleActive(cls.id, cls.active)}
                   />
               ))}
 

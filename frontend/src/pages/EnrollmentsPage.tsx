@@ -174,15 +174,20 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
     const [error, setError] = useState('')
 
     useEffect(() => {
+        // Students e classes agora retornam Page<T> — extrai .content
+        // Plans ainda retorna lista direta (não foi paginado)
         Promise.all([
-            api.get<Student[]>('/students'),
-            api.get<SchoolClass[]>('/classes'),
+            api.get('/students?page=0&size=200&sort=name,asc'),
+            api.get('/classes?page=0&size=200&sort=name,asc'),
             api.get<Plan[]>('/plans'),
         ])
             .then(([s, c, p]) => {
-                setStudents(s.data.filter(x => x.active))
-                setClasses(c.data.filter(x => x.active))
-                setPlans(p.data.filter(x => x.active))
+                const studentsData: Student[] = Array.isArray(s.data) ? s.data : (s.data.content ?? [])
+                const classesData: SchoolClass[] = Array.isArray(c.data) ? c.data : (c.data.content ?? [])
+                const plansData: Plan[] = Array.isArray(p.data) ? p.data : (p.data.content ?? [])
+                setStudents(studentsData.filter(x => x.active))
+                setClasses(classesData.filter(x => x.active))
+                setPlans(plansData.filter(x => x.active))
             })
             .catch(console.error)
             .finally(() => setLoadingData(false))

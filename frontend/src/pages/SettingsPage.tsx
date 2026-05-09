@@ -374,7 +374,7 @@ function InvitesTab() {
   )
 }
 
-// Aba Conta — PATCH /api/users/{id} + PATCH /api/users/{id}/password
+// Aba Conta — PATCH /api/users/me + PATCH /api/users/me/password
 function AccountTab() {
   const { user } = useAuth()
   const [nameForm, setNameForm] = useState({ name: '', email: '' })
@@ -382,28 +382,35 @@ function AccountTab() {
   const [nameSave, setNameSave] = useState<SaveState>('idle')
   const [pwSave, setPwSave] = useState<SaveState>('idle')
   const [pwError, setPwError] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user?.tenantId) return
-    // GET /api/users/email/{email} não existe, usa o user do token
-    const stored = localStorage.getItem('user')
-    if (stored) {
-      const u = JSON.parse(stored)
-      setNameForm({ name: u.name ?? '', email: '' })
-    }
+    // Usa /users/me para buscar dados do usuário autenticado — sem precisar de ID no localStorage
+    api.get<{ id: string; name: string; email: string }>('/users/me')
+        .then(r => {
+          setUserId(r.data.id)
+          setNameForm({ name: r.data.name ?? '', email: '' })
+        })
+        .catch(() => {
+          // fallback: tenta pegar do localStorage
+          const stored = localStorage.getItem('user')
+          if (stored) {
+            const u = JSON.parse(stored)
+            setUserId(u.userId ?? u.id ?? null)
+            setNameForm({ name: u.name ?? '', email: '' })
+          }
+        })
   }, [user])
 
   async function saveProfile() {
-    if (!user) return
-    const stored = localStorage.getItem('user')
-    const u = stored ? JSON.parse(stored) : null
-    if (!u?.id) return
+    if (!userId) return
     setNameSave('saving')
     try {
-      // PATCH /api/users/{id}  body: UpdateUserRequestDTO { name, email }
-      await api.patch(`/users/${u.id}`, { name: nameForm.name, email: nameForm.email || undefined })
-      // Atualiza localStorage
-      localStorage.setItem('user', JSON.stringify({ ...u, name: nameForm.name }))
+      await api.patch(`/users/${userId}`, { name: nameForm.name, email: nameForm.email || undefined })
+      const stored = localStorage.getItem('user')
+      if (stored) {
+        localStorage.setItem('user', JSON.stringify({ ...JSON.parse(stored), name: nameForm.name }))
+      }
       localStorage.setItem('userName', nameForm.name)
       setNameSave('saved')
       setTimeout(() => setNameSave('idle'), 2500)
@@ -417,13 +424,10 @@ function AccountTab() {
     setPwError('')
     if (!pwForm.password || pwForm.password.length < 6) { setPwError('Senha deve ter no mínimo 6 caracteres'); return }
     if (pwForm.password !== pwForm.confirm) { setPwError('As senhas não coincidem'); return }
-    const stored = localStorage.getItem('user')
-    const u = stored ? JSON.parse(stored) : null
-    if (!u?.id) return
+    if (!userId) return
     setPwSave('saving')
     try {
-      // PATCH /api/users/{id}/password  body: ChangePasswordRequestDTO { password }
-      await api.patch(`/users/${u.id}/password`, { password: pwForm.password })
+      await api.patch(`/users/${userId}/password`, { password: pwForm.password })
       setPwForm({ password: '', confirm: '' })
       setPwSave('saved')
       setTimeout(() => setPwSave('idle'), 2500)
@@ -501,8 +505,9 @@ export default function SettingsPage() {
   const [showWaModal, setShowWaModal] = useState(false)
 
   useEffect(() => {
-    if (!user?.tenantId) return
-    api.get<TenantData>(`/tenants/${user.tenantId}`)
+    if (!user) return
+    // Usa /tenants/me — mais seguro, não expõe o tenantId na URL
+    api.get<TenantData>('/tenants/me')
         .then((r) => {
           setTenant(r.data)
           setForm({
@@ -512,7 +517,6 @@ export default function SettingsPage() {
             document: r.data.document ?? '',
           })
           localStorage.setItem('tenantName', r.data.name ?? '')
-          // sync abacate status from API if the field is present
           if (r.data.hasAbacatePayKey !== undefined) {
             const configured = r.data.hasAbacatePayKey
             setAbacateConnected(configured)
@@ -520,22 +524,21 @@ export default function SettingsPage() {
           }
         })
         .catch(console.error)
-  }, [user?.tenantId])
+  }, [user])
 
   useEffect(() => {
-    if (!user?.tenantId) return
+    if (!user) return
     api.get<{ connected: boolean; instanceName: string | null; qrCodeBase64: string | null }>('/tenants/me/whatsapp')
         .then((r) => setWaConnected(r.data.connected))
         .catch(() => setWaConnected(false))
-  }, [showWaModal, user?.tenantId])
+  }, [showWaModal, user])
 
   async function saveSchool() {
-    if (!user?.tenantId) return
     if (!form.name.trim()) return
     setSaveState('saving')
     try {
-      // PATCH /api/tenants/{id}  body: TenantRequestDTO { name, email, phone, document }
-      await api.patch(`/tenants/${user.tenantId}`, form)
+      // PATCH /api/tenants/me  body: TenantRequestDTO { name, email, phone, document }
+      await api.patch('/tenants/me', form)
       localStorage.setItem('tenantName', form.name)
       setSaveState('saved')
       setTimeout(() => setSaveState('idle'), 2500)

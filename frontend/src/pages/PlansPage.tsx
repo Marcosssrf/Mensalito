@@ -77,6 +77,15 @@ export default function PlansPage() {
         }
     }
 
+    async function reactivate(plan: Plan) {
+        try {
+            const res = await api.patch<Plan>(`/plans/${plan.id}/reactivate`)
+            setPlans(prev => prev.map(p => p.id === plan.id ? res.data : p))
+        } catch (e: any) {
+            console.error('Erro ao reativar plano:', e)
+        }
+    }
+
     const activePlans = plans.filter(p => p.active)
     const inactivePlans = plans.filter(p => !p.active)
 
@@ -164,14 +173,22 @@ export default function PlansPage() {
                             <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 12 }}>INATIVOS</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
                                 {inactivePlans.map(plan => (
-                                    <div key={plan.id} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, opacity: 0.7 }}>
-                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 8 }}>INATIVO</p>
+                                    <div key={plan.id} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, opacity: 0.7, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 4 }}>INATIVO</p>
                                         <p style={{ fontSize: 15, fontWeight: 600, color: '#374151' }}>{plan.name}</p>
-                                        <p style={{ fontSize: 22, fontWeight: 700, color: '#374151', margin: '8px 0 4px' }}>
+                                        <p style={{ fontSize: 22, fontWeight: 700, color: '#374151', margin: '4px 0' }}>
                                             {formatCurrency(plan.amount)}
                                             <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>/mês</span>
                                         </p>
                                         <p style={{ fontSize: 12, color: '#9ca3af' }}>Vencimento: dia {plan.dueDay}</p>
+                                        <button
+                                            onClick={() => reactivate(plan)}
+                                            style={{ fontSize: 12, color: '#10b981', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: 4 }}
+                                            onMouseOver={e => (e.currentTarget.style.color = '#059669')}
+                                            onMouseOut={e => (e.currentTarget.style.color = '#10b981')}
+                                        >
+                                            Reativar
+                                        </button>
                                     </div>
                                 ))}
                             </div>

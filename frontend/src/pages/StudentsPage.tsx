@@ -1,16 +1,15 @@
 import {useEffect, useState} from 'react'
+import {useNavigate} from 'react-router-dom'
 import api from '@/services/api'
 
 function maskDocument(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 14)
   if (digits.length <= 11) {
-    // CPF: 000.000.000-00
     return digits
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
   }
-  // CNPJ: 00.000.000/0000-00
   return digits
     .replace(/(\d{2})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
@@ -21,12 +20,10 @@ function maskDocument(value: string): string {
 function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)
   if (digits.length <= 10) {
-    // (00) 0000-0000
     return digits
       .replace(/(\d{2})(\d)/, '($1) $2')
       .replace(/(\d{4})(\d{1,4})$/, '$1-$2')
   }
-  // (00) 00000-0000
   return digits
     .replace(/(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d{1,4})$/, '$1-$2')
@@ -62,11 +59,13 @@ interface StudentFormData {
   document: string
 }
 
+const PAGE_SIZE = 20
+
 function StudentModal({
-                        initial,
-                        onClose,
-                        onSaved,
-                      }: {
+  initial,
+  onClose,
+  onSaved,
+}: {
   initial?: Student
   onClose: () => void
   onSaved: () => void
@@ -87,10 +86,8 @@ function StudentModal({
     setLoading(true); setError('')
     try {
       if (isEdit) {
-        // PATCH /api/students/{id}  body: StudentRequestDTO { name, email, phone, document }
         await api.patch(`/students/${initial!.id}`, form)
       } else {
-        // POST /api/students
         await api.post('/students', form)
       }
       onSaved(); onClose()
@@ -155,33 +152,55 @@ function StudentModal({
 }
 
 export default function StudentsPage() {
+  const navigate = useNavigate()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('Todos')
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState<{ open: boolean; student?: Student }>({ open: false })
 
-  function load() {
+  // Paginação
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+
+  function load(p = page) {
     setLoading(true)
-    api.get<Student[]>('/students')
-        .then((r) => setStudents(r.data))
+    api.get(`/students?page=${p}&size=${PAGE_SIZE}&sort=name,asc`)
+        .then((r) => {
+          const raw = r.data as any
+          const content: Student[] = Array.isArray(raw) ? raw : (raw?.content ?? [])
+          setStudents(content)
+          setTotalPages(raw?.totalPages ?? 1)
+          setTotalElements(raw?.totalElements ?? content.length)
+          setPage(raw?.number ?? p)
+        })
         .catch(console.error)
         .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(0) }, [])
 
   async function deactivate(id: string) {
-    // PATCH /api/students/{id}/deactivate
     await api.patch(`/students/${id}/deactivate`)
-    load()
+    load(page)
   }
 
-  const filtered = students.filter((s) => {
+  async function reactivate(id: string) {
+    await api.patch(`/students/${id}/reactivate`)
+    load(page)
+  }
+
+  const filtered = (Array.isArray(students) ? students : []).filter((s) => {
     const tabOk = tab === 'Todos' || (tab === 'Ativos' && s.active) || (tab === 'Inativos' && !s.active)
     const q = search.toLowerCase()
     return tabOk && (s.name.toLowerCase().includes(q) || (s.email ?? '').toLowerCase().includes(q))
   })
+
+  function goToPage(p: number) {
+    if (p < 0 || p >= totalPages) return
+    load(p)
+  }
 
   return (
       <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
@@ -189,7 +208,7 @@ export default function StudentsPage() {
             <StudentModal
                 initial={modal.student}
                 onClose={() => setModal({ open: false })}
-                onSaved={load}
+                onSaved={() => load(page)}
             />
         )}
 
@@ -197,7 +216,7 @@ export default function StudentsPage() {
           <div>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>CADASTRO</p>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Alunos</h1>
-            <p style={{ fontSize: 14, color: '#6b7280' }}>Gerencie matrículas, contatos e turmas dos seus alunos.</p>
+            <p style={{ fontSize: 14, color: '#6b7280' }}>{totalElements} aluno{totalElements !== 1 ? 's' : ''} no total</p>
           </div>
           <button onClick={() => setModal({ open: true })}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#111827', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}>
@@ -247,15 +266,18 @@ export default function StudentsPage() {
                 padding: '16px 20px', alignItems: 'center', background: '#fff',
                 borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',
               }}>
-                {/* Aluno */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#374151', flexShrink: 0 }}>
                     {initials(s.name)}
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.name}</span>
+                  <span
+                    onClick={() => navigate(`/app/students/${s.id}`)}
+                    style={{ fontSize: 14, fontWeight: 600, color: '#111827', cursor: 'pointer', textDecoration: 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                  >{s.name}</span>
                 </div>
 
-                {/* Contato */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {s.email && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -276,10 +298,8 @@ export default function StudentsPage() {
                   )}
                 </div>
 
-                {/* Data de cadastro */}
                 <span style={{ fontSize: 13, color: '#6b7280' }}>{fmtDate(s.createdAt)}</span>
 
-                {/* Status */}
                 <span style={{
                   fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                   background: s.active ? '#dcfce7' : '#f3f4f6',
@@ -289,21 +309,44 @@ export default function StudentsPage() {
               {s.active ? 'Ativo' : 'Inativo'}
             </span>
 
-                {/* Ações */}
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={() => setModal({ open: true, student: s })}
                           style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#374151' }}>
                     Editar
                   </button>
-                  {s.active && (
+                  {s.active ? (
                       <button onClick={() => deactivate(s.id)}
                               style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #fecaca', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#ef4444' }}>
                         Desativar
+                      </button>
+                  ) : (
+                      <button onClick={() => reactivate(s.id)}
+                              style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #bbf7d0', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#16a34a' }}>
+                        Reativar
                       </button>
                   )}
                 </div>
               </div>
           ))}
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid #e5e7eb', background: '#fff' }}>
+              <span style={{ fontSize: 13, color: '#6b7280' }}>
+                Página {page + 1} de {totalPages} · {totalElements} alunos
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => goToPage(page - 1)} disabled={page === 0}
+                        style={{ padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: 13, color: page === 0 ? '#d1d5db' : '#374151' }}>
+                  ← Anterior
+                </button>
+                <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages - 1}
+                        style={{ padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', fontSize: 13, color: page >= totalPages - 1 ? '#d1d5db' : '#374151' }}>
+                  Próximo →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
   )

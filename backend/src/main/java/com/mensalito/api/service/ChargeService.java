@@ -9,6 +9,8 @@ import com.mensalito.api.dto.abacatepay.request.AbacatePayWebhookDTO;
 import com.mensalito.api.dto.abacatepay.response.AbacatePayCheckoutResponse;
 import com.mensalito.api.dto.abacatepay.response.AbacatePayPixResponse;
 import com.mensalito.api.dto.request.ChargeRequestDTO;
+import com.mensalito.api.dto.request.ManualChargeRequestDTO;
+import com.mensalito.api.dto.request.ManualPaymentRequestDTO;
 import com.mensalito.api.dto.response.ChargeResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.*;
@@ -20,6 +22,8 @@ import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -58,6 +62,10 @@ public class ChargeService {
         Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(dto.enrollmentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
 
+        if (!Boolean.TRUE.equals(enrollment.getActive())) {
+            throw new IllegalStateException("Não é possível criar cobrança para uma matrícula inativa");
+        }
+
         Charge charge = Charge.builder()
                 .enrollment(enrollment)
                 .dueDate(dto.dueDate())
@@ -73,23 +81,107 @@ public class ChargeService {
         return toResponse(charge);
     }
 
-    public List<ChargeResponseDTO> findAll(UUID enrollmentId, ChargeStatus status, LocalDate dueDate) {
+    public ChargeResponseDTO createManual(ManualChargeRequestDTO dto) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
+        Enrollment enrollment = enrollmentRepository.findByIdAndTenantId(dto.enrollmentId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Matrícula não encontrada"));
+
+        if (!Boolean.TRUE.equals(enrollment.getActive())) {
+            throw new IllegalStateException("Não é possível criar cobrança para uma matrícula inativa");
+        }
+
+        BigDecimal amount = dto.amount() != null ? dto.amount() : enrollment.getPlan().getAmount();
+
+        Charge charge = Charge.builder()
+                .enrollment(enrollment)
+                .dueDate(dto.dueDate())
+                .amount(amount)
+                .tenant(tenant)
+                .createdAt(LocalDateTime.now())
+                // Cobranças manuais ficam PENDING até confirmação explícita
+                .status(ChargeStatus.PENDING)
+                .build();
+
+        charge = chargeRepository.save(charge);
+
+        log.info("Cobrança manual criada: chargeId={}, enrollmentId={}, amount={}, dueDate={}",
+                charge.getId(), enrollment.getId(), amount, dto.dueDate());
+
+        return toResponse(charge);
+    }
+
+    public ChargeResponseDTO confirmManualPayment(UUID id, ManualPaymentRequestDTO dto) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        Charge charge = chargeRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cobrança não encontrada"));
+
+        if (charge.getStatus() == ChargeStatus.PAID) {
+            throw new IllegalStateException("Cobrança já está marcada como paga");
+        }
+        if (charge.getStatus() == ChargeStatus.CANCELLED) {
+            throw new IllegalStateException("Não é possível confirmar pagamento de uma cobrança cancelada");
+        }
+
+        charge.setStatus(ChargeStatus.PAID);
+        charge.setPaymentDate(dto.paymentDate() != null ? dto.paymentDate() : LocalDate.now());
+
+        // Armazena método de pagamento no campo pixCode para auditoria
+        // (campo reutilizado para evitar migration — prefixado com "MANUAL:")
+        charge.setPixCode("MANUAL:" + dto.paymentMethod()
+                + (dto.notes() != null && !dto.notes().isBlank() ? " | " + dto.notes() : ""));
+
+        charge = chargeRepository.save(charge);
+
+        log.info("Pagamento manual confirmado: chargeId={}, method={}, date={}",
+                charge.getId(), dto.paymentMethod(), charge.getPaymentDate());
+
+        return toResponse(charge);
+    }
+
+    public ChargeResponseDTO cancel(UUID id) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        Charge charge = chargeRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cobrança não encontrada"));
+
+        if (charge.getStatus() == ChargeStatus.PAID) {
+            throw new IllegalStateException(
+                    "Não é possível cancelar uma cobrança já paga. Use reembolso se necessário.");
+        }
+        if (charge.getStatus() == ChargeStatus.CANCELLED) {
+            throw new IllegalStateException("Cobrança já está cancelada");
+        }
+
+        charge.setStatus(ChargeStatus.CANCELLED);
+        charge = chargeRepository.save(charge);
+
+        log.info("Cobrança cancelada: chargeId={}", charge.getId());
+
+        return toResponse(charge);
+    }
+
+    public Page<ChargeResponseDTO> findAll(UUID enrollmentId, ChargeStatus status, LocalDate dueDate, Pageable pageable) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
 
         if (enrollmentId != null) {
-            return chargeRepository.findByTenantIdAndEnrollmentId(tenantId, enrollmentId)
-                    .stream().map(this::toResponse).toList();
+            return chargeRepository.findByTenantIdAndEnrollmentId(tenantId, enrollmentId, pageable)
+                    .map(this::toResponse);
         }
         if (status != null) {
-            return chargeRepository.findByTenantIdAndStatus(tenantId, status)
-                    .stream().map(this::toResponse).toList();
+            return chargeRepository.findByTenantIdAndStatus(tenantId, status, pageable)
+                    .map(this::toResponse);
         }
         if (dueDate != null) {
-            return chargeRepository.findByTenantIdAndDueDate(tenantId, dueDate)
-                    .stream().map(this::toResponse).toList();
+            return chargeRepository.findByTenantIdAndDueDate(tenantId, dueDate, pageable)
+                    .map(this::toResponse);
         }
-        return chargeRepository.findByTenantId(tenantId)
-                .stream().map(this::toResponse).toList();
+        return chargeRepository.findByTenantId(tenantId, pageable)
+                .map(this::toResponse);
     }
 
     public ChargeResponseDTO updateStatus(UUID id, ChargeStatus status) {
@@ -247,9 +339,9 @@ public class ChargeService {
 
         ChargeStatus newStatus = switch (event) {
             case "checkout.completed" -> ChargeStatus.PAID;
-            case "checkout.refunded" -> ChargeStatus.REFUNDED;
-            case "checkout.lost" -> ChargeStatus.LOST;
-            case "checkout.disputed" -> ChargeStatus.DISPUTED;
+            case "checkout.refunded"  -> ChargeStatus.REFUNDED;
+            case "checkout.lost"      -> ChargeStatus.LOST;
+            case "checkout.disputed"  -> ChargeStatus.DISPUTED;
             default -> {
                 log.info("Evento ignorado: event={}", event);
                 yield null;
@@ -301,13 +393,27 @@ public class ChargeService {
     }
 
     public void sendOverdueReminders() {
-        LocalDate threeDaysAgo = LocalDate.now().minusDays(3);
-        LocalDate sevenDaysAgo = LocalDate.now().minusDays(7);
+        LocalDate today = LocalDate.now();
+        LocalDate threeDaysAgo = today.minusDays(3);
+        LocalDate sevenDaysAgo = today.minusDays(7);
 
-        List<Charge> overdue3 = chargeRepository.findByStatusAndDueDate(ChargeStatus.PENDING, threeDaysAgo);
-        List<Charge> overdue7 = chargeRepository.findByStatusAndDueDate(ChargeStatus.PENDING, sevenDaysAgo);
+        markAllOverdue(today);
+
+        List<Charge> overdue3 = chargeRepository.findByStatusAndDueDate(ChargeStatus.OVERDUE, threeDaysAgo);
+        List<Charge> overdue7 = chargeRepository.findByStatusAndDueDate(ChargeStatus.OVERDUE, sevenDaysAgo);
 
         overdue3.forEach(charge -> sendReminderNotification(charge, 3));
         overdue7.forEach(charge -> sendReminderNotification(charge, 7));
+    }
+
+    public void markAllOverdue(LocalDate referenceDate) {
+        List<Charge> pendingOverdue = chargeRepository.findAllByStatusAndDueDateBefore(
+                ChargeStatus.PENDING, referenceDate);
+
+        if (pendingOverdue.isEmpty()) return;
+
+        pendingOverdue.forEach(c -> c.setStatus(ChargeStatus.OVERDUE));
+        chargeRepository.saveAll(pendingOverdue);
+        log.info("Cobranças marcadas como OVERDUE: {}", pendingOverdue.size());
     }
 }

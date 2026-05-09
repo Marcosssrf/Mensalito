@@ -1,6 +1,7 @@
 package com.mensalito.api.config;
 
 import com.mensalito.api.security.JwtFilter;
+import com.mensalito.api.security.WebhookAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final WebhookAuthFilter webhookAuthFilter;
     private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
@@ -39,11 +41,13 @@ public class SecurityConfig {
                         // Convites: preview e accept são públicos; criar exige auth
                         .requestMatchers(HttpMethod.GET,  "/api/invites/*/preview").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/invites/accept").permitAll()
-                        // Webhooks
+                        // Webhooks — autenticação feita via HMAC no WebhookAuthFilter
                         .requestMatchers(HttpMethod.POST, "/api/webhooks/**").permitAll()
                         // Tudo mais exige autenticação
                         .anyRequest().authenticated()
                 )
+                // WebhookAuthFilter valida HMAC antes do JwtFilter
+                .addFilterBefore(webhookAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

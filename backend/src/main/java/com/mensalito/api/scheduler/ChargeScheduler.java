@@ -18,8 +18,13 @@ public class ChargeScheduler {
         chargeService.generateMonthlyCharges();
     }
 
+    /**
+     * Roda às 9h: primeiro marca cobranças vencidas como OVERDUE,
+     * depois envia os lembretes com status já correto.
+     */
     @Scheduled(cron = "0 0 9 * * *")
-    public void sendOverdueReminders() {
+    public void processOverdueAndSendReminders() {
+        chargeService.markAllOverdue(java.time.LocalDate.now());
         chargeService.sendOverdueReminders();
     }
 

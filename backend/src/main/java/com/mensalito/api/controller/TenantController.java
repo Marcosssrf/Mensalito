@@ -21,9 +21,14 @@ public class TenantController {
 
     private final TenantService tenantService;
 
+    @GetMapping(value = "/me")
+    public ResponseEntity<TenantResponseDTO> getMe() {
+        return ResponseEntity.ok(tenantService.getAuthenticatedTenant());
+    }
+
     @GetMapping(value = "/{id}")
     public ResponseEntity<TenantResponseDTO> findById(@PathVariable UUID id) {
-        TenantResponseDTO tenant = tenantService.findByIdResponse(id);
+        TenantResponseDTO tenant = tenantService.findByIdForOwner(id);
         return ResponseEntity.ok(tenant);
     }
 
@@ -49,21 +54,11 @@ public class TenantController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Retorna o status de conexão WhatsApp da escola autenticada.
-     * Se não estiver conectada, inclui o QR Code base64 para escaneamento.
-     * GET /api/tenants/me/whatsapp
-     */
     @GetMapping(value = "/me/whatsapp")
     public ResponseEntity<WhatsAppStatusResponseDTO> getWhatsAppStatus() {
         return ResponseEntity.ok(tenantService.getWhatsAppStatus());
     }
 
-    /**
-     * Cria (ou recria) a instância WhatsApp para a escola autenticada.
-     * Útil para escolas criadas antes da integração com a Evolution API.
-     * POST /api/tenants/me/whatsapp/provision
-     */
     @PostMapping(value = "/me/whatsapp/provision")
     public ResponseEntity<WhatsAppStatusResponseDTO> provisionWhatsApp() {
         return ResponseEntity.ok(tenantService.reprovisionWhatsApp());

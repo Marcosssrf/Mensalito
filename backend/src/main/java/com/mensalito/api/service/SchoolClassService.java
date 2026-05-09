@@ -82,6 +82,15 @@ public class SchoolClassService {
         return toResponse(schoolClass);
     }
 
+    public SchoolClassResponseDTO reactivate(UUID id) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
+        schoolClass.setActive(true);
+        schoolClass = schoolClassRepository.save(schoolClass);
+        return toResponse(schoolClass);
+    }
+
     private SchoolClassResponseDTO toResponse(SchoolClass schoolClass) {
         return new SchoolClassResponseDTO(
                 schoolClass.getId(),
