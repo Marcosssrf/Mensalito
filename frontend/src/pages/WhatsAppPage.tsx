@@ -3,6 +3,7 @@ import api from '@/services/api'
 
 const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function timeAgo(dateStr: string): string {
   const now = new Date()
   const d = new Date(dateStr)
@@ -83,7 +84,7 @@ export default function WhatsAppPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES)
   const [sentToday, setSentToday] = useState(0)
-  const [deliveryRate, setDeliveryRate] = useState(98.1)
+  const [deliveryRate] = useState(98.1)
   const [editMsg, setEditMsg] = useState('')
 
   useEffect(() => {

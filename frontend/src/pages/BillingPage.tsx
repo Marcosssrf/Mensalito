@@ -108,7 +108,7 @@ export default function BillingPage() {
       api.get('/dashboard'),
       api.get('/tenants/me'),
       api.get('/users'),
-    ]).then(([dashRes, tenantRes, usersRes]) => {
+    ]).then(([dashRes, _tenantRes, usersRes]) => {
       const dash = dashRes.data as DashboardData
 
       const now = new Date()

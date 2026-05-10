@@ -86,11 +86,11 @@ class TenantServiceTest {
     void findById_success() {
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
 
-        Tenant result = tenantService.findById(tenantId);
+        TenantResponseDTO result = tenantService.findById(tenantId);
 
         assertNotNull(result);
-        assertEquals(tenantId, result.getId());
-        assertEquals("Escola de Inglês do João", result.getName());
+        assertEquals(tenantId, result.id());
+        assertEquals("Escola de Inglês do João", result.name());
     }
 
     @Test

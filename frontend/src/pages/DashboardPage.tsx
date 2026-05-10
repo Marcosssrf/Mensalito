@@ -264,6 +264,7 @@ const PAYMENT_METHODS = [
 ]
 
 // Methods that bypass the payment gateway — mark as PAID directly
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const OFFLINE_METHODS = new Set(['DINHEIRO', 'CARTAO', 'OUTROS'])
 
 function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalProps) {

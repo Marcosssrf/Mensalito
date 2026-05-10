@@ -133,7 +133,7 @@ function buildActivities(charges: Charge[], enrollments: Enrollment[]): Activity
 }
 
 function NewChargeModal({
-  studentId,
+  studentId: _studentId,
   onClose,
   onCreated,
 }: {
