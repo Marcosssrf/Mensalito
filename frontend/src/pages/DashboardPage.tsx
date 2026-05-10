@@ -264,8 +264,7 @@ const PAYMENT_METHODS = [
 ]
 
 // Methods that bypass the payment gateway — mark as PAID directly
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const OFFLINE_METHODS = new Set(['DINHEIRO', 'CARTAO', 'OUTROS'])
+const OFFLINE_METHODS = new Set(['DINHEIRO', 'CARTAO', 'OUTROS', 'PIX'])
 
 function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalProps) {
   const [step, setStep]               = useState<ModalStep>('student')
@@ -328,7 +327,9 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
       const res = await api.post('/charges', { enrollmentId: selectedEnrollment.id, dueDate })
       const charge = res.data as any
       // Todos os meios manuais: marca direto como pago sem passar pelo AbacatePay
-      await api.patch(`/charges/${charge.id}/status`, { status: 'PAID' })
+      if (OFFLINE_METHODS.has(paymentMethod)) {
+        await api.patch(`/charges/${charge.id}/status`, { status: 'PAID' })
+      }
       onSuccess()
       onClose()
     } catch (err: any) {
