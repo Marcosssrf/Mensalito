@@ -16,6 +16,7 @@ export interface Tenant {
     document: string
     active: boolean
     createdAt: string
+    hasMercadoPagoApi?: boolean
 }
 
 export interface User {

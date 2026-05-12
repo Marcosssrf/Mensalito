@@ -74,26 +74,26 @@ function WABadge() {
   )
 }
 
-function AbacateBadge() {
+function MercadoPagoBadge() {
   const [configured, setConfigured] = useState<boolean | null>(null)
   const { user } = useAuth()
 
   useEffect(() => {
     if (!user) return
     // Try to get the real status from the API
-    api.get<{ hasAbacatePayKey?: boolean }>(`/tenants/${user.tenantId}`)
+    api.get<{ hasMercadoPagoApi?: boolean }>(`/tenants/${user.tenantId}`)
       .then(r => {
-        if (r.data.hasAbacatePayKey !== undefined) {
-          const val = r.data.hasAbacatePayKey
+        if (r.data.hasMercadoPagoApi !== undefined) {
+          const val = r.data.hasMercadoPagoApi
           setConfigured(val)
-          localStorage.setItem('abacate_configured', val ? '1' : '0')
+          localStorage.setItem('mercadopago_configured', val ? '1' : '0')
         } else {
           // fallback to localStorage if backend doesn't return the field yet
-          setConfigured(localStorage.getItem('abacate_configured') === '1')
+          setConfigured(localStorage.getItem('mercadopago_configured') === '1')
         }
       })
       .catch(() => {
-        setConfigured(localStorage.getItem('abacate_configured') === '1')
+        setConfigured(localStorage.getItem('mercadopago_configured') === '1')
       })
   }, [user])
 
@@ -114,8 +114,7 @@ function AbacateBadge() {
           flexShrink: 0,
         }} />
         <span style={{ fontSize: 12, fontWeight: 600, color: configured ? '#065f46' : '#9ca3af' }}>
-          AbacatePay
-        </span>
+          Mercado Pago        </span>
       </div>
       <p style={{ fontSize: 11, margin: '3px 0 0 14px', color: '#6b7280' }}>
         {configured ? 'Configurado' : 'Não configurado'}
@@ -183,7 +182,7 @@ export default function Layout() {
           ))}
           <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', padding: '0 10px', margin: '16px 0 8px' }}>STATUS</p>
           <WABadge />
-          <AbacateBadge />
+          <MercadoPagoBadge />
         </nav>
       </aside>
       <div style={{ marginLeft: 220, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

@@ -78,13 +78,6 @@ public class ChargeController {
         return ResponseEntity.ok(chargeService.updateStatus(id, dto.status()));
     }
 
-    /**
-     * Confirma o pagamento de uma cobrança manualmente (baixa manual).
-     * Registra o método de pagamento, a data e uma observação opcional.
-     * Não interage com o AbacatePay.
-     *
-     * Body: { "paymentMethod": "PIX", "paymentDate": "2025-05-09", "notes": "..." }
-     */
     @PatchMapping("/{id}/confirm-payment")
     public ResponseEntity<ChargeResponseDTO> confirmManualPayment(
             @PathVariable UUID id,

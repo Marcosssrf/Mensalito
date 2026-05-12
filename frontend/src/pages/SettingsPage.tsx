@@ -40,7 +40,7 @@ interface TenantData {
   document: string | null
   active: boolean
   createdAt: string
-  hasAbacatePayKey?: boolean
+  hasMercadoPagoApi?: boolean
 }
 
 interface InviteResponse {
@@ -115,8 +115,8 @@ function IntegrationCard({ acronym, name, description, connected, connectedLabel
   )
 }
 
-// Modal AbacatePay — PUT /api/tenants/me/api-key
-function AbacatePayModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+// Modal MercadoPago — PUT /api/tenants/me/api-key
+function MercadoPagoModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [key, setKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -125,7 +125,7 @@ function AbacatePayModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
     if (!key.trim()) { setError('Insira a chave de API'); return }
     setLoading(true)
     try {
-      await api.put('/tenants/me/api-key', { abacatePayApiKey: key })
+      await api.put('/tenants/me/api-key', { mercadoPagoApi: key })
       onSaved(); onClose()
     } catch (e: any) {
       setError(e?.response?.data?.error ?? e?.response?.data?.message ?? 'Erro ao salvar chave')
@@ -135,14 +135,14 @@ function AbacatePayModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>AbacatePay · Chave de API</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Mercado Pago · Chave de API</h2>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
             Sua chave é armazenada de forma criptografada e nunca exibida novamente.
           </p>
           {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>}
-          <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Chave de API</label>
+          <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Chave de API (Access Token)</label>
           <input type="password" value={key} onChange={(e) => setKey(e.target.value)}
-                 placeholder="eyJ..." autoComplete="off" style={{ ...inputStyle, marginBottom: 24 }} />
+                 placeholder="APP_USR-..." autoComplete="off" style={{ ...inputStyle, marginBottom: 24 }} />
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
             <button onClick={save} disabled={loading}
@@ -497,9 +497,9 @@ export default function SettingsPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', document: '' })
   const [saveState, setSaveState] = useState<SaveState>('idle')
 
-  const [abacateConnected, setAbacateConnected] = useState(() => localStorage.getItem('abacate_configured') === '1')
-  const [showAbacateModal, setShowAbacateModal] = useState(false)
-  const [showAbacateConfirm, setShowAbacateConfirm] = useState(false)
+  const [mercadoPagoConnected, setMercadoPagoConnected] = useState(() => localStorage.getItem('mercadopago_configured') === '1')
+  const [showMercadoPagoModal, setShowMercadoPagoModal] = useState(false)
+  const [showMercadoPagoConfirm, setShowMercadoPagoConfirm] = useState(false)
 
   const [waConnected, setWaConnected] = useState(false)
   const [showWaModal, setShowWaModal] = useState(false)
@@ -517,10 +517,10 @@ export default function SettingsPage() {
             document: r.data.document ?? '',
           })
           localStorage.setItem('tenantName', r.data.name ?? '')
-          if (r.data.hasAbacatePayKey !== undefined) {
-            const configured = r.data.hasAbacatePayKey
-            setAbacateConnected(configured)
-            localStorage.setItem('abacate_configured', configured ? '1' : '0')
+          if (r.data.hasMercadoPagoApi !== undefined) {
+            const configured = r.data.hasMercadoPagoApi
+            setMercadoPagoConnected(configured)
+            localStorage.setItem('mercadopago_configured', configured ? '1' : '0')
           }
         })
         .catch(console.error)
@@ -555,10 +555,10 @@ export default function SettingsPage() {
 
   return (
       <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        {showAbacateConfirm && (
+        {showMercadoPagoConfirm && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Trocar chave do AbacatePay?</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Trocar chave do Mercado Pago?</h2>
                 <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
                   Você já possui uma chave configurada. Ao substituir, a chave anterior será permanentemente removida.
                 </p>
@@ -568,14 +568,14 @@ export default function SettingsPage() {
                 <div style={{ display: 'flex', gap: 10 }}>
                   {/* Cancelar em destaque (escuro) para ser o botão "natural" de clicar */}
                   <button
-                    onClick={() => setShowAbacateConfirm(false)}
+                    onClick={() => setShowMercadoPagoConfirm(false)}
                     style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}
                   >
                     Cancelar
                   </button>
                   {/* Trocar em cor fraca para desincentivar o clique impulsivo */}
                   <button
-                    onClick={() => { setShowAbacateConfirm(false); setShowAbacateModal(true) }}
+                    onClick={() => { setShowMercadoPagoConfirm(false); setShowMercadoPagoModal(true) }}
                     style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#6b7280' }}
                   >
                     Sim, trocar
@@ -584,10 +584,10 @@ export default function SettingsPage() {
               </div>
             </div>
         )}
-        {showAbacateModal && (
-            <AbacatePayModal onClose={() => setShowAbacateModal(false)} onSaved={() => {
-              localStorage.setItem('abacate_configured', '1')
-              setAbacateConnected(true)
+        {showMercadoPagoModal && (
+            <MercadoPagoModal onClose={() => setShowMercadoPagoModal(false)} onSaved={() => {
+              localStorage.setItem('mercadopago_configured', '1')
+              setMercadoPagoConnected(true)
             }} />
         )}
         {showWaModal && <WhatsAppModal onClose={() => setShowWaModal(false)} onConnected={() => setWaConnected(true)} />}
@@ -672,10 +672,10 @@ export default function SettingsPage() {
                   <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Integrações</h2>
                   <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>Conexões com serviços externos.</p>
                   <IntegrationCard
-                      acronym="AS" name="AbacatePay" description="Boletos e PIX automáticos"
-                      connected={abacateConnected}
-                      connectedLabel={abacateConnected ? 'Configurado' : undefined}
-                      onManage={() => abacateConnected ? setShowAbacateConfirm(true) : setShowAbacateModal(true)}
+                      acronym="MP" name="Mercado Pago" description="Boletos, PIX e pagamentos automáticos"
+                      connected={mercadoPagoConnected}
+                      connectedLabel={mercadoPagoConnected ? 'Configurado' : undefined}
+                      onManage={() => mercadoPagoConnected ? setShowMercadoPagoConfirm(true) : setShowMercadoPagoModal(true)}
                   />
                   <IntegrationCard
                       acronym="EV" name="Evolution API" description="Disparo de mensagens via WhatsApp"

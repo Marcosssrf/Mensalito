@@ -326,7 +326,7 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
     try {
       const res = await api.post('/charges', { enrollmentId: selectedEnrollment.id, dueDate })
       const charge = res.data as any
-      // Todos os meios manuais: marca direto como pago sem passar pelo AbacatePay
+      // Todos os meios manuais: marca direto como pago sem passar pelo Mercado Pago
       if (OFFLINE_METHODS.has(paymentMethod)) {
         await api.patch(`/charges/${charge.id}/status`, { status: 'PAID' })
       }
