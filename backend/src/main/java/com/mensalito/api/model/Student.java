@@ -1,5 +1,6 @@
 package com.mensalito.api.model;
 
+import com.mensalito.api.model.enums.PaymentPreference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,8 +38,16 @@ public class Student {
     @Column
     private String document;
 
+    @Embedded
+    private Address address;
+
     @Column
     private String mercadoPagoCustomerId;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentPreference paymentPreference = PaymentPreference.BOLETO;
 
     @Builder.Default
     @Column(nullable = false)

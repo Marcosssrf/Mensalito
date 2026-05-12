@@ -58,6 +58,9 @@ public class Charge {
     @Column
     private String boletoUrl;
 
+    @Column(length = 512)
+    private String ticketUrl;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

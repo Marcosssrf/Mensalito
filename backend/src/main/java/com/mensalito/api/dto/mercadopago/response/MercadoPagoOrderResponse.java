@@ -33,6 +33,9 @@ public record MercadoPagoOrderResponse(
             String id,
             String type,
             @JsonProperty("qr_code") String qrCode,
-            @JsonProperty("qr_code_base64") String qrCodeBase64
+            @JsonProperty("qr_code_base64") String qrCodeBase64,
+            @JsonProperty("digitable_line") String digitable_line,
+            @JsonProperty("ticket_url") String ticketUrl,
+            @JsonProperty("external_resource_url") String externalResourceUrl
     ) {}
 }

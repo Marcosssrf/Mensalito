@@ -10,6 +10,7 @@ import org.springframework.web.client.*;
 
 import java.text.Normalizer;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Cliente para gerenciamento de instâncias na Evolution API.
@@ -26,6 +27,19 @@ public class EvolutionInstanceClient {
 
     public String createInstance(String schoolName) {
         String instanceName = sanitizeInstanceName(schoolName);
+        return doCreateInstance(instanceName);
+    }
+
+    public String createInstanceWithKey(UUID tenantId, String schoolName) {
+        // Prefixo legível do nome + sufixo curto do UUID para unicidade
+        String prefix = sanitizeInstanceName(schoolName);
+        String suffix = tenantId.toString().replace("-", "").substring(0, 8);
+        String key = (prefix + "-" + suffix);
+        key = key.length() > 50 ? key.substring(0, 50) : key;
+        return doCreateInstance(key);
+    }
+
+    private String doCreateInstance(String instanceName) {
 
         // Valida configuração antes de tentar a chamada
         if (config.getApiUrl() == null || config.getApiUrl().isBlank()) {
@@ -37,7 +51,7 @@ public class EvolutionInstanceClient {
             return instanceName;
         }
 
-        log.info("[Evolution] Criando instância '{}' para escola '{}'", instanceName, schoolName);
+        log.info("[Evolution] Criando instância '{}'", instanceName);
 
         try {
             String responseBody = restClient.post()
@@ -107,12 +121,12 @@ public class EvolutionInstanceClient {
 
                 if (open) {
                     log.info("[Evolution] Valores do instance '{}': owner={} ownerJid={} ownerNumber={}",
-                        instanceName, instanceMap.get("owner"), instanceMap.get("ownerJid"), instanceMap.get("ownerNumber"));
+                            instanceName, instanceMap.get("owner"), instanceMap.get("ownerJid"), instanceMap.get("ownerNumber"));
                     // Tenta owner, ownerJid, ownerNumber em ordem
                     String jid = firstNonNull(
-                        (String) instanceMap.get("owner"),
-                        (String) instanceMap.get("ownerJid"),
-                        (String) instanceMap.get("ownerNumber")
+                            (String) instanceMap.get("owner"),
+                            (String) instanceMap.get("ownerJid"),
+                            (String) instanceMap.get("ownerNumber")
                     );
                     return new ConnectionResult(true, jid);
                 }
@@ -126,8 +140,8 @@ public class EvolutionInstanceClient {
                 log.info("[Evolution] Estado direto de '{}': {}", instanceName, directState);
                 if (open) {
                     String jid = firstNonNull(
-                        (String) response.get("owner"),
-                        (String) response.get("ownerJid")
+                            (String) response.get("owner"),
+                            (String) response.get("ownerJid")
                     );
                     return new ConnectionResult(true, jid);
                 }

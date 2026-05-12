@@ -16,6 +16,7 @@ public record ChargeResponseDTO(
         LocalDate paymentDate,
         String pixCode,
         String boletoUrl,
+        String ticketUrl,
         String checkoutUrl,
         LocalDateTime createdAt
 

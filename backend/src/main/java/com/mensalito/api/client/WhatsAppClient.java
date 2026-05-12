@@ -40,7 +40,7 @@ public class WhatsAppClient {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of(
                             "number", normalized,
-                            "textMessage", Map.of("text", message)
+                            "text", message
                     ))
                     .retrieve()
                     .toBodilessEntity();

@@ -3,10 +3,7 @@ package com.mensalito.api.service;
 import com.mensalito.api.client.MercadoPagoClient;
 import com.mensalito.api.client.WhatsAppClient;
 import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest;
-import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderPayer;
-import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderPayment;
-import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderPaymentMethod;
-import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderTransactions;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.*;
 import com.mensalito.api.dto.mercadopago.request.MercadoPagoWebhookDTO;
 import com.mensalito.api.dto.mercadopago.response.MercadoPagoOrderResponse;
 import com.mensalito.api.dto.request.ChargeRequestDTO;
@@ -19,6 +16,7 @@ import com.mensalito.api.model.Enrollment;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.enums.ChargeStatus;
+import com.mensalito.api.model.enums.PaymentPreference;
 import com.mensalito.api.repository.ChargeRepository;
 import com.mensalito.api.repository.EnrollmentRepository;
 import com.mensalito.api.repository.TenantRepository;
@@ -253,6 +251,7 @@ public class ChargeService {
                 charge.getPaymentDate(),
                 charge.getPixCode(),
                 charge.getBoletoUrl(),
+                charge.getTicketUrl(),
                 charge.getCheckoutUrl(),
                 charge.getCreatedAt()
         );
@@ -271,7 +270,16 @@ public class ChargeService {
         String tenantApiKey = encryptionService.decrypt(encryptedKey);
         Student student = enrollment.getStudent();
 
-        generatePixOrder(charge, student, tenantApiKey);
+        PaymentPreference preference = student.getPaymentPreference() != null
+                ? student.getPaymentPreference()
+                : PaymentPreference.BOLETO;
+
+        if (preference == PaymentPreference.PIX) {
+            generatePixOrder(charge, student, tenantApiKey);
+        } else {
+            generateBoletoOrder(charge, student, tenantApiKey);
+        }
+
         sendWhatsAppNotification(charge);
     }
 
@@ -315,6 +323,92 @@ public class ChargeService {
 
             chargeRepository.save(charge);
             log.info("Order PIX gerado para charge {}: orderId={}", charge.getId(), response.id());
+        }
+    }
+
+    private void generateBoletoOrder(Charge charge, Student student, String tenantApiKey) {
+        if (student.getEmail() == null) {
+            log.warn("Charge {} sem email do aluno — boleto via order ignorado", charge.getId());
+            return;
+        }
+
+        String amountStr = charge.getAmount().toPlainString();
+
+        // Divide nome do aluno em first/last name
+        String fullName = student.getName() != null ? student.getName().trim() : "Aluno";
+        int spaceIdx = fullName.indexOf(' ');
+        String firstName = spaceIdx > 0 ? fullName.substring(0, spaceIdx) : fullName;
+        String lastName  = spaceIdx > 0 ? fullName.substring(spaceIdx + 1) : "-";
+
+        // Monta identification — CPF ou CNPJ dependendo do tamanho do documento
+        MercadoPagoOrderPayerIdentification identification = null;
+        if (student.getDocument() != null && !student.getDocument().isBlank()) {
+            String doc = student.getDocument().replaceAll("\\D", "");
+            String docType = doc.length() == 14 ? "CNPJ" : "CPF";
+            identification = new MercadoPagoOrderPayerIdentification(docType, doc);
+        }
+
+        // Endereço do aluno — usa dados cadastrados ou fallbacks mínimos exigidos pelo MP
+        com.mensalito.api.model.Address studentAddress = student.getAddress();
+        String zipCode      = (studentAddress != null && studentAddress.getZipCode()      != null) ? studentAddress.getZipCode().replaceAll("\\D", "")  : "01310100";
+        String streetName   = (studentAddress != null && studentAddress.getStreet()        != null) ? studentAddress.getStreet()        : "Av. Paulista";
+        String streetNumber = (studentAddress != null && studentAddress.getNumber()        != null) ? studentAddress.getNumber()        : "1";
+        String neighborhood = (studentAddress != null && studentAddress.getNeighborhood()  != null) ? studentAddress.getNeighborhood()  : "Centro";
+        String city         = (studentAddress != null && studentAddress.getCity()          != null) ? studentAddress.getCity()          : "Sao Paulo";
+        String state        = (studentAddress != null && studentAddress.getState()         != null) ? studentAddress.getState()         : "SP";
+
+        MercadoPagoOrderPayerAddress address = new MercadoPagoOrderPayerAddress(
+                zipCode, streetName, streetNumber, neighborhood, city, state
+        );
+
+        MercadoPagoOrderPayer payer = new MercadoPagoOrderPayer(
+                student.getEmail(),
+                firstName,
+                lastName,
+                identification,
+                address
+        );
+
+        MercadoPagoOrderRequest request = new MercadoPagoOrderRequest(
+                "online",
+                "automatic",
+                charge.getId().toString(),
+                amountStr,
+                payer,
+                new MercadoPagoOrderTransactions(
+                        List.of(new MercadoPagoOrderPayment(
+                                amountStr,
+                                new MercadoPagoOrderPaymentMethod("bolbradesco", "ticket")
+                        ))
+                )
+        );
+
+        MercadoPagoOrderResponse response = mercadoPagoClient.createOrder(request, tenantApiKey);
+
+        if (response != null) {
+            charge.setMercadoPagoOrderId(response.id());
+
+            // Extrai barcode e URL do boleto do primeiro pagamento, se disponível
+            if (response.transactions() != null
+                    && response.transactions().payments() != null
+                    && !response.transactions().payments().isEmpty()) {
+                MercadoPagoOrderResponse.MercadoPagoOrderPaymentMethodResponse pm =
+                        response.transactions().payments().get(0).paymentMethod();
+                if (pm != null) {
+                    if (pm.digitable_line() != null) {
+                        charge.setBoletoUrl(pm.digitable_line());
+                    }
+                    if (pm.ticketUrl() != null) {
+                        charge.setTicketUrl(pm.ticketUrl());
+                    }
+                    if (pm.externalResourceUrl() != null) {
+                        charge.setCheckoutUrl(pm.externalResourceUrl());
+                    }
+                }
+            }
+
+            chargeRepository.save(charge);
+            log.info("Order boleto gerado para charge {}: orderId={}", charge.getId(), response.id());
         }
     }
 

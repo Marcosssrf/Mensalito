@@ -1,10 +1,13 @@
 package com.mensalito.api.service;
 
+import com.mensalito.api.dto.request.AddressDTO;
 import com.mensalito.api.dto.request.StudentRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
+import com.mensalito.api.model.Address;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.model.Tenant;
+import com.mensalito.api.model.enums.PaymentPreference;
 import com.mensalito.api.repository.StudentRepository;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
@@ -37,12 +40,14 @@ public class StudentService {
                 .email(dto.email())
                 .phone(dto.phone())
                 .document(dto.document())
+                .paymentPreference(dto.paymentPreference() != null ? dto.paymentPreference() : PaymentPreference.BOLETO)
+                .address(toAddressModel(dto.address()))
                 .tenant(tenant)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         student = studentRepository.save(student);
-        log.info("Aluno criado: studentId={}, tenantId={}", student.getId(), tenant.getId());
+        log.info("Aluno criado: studentId={}, tenantId={}, preferencia={}", student.getId(), tenant.getId(), student.getPaymentPreference());
 
         return toResponse(student);
     }
@@ -83,8 +88,11 @@ public class StudentService {
 
         if (dto.name() != null) student.setName(dto.name());
         if (dto.phone() != null) student.setPhone(dto.phone());
+        if (dto.paymentPreference() != null) student.setPaymentPreference(dto.paymentPreference());
+        if (dto.address() != null) student.setAddress(toAddressModel(dto.address()));
 
         student = studentRepository.save(student);
+        log.info("Aluno atualizado: studentId={}, preferencia={}", student.getId(), student.getPaymentPreference());
         return toResponse(student);
     }
 
@@ -106,6 +114,34 @@ public class StudentService {
         return toResponse(student);
     }
 
+    // ---------- helpers ----------
+
+    private Address toAddressModel(AddressDTO dto) {
+        if (dto == null) return null;
+        return Address.builder()
+                .zipCode(dto.zipCode())
+                .street(dto.street())
+                .number(dto.number())
+                .complement(dto.complement())
+                .neighborhood(dto.neighborhood())
+                .city(dto.city())
+                .state(dto.state())
+                .build();
+    }
+
+    private AddressDTO toAddressDTO(Address address) {
+        if (address == null) return null;
+        return new AddressDTO(
+                address.getZipCode(),
+                address.getStreet(),
+                address.getNumber(),
+                address.getComplement(),
+                address.getNeighborhood(),
+                address.getCity(),
+                address.getState()
+        );
+    }
+
     private StudentResponseDTO toResponse(Student student) {
         return new StudentResponseDTO(
                 student.getId(),
@@ -114,6 +150,8 @@ public class StudentService {
                 student.getPhone(),
                 student.getDocument(),
                 student.getActive(),
+                student.getPaymentPreference(),
+                toAddressDTO(student.getAddress()),
                 student.getCreatedAt()
         );
     }

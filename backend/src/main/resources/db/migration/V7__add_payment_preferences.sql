@@ -1,0 +1,2 @@
+ALTER TABLE students
+    ADD COLUMN IF NOT EXISTS payment_preference VARCHAR(10) NOT NULL DEFAULT 'BOLETO';

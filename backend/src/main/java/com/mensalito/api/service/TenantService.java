@@ -36,10 +36,11 @@ public class TenantService {
         Tenant saved = tenantRepository.save(tenant);
 
         try {
-            String instanceName = evolutionInstanceClient.createInstance(dto.name());
-            saved.setEvolutionInstanceName(instanceName);
+            String instanceKey = evolutionInstanceClient.createInstanceWithKey(saved.getId(), dto.name());
+            saved.setEvolutionInstanceKey(instanceKey);
+            saved.setEvolutionInstanceName(instanceKey); // mantém em sync para compatibilidade
             saved = tenantRepository.save(saved);
-            log.info("Instância Evolution '{}' associada ao tenant {}", instanceName, saved.getId());
+            log.info("Instância Evolution '{}' associada ao tenant {}", instanceKey, saved.getId());
         } catch (Exception e) {
             log.error("Falha ao criar instância Evolution para tenant {}: {}", saved.getId(), e.getMessage());
         }
@@ -107,18 +108,19 @@ public class TenantService {
         log.info("[TenantService] Re-provisionando instância Evolution para tenant '{}' ({})", tenant.getName(), tenantId);
 
         try {
-            String instanceName = evolutionInstanceClient.createInstance(tenant.getName());
-            tenant.setEvolutionInstanceName(instanceName);
+            String instanceKey = evolutionInstanceClient.createInstanceWithKey(tenantId, tenant.getName());
+            tenant.setEvolutionInstanceKey(instanceKey);
+            tenant.setEvolutionInstanceName(instanceKey);
             tenantRepository.save(tenant);
-            log.info("[TenantService] Instância '{}' re-provisionada para tenant {}", instanceName, tenantId);
+            log.info("[TenantService] Instância '{}' re-provisionada para tenant {}", instanceKey, tenantId);
 
-            var conn = evolutionInstanceClient.checkConnection(instanceName);
+            var conn = evolutionInstanceClient.checkConnection(instanceKey);
             if (conn.connected()) {
-                String phoneNumber = extractPhone(conn.ownerJid(), instanceName);
-                return new WhatsAppStatusResponseDTO(true, instanceName, null, phoneNumber);
+                String phoneNumber = extractPhone(conn.ownerJid(), instanceKey);
+                return new WhatsAppStatusResponseDTO(true, instanceKey, null, phoneNumber);
             }
-            String qrCode = evolutionInstanceClient.getQrCode(instanceName);
-            return new WhatsAppStatusResponseDTO(false, instanceName, qrCode, null);
+            String qrCode = evolutionInstanceClient.getQrCode(instanceKey);
+            return new WhatsAppStatusResponseDTO(false, instanceKey, qrCode, null);
 
         } catch (Exception e) {
             log.error("[TenantService] Falha ao re-provisionar Evolution para tenant {}: {}", tenantId, e.getMessage());
@@ -131,12 +133,18 @@ public class TenantService {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
-        String instanceName = tenant.getEvolutionInstanceName();
+        String instanceName = tenant.getEvolutionInstanceKey();
+
+        // Fallback para tenants antigos que ainda não têm a key
+        if (instanceName == null || instanceName.isBlank()) {
+            instanceName = tenant.getEvolutionInstanceName();
+        }
 
         // Se não tem instância ainda, tenta criar
         if (instanceName == null || instanceName.isBlank()) {
             try {
-                instanceName = evolutionInstanceClient.createInstance(tenant.getName());
+                instanceName = evolutionInstanceClient.createInstanceWithKey(tenantId, tenant.getName());
+                tenant.setEvolutionInstanceKey(instanceName);
                 tenant.setEvolutionInstanceName(instanceName);
                 tenantRepository.save(tenant);
             } catch (Exception e) {

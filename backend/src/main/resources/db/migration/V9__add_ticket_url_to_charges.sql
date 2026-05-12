@@ -1,0 +1,1 @@
+ALTER TABLE charges ADD COLUMN ticket_url VARCHAR(512);

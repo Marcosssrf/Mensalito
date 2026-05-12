@@ -42,6 +42,9 @@ public class Tenant {
 
     @Column
     private String evolutionInstanceName;
+    
+    @Column(unique = true)
+    private String evolutionInstanceKey;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
