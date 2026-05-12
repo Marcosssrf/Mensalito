@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 public record StudentRequestDTO(
         @NotBlank
         String name,
-        @Email(message = "Email inválido")
+        @Email(message = "Email inválido", regexp = ".*@.*\\..*")
         String email,
         String phone,
         String document

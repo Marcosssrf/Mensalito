@@ -8,10 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 @Configuration
-@ConfigurationProperties(prefix = "abacatepay")
-public class AbacatePayConfig {
-    private String apiKey;
+@ConfigurationProperties(prefix = "mercadopago")
+public class MercadoPagoConfig {
     private String baseUrl;
-    private String returnUrl;
-    private String completionUrl;
 }

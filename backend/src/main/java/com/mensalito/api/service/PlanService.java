@@ -1,8 +1,5 @@
 package com.mensalito.api.service;
 
-import com.mensalito.api.client.AbacatePayClient;
-import com.mensalito.api.dto.abacatepay.request.AbacatePayProductRequest;
-import com.mensalito.api.dto.abacatepay.response.AbacatePayProductResponse;
 import com.mensalito.api.dto.request.PlanRequestDTO;
 import com.mensalito.api.dto.response.PlanResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
@@ -28,7 +25,6 @@ public class PlanService {
     private final PlanRepository planRepository;
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
-    private final AbacatePayClient abacatePayClient;
     private final EncryptionService encryptionService;
 
     public PlanResponseDTO create(PlanRequestDTO dto) {
@@ -43,20 +39,6 @@ public class PlanService {
                 .build();
 
         plan = planRepository.save(plan);
-
-        String encryptedKey = tenant.getAbacatePayApiKey();
-        if (encryptedKey != null) {
-            AbacatePayProductRequest abacateRequest = AbacatePayProductRequest.fromPlan(
-                    plan.getId().toString(), plan.getName(), plan.getAmount()
-            );
-            AbacatePayProductResponse response = abacatePayClient.createProduct(abacateRequest, encryptionService.decrypt(encryptedKey));
-            if (response != null) {
-                plan.setAbacatePayProductId(response.id());
-                plan = planRepository.save(plan);
-            }
-        } else {
-            log.warn("Tenant {} sem API key do AbacatePay", tenant.getId());
-        }
 
         return toResponse(plan);
     }
@@ -81,16 +63,12 @@ public class PlanService {
         Plan plan = planRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
 
-        boolean needsAbacateSync = false;
-
         if (dto.name() != null && !dto.name().equals(plan.getName())) {
             plan.setName(dto.name());
-            needsAbacateSync = true;
         }
 
         if (dto.amount() != null && dto.amount().compareTo(plan.getAmount()) != 0) {
             plan.setAmount(dto.amount());
-            needsAbacateSync = true;
         }
 
         if (dto.dueDay() != null) {
@@ -98,23 +76,6 @@ public class PlanService {
         }
 
         plan = planRepository.save(plan);
-
-        if (needsAbacateSync && plan.getAbacatePayProductId() != null) {
-            Tenant tenant = tenantRepository.findById(tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
-            String encryptedKey = tenant.getAbacatePayApiKey();
-            if (encryptedKey != null) {
-                try {
-                    AbacatePayProductRequest abacateRequest = AbacatePayProductRequest.fromPlan(
-                            plan.getId().toString(), plan.getName(), plan.getAmount()
-                    );
-                    abacatePayClient.createProduct(abacateRequest, encryptionService.decrypt(encryptedKey));
-                    log.info("Plano {} sincronizado com AbacatePay após update", plan.getId());
-                } catch (Exception e) {
-                    log.error("Falha ao sincronizar plano {} com AbacatePay: {}", plan.getId(), e.getMessage());
-                }
-            }
-        }
 
         return toResponse(plan);
     }

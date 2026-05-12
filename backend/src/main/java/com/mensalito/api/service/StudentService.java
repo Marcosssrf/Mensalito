@@ -1,8 +1,5 @@
 package com.mensalito.api.service;
 
-import com.mensalito.api.client.AbacatePayClient;
-import com.mensalito.api.dto.abacatepay.request.AbacatePayCustomerRequest;
-import com.mensalito.api.dto.abacatepay.response.AbacatePayCustomerResponse;
 import com.mensalito.api.dto.request.StudentRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
@@ -29,8 +26,6 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final SecurityUtils securityUtils;
-    private final AbacatePayClient abacatePayClient;
-    private final EncryptionService encryptionService;
     private final TenantRepository tenantRepository;
 
     public StudentResponseDTO create(StudentRequestDTO dto) {
@@ -47,25 +42,7 @@ public class StudentService {
                 .build();
 
         student = studentRepository.save(student);
-
-        String encryptedKey = tenant.getAbacatePayApiKey();
-        if (encryptedKey != null) {
-            AbacatePayCustomerResponse customerResponse = abacatePayClient.createCustomer(
-                    new AbacatePayCustomerRequest(
-                            dto.name(),
-                            dto.email(),
-                            dto.phone(),
-                            dto.document()
-                    ), encryptionService.decrypt(encryptedKey)
-            );
-
-            if (customerResponse == null) {
-                throw new RuntimeException("Falha ao criar cliente no AbacatePay");
-            }
-
-            student.setAbacatePayCustomerId(customerResponse.id());
-            student = studentRepository.save(student);
-        }
+        log.info("Aluno criado: studentId={}, tenantId={}", student.getId(), tenant.getId());
 
         return toResponse(student);
     }

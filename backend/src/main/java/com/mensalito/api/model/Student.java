@@ -38,7 +38,7 @@ public class Student {
     private String document;
 
     @Column
-    private String abacatePayCustomerId;
+    private String mercadoPagoCustomerId;
 
     @Builder.Default
     @Column(nullable = false)

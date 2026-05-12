@@ -39,4 +39,6 @@ public interface ChargeRepository extends JpaRepository<Charge, UUID> {
 
     Long countByTenantIdAndStatusAndDueDateBefore(UUID tenantId, ChargeStatus status, LocalDate date);
 
+    Optional<Charge> findByMercadoPagoOrderId(String mercadoPagoOrderId);
+
 }

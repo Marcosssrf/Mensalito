@@ -35,9 +35,6 @@ public class Plan {
     @Column(nullable = false)
     private Integer dueDay;
 
-    @Column
-    private String abacatePayProductId;
-
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;

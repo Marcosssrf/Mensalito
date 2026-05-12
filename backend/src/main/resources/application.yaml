@@ -29,12 +29,9 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}
 
-abacatepay:
-  api-key: ${ABACATEPAY_API_KEY}
-  base-url: https://api.abacatepay.com/v2
-  return-url: ${ABACATEPAY_RETURN_URL}
-  completion-url: ${ABACATEPAY_COMPLETION_URL}
-  webhook-secret: ${ABACATEPAY_WEBHOOK_SECRET:}
+mercadopago:
+  base-url: https://api.mercadopago.com
+  webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:}
 
 encryption:
   secret: ${ENCRYPTION_SECRET}

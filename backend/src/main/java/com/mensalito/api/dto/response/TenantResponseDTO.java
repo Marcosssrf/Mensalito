@@ -11,7 +11,7 @@ public record TenantResponseDTO(
         String document,
         Boolean active,
         LocalDateTime createdAt,
-        Boolean hasAbacatePayKey
+        Boolean hasMercadoPagoApi
 
 ) {
 }

@@ -52,7 +52,7 @@ class TenantServiceTest {
                 .phone("34999999999")
                 .document("12345678000199")
                 .active(true)
-                .abacatePayApiKey(null)
+                .mercadoPagoApiKey(null)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -159,7 +159,7 @@ class TenantServiceTest {
 
         tenantService.saveApiKey(rawApiKey);
 
-        assertEquals(encryptedKey, tenant.getAbacatePayApiKey());
+        assertEquals(encryptedKey, tenant.getMercadoPagoApiKey());
         verify(encryptionService).encrypt(rawApiKey);
         verify(tenantRepository).save(tenant);
     }

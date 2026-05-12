@@ -47,7 +47,7 @@ public class Charge {
     private LocalDate paymentDate;
 
     @Column
-    private String abacatePayCheckoutId;
+    private String mercadoPagoOrderId;
 
     @Column
     private String checkoutUrl;

@@ -1,5 +1,7 @@
 package com.mensalito.api.security;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,20 +21,22 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
 /**
- * Valida a assinatura HMAC-SHA256 do webhook do AbacatePay.
- * O AbacatePay envia o header "abacatepay-webhook-token" com o HMAC do body
- * usando o webhook secret configurado no painel.
+ * Valida a assinatura HMAC-SHA256 do webhook do Mercado Pago.
+ * O MP envia o header "x-signature" com formato "ts=...,v1=..."
+ * e o header "x-request-id" usados para montar o manifest a ser validado.
  */
 @Slf4j
 @Component
 public class WebhookAuthFilter extends OncePerRequestFilter {
 
-    @Value("${abacatepay.webhook-secret:}")
+    @Value("${mercadopago.webhook-secret:}")
     private String webhookSecret;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/webhooks/abacatepay");
+        return !request.getRequestURI().startsWith("/api/webhooks/mercadopago");
     }
 
     @Override
@@ -42,25 +46,53 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         if (webhookSecret == null || webhookSecret.isBlank()) {
-            log.warn("WEBHOOK_SECRET não configurado — requisições de webhook NÃO estão autenticadas!");
+            log.warn("MERCADOPAGO_WEBHOOK_SECRET não configurado — requisições de webhook NÃO estão autenticadas!");
             filterChain.doFilter(request, response);
             return;
         }
 
-        String signature = request.getHeader("abacatepay-webhook-token");
-        if (signature == null || signature.isBlank()) {
-            log.warn("Webhook recebido sem header de assinatura");
+        String xSignature = request.getHeader("x-signature");
+        String xRequestId = request.getHeader("x-request-id");
+
+        if (xSignature == null || xSignature.isBlank()) {
+            log.warn("Webhook MP recebido sem header x-signature");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("{\"error\":\"Missing webhook signature\"}");
             return;
         }
 
-        // Lê o body via CachedBodyHttpServletRequest (configurado no SecurityConfig)
-        byte[] body = StreamUtils.copyToByteArray(request.getInputStream());
-        String expectedSignature = computeHmac(body);
+        // Extrai ts e v1 do header x-signature (formato: "ts=123,v1=abc")
+        String ts = null, v1 = null;
+        for (String part : xSignature.split(",")) {
+            if (part.startsWith("ts=")) ts = part.substring(3).trim();
+            if (part.startsWith("v1=")) v1 = part.substring(3).trim();
+        }
 
-        if (!constantTimeEquals(signature, expectedSignature)) {
-            log.warn("Assinatura de webhook inválida — requisição rejeitada");
+        if (ts == null || v1 == null) {
+            log.warn("Header x-signature mal formatado: {}", xSignature);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("{\"error\":\"Invalid signature format\"}");
+            return;
+        }
+
+        // Lê o body para extrair data.id e reutilizar no controller
+        byte[] body = StreamUtils.copyToByteArray(request.getInputStream());
+        String dataId = extractDataId(body);
+
+        if (dataId == null) {
+            log.warn("Webhook MP sem data.id no body — rejeitado");
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().write("{\"error\":\"Missing data.id\"}");
+            return;
+        }
+
+        // Manifest conforme documentação do MP:
+        // "id:{data.id};request-id:{x-request-id};ts:{ts};"
+        String manifest = "id:" + dataId + ";request-id:" + xRequestId + ";ts:" + ts + ";";
+        String expected = computeHmac(manifest);
+
+        if (!constantTimeEquals(v1, expected)) {
+            log.warn("Assinatura MP inválida — requisição rejeitada");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("{\"error\":\"Invalid webhook signature\"}");
             return;
@@ -70,11 +102,22 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(new CachedBodyServletRequest(request, body), response);
     }
 
-    private String computeHmac(byte[] body) {
+    private String extractDataId(byte[] body) {
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode dataId = root.path("data").path("id");
+            return dataId.isMissingNode() ? null : dataId.asText();
+        } catch (Exception e) {
+            log.error("Erro ao parsear body do webhook MP: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private String computeHmac(String manifest) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return HexFormat.of().formatHex(mac.doFinal(body));
+            return HexFormat.of().formatHex(mac.doFinal(manifest.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException("Falha ao calcular HMAC", e);
         }

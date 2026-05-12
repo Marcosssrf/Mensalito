@@ -95,7 +95,7 @@ public class TenantService {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
-        tenant.setAbacatePayApiKey(encryptionService.encrypt(apiKey));
+        tenant.setMercadoPagoApiKey(encryptionService.encrypt(apiKey));
         tenantRepository.save(tenant);
     }
 
@@ -199,7 +199,7 @@ public class TenantService {
                 tenant.getDocument(),
                 tenant.getActive(),
                 tenant.getCreatedAt(),
-                tenant.getAbacatePayApiKey() != null && !tenant.getAbacatePayApiKey().isBlank()
+                tenant.getMercadoPagoApiKey() != null && !tenant.getMercadoPagoApiKey().isBlank()
         );
     }
 }

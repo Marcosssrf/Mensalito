@@ -1,7 +1,8 @@
 package com.mensalito.api.controller;
 
-import com.mensalito.api.dto.abacatepay.request.AbacatePayWebhookDTO;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoWebhookDTO;
 import com.mensalito.api.service.ChargeService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +19,13 @@ public class WebhookController {
 
     private final ChargeService chargeService;
 
-    @PostMapping("/abacatepay")
-    public ResponseEntity<Void> handleAbacatePay(@RequestBody AbacatePayWebhookDTO dto) {
-        log.info("Webhook recebido: event={} externalId={}", dto.event(), dto.data().checkout().externalId());
-        chargeService.processWebhook(dto);
+    @PostMapping("/mercadopago")
+    public ResponseEntity<Void> handleMercadoPago(
+            @RequestBody MercadoPagoWebhookDTO dto,
+            HttpServletRequest request) {
+        log.info("Webhook MP recebido: type={} dataId={}", dto.type(), dto.data() != null ? dto.data().id() : "null");
+        chargeService.processWebhookMercadoPago(dto);
         return ResponseEntity.ok().build();
     }
+
 }

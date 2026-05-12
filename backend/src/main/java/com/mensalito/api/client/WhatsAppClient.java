@@ -4,6 +4,7 @@ import com.mensalito.api.config.EvolutionConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -15,12 +16,17 @@ import java.util.Map;
 public class WhatsAppClient {
 
     private final EvolutionConfig config;
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient = buildRestClient();
 
-    /**
-     * Envia mensagem usando a instância específica do tenant.
-     * Cada escola tem sua própria instância no Evolution e só envia para seus alunos.
-     */
+    private static RestClient buildRestClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);  // 5s para conectar
+        factory.setReadTimeout(10000);    // 10s para ler resposta
+        return RestClient.builder()
+                .requestFactory(factory)
+                .build();
+    }
+
     public void sendText(String instanceName, String phone, String message) {
         if (instanceName == null || instanceName.isBlank()) {
             log.warn("WhatsApp não enviado para {}: instanceName do tenant está vazio", phone);
@@ -56,5 +62,4 @@ public class WhatsAppClient {
 
         return normalized;
     }
-
 }

@@ -50,7 +50,7 @@ public class TenantController {
 
     @PutMapping(value = "/me/api-key")
     public ResponseEntity<Void> saveApiKey(@RequestBody TenantApiKeyRequestDTO dto) {
-        tenantService.saveApiKey(dto.abacatePayApiKey());
+        tenantService.saveApiKey(dto.mercadoPagoApi());
         return ResponseEntity.noContent().build();
     }
 

@@ -1,19 +1,23 @@
 package com.mensalito.api.service;
 
-import com.mensalito.api.client.AbacatePayClient;
+import com.mensalito.api.client.MercadoPagoClient;
 import com.mensalito.api.client.WhatsAppClient;
-import com.mensalito.api.config.AbacatePayConfig;
-import com.mensalito.api.dto.abacatepay.request.AbacatePayCheckoutRequest;
-import com.mensalito.api.dto.abacatepay.request.AbacatePayPixRequest;
-import com.mensalito.api.dto.abacatepay.request.AbacatePayWebhookDTO;
-import com.mensalito.api.dto.abacatepay.response.AbacatePayCheckoutResponse;
-import com.mensalito.api.dto.abacatepay.response.AbacatePayPixResponse;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderPayer;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderPayment;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderPaymentMethod;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoOrderRequest.MercadoPagoOrderTransactions;
+import com.mensalito.api.dto.mercadopago.request.MercadoPagoWebhookDTO;
+import com.mensalito.api.dto.mercadopago.response.MercadoPagoOrderResponse;
 import com.mensalito.api.dto.request.ChargeRequestDTO;
 import com.mensalito.api.dto.request.ManualChargeRequestDTO;
 import com.mensalito.api.dto.request.ManualPaymentRequestDTO;
 import com.mensalito.api.dto.response.ChargeResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
-import com.mensalito.api.model.*;
+import com.mensalito.api.model.Charge;
+import com.mensalito.api.model.Enrollment;
+import com.mensalito.api.model.Student;
+import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.enums.ChargeStatus;
 import com.mensalito.api.repository.ChargeRepository;
 import com.mensalito.api.repository.EnrollmentRepository;
@@ -31,6 +35,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -44,8 +49,7 @@ public class ChargeService {
     private final EnrollmentRepository enrollmentRepository;
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
-    private final AbacatePayClient abacatePayClient;
-    private final AbacatePayConfig abacatePayConfig;
+    private final MercadoPagoClient mercadoPagoClient;
     private final EncryptionService encryptionService;
     private final WhatsAppClient whatsAppClient;
     private final WhatsAppMessageBuilder messageBuilder;
@@ -130,7 +134,7 @@ public class ChargeService {
         charge.setStatus(ChargeStatus.PAID);
         charge.setPaymentDate(dto.paymentDate() != null ? dto.paymentDate() : LocalDate.now());
 
-        // Armazena método de pagamento no campo pixCode para auditoria
+        // Armazena métod de pagamento no campo pixCode para auditoria
         // (campo reutilizado para evitar migration — prefixado com "MANUAL:")
         charge.setPixCode("MANUAL:" + dto.paymentMethod()
                 + (dto.notes() != null && !dto.notes().isBlank() ? " | " + dto.notes() : ""));
@@ -256,7 +260,7 @@ public class ChargeService {
 
     public void generatePayment(Charge charge) {
         Enrollment enrollment = charge.getEnrollment();
-        String encryptedKey = enrollment.getTenant().getAbacatePayApiKey();
+        String encryptedKey = enrollment.getTenant().getMercadoPagoApiKey();
 
         if (encryptedKey == null) {
             log.warn("Tenant {} sem API key — pagamento não gerado para charge {}",
@@ -266,102 +270,52 @@ public class ChargeService {
 
         String tenantApiKey = encryptionService.decrypt(encryptedKey);
         Student student = enrollment.getStudent();
-        Plan plan = enrollment.getPlan();
 
-        generateCheckout(charge, student, plan, tenantApiKey);
-        generatePix(charge, student, plan, tenantApiKey);
+        generatePixOrder(charge, student, tenantApiKey);
         sendWhatsAppNotification(charge);
     }
 
-    private void generateCheckout(Charge charge, Student student, Plan plan, String tenantApiKey) {
-        String customerId = student.getAbacatePayCustomerId();
-        String productId = plan.getAbacatePayProductId();
-
-        if (customerId == null || productId == null) {
-            log.warn("Charge {} sem customerId ou productId do AbacatePay — checkout ignorado",
-                    charge.getId());
+    private void generatePixOrder(Charge charge, Student student, String tenantApiKey) {
+        if (student.getEmail() == null) {
+            log.warn("Charge {} sem email do aluno — PIX via order ignorado", charge.getId());
             return;
         }
 
-        AbacatePayCheckoutRequest request = new AbacatePayCheckoutRequest(
-                List.of(new AbacatePayCheckoutRequest.Item(productId, 1)),
-                customerId,
+        String amountStr = charge.getAmount().toPlainString();
+
+        MercadoPagoOrderRequest request = new MercadoPagoOrderRequest(
+                "online",
+                "automatic",
                 charge.getId().toString(),
-                abacatePayConfig.getReturnUrl(),
-                abacatePayConfig.getCompletionUrl(),
-                List.of("PIX")
-        );
-
-        AbacatePayCheckoutResponse response = abacatePayClient.createCheckout(request, tenantApiKey);
-
-        if (response != null) {
-            charge.setAbacatePayCheckoutId(response.id());
-            charge.setCheckoutUrl(response.url());
-            chargeRepository.save(charge);
-            log.info("Checkout gerado para charge {}: {}", charge.getId(), response.url());
-        }
-    }
-
-    private void generatePix(Charge charge, Student student, Plan plan, String tenantApiKey) {
-        AbacatePayPixRequest request = new AbacatePayPixRequest(
-                "PIX",
-                new AbacatePayPixRequest.PixData(
-                        plan.getAmount().multiply(BigDecimal.valueOf(100)).intValue(),
-                        "Mensalidade - " + charge.getEnrollment().getSchoolClass().getName(),
-                        3600L * 24 * 3,
-                        new AbacatePayPixRequest.PixCustomer(
-                                student.getName(),
-                                student.getEmail(),
-                                student.getDocument(),
-                                student.getPhone()
-                        )
+                amountStr,
+                new MercadoPagoOrderPayer(student.getEmail()),
+                new MercadoPagoOrderTransactions(
+                        List.of(new MercadoPagoOrderPayment(
+                                amountStr,
+                                new MercadoPagoOrderPaymentMethod("pix", "bank_transfer")
+                        ))
                 )
         );
 
-        AbacatePayPixResponse response = abacatePayClient.createPix(request, tenantApiKey);
+        MercadoPagoOrderResponse response = mercadoPagoClient.createOrder(request, tenantApiKey);
 
         if (response != null) {
-            charge.setPixCode(response.brCode());
-            chargeRepository.save(charge);
-            log.info("PIX gerado para charge {}", charge.getId());
-        }
-    }
+            charge.setMercadoPagoOrderId(response.id());
 
-    public void processWebhook(AbacatePayWebhookDTO dto) {
-        String event = dto.event();
-        log.info("Webhook recebido: event={}", event);
-
-        String externalId = dto.data().checkout().externalId();
-        if (externalId == null) {
-            log.warn("Webhook sem externalId, ignorado!");
-            return;
-        }
-
-        ChargeStatus newStatus = switch (event) {
-            case "checkout.completed" -> ChargeStatus.PAID;
-            case "checkout.refunded"  -> ChargeStatus.REFUNDED;
-            case "checkout.lost"      -> ChargeStatus.LOST;
-            case "checkout.disputed"  -> ChargeStatus.DISPUTED;
-            default -> {
-                log.info("Evento ignorado: event={}", event);
-                yield null;
+            // Extrai qr_code do primeiro pagamento, se disponível
+            if (response.transactions() != null
+                    && response.transactions().payments() != null
+                    && !response.transactions().payments().isEmpty()) {
+                MercadoPagoOrderResponse.MercadoPagoOrderPaymentMethodResponse pm =
+                        response.transactions().payments().get(0).paymentMethod();
+                if (pm != null && pm.qrCode() != null) {
+                    charge.setPixCode(pm.qrCode());
+                }
             }
-        };
 
-        if (newStatus == null) return;
-
-        ChargeStatus finalNewStatus = newStatus;
-        chargeRepository.findById(UUID.fromString(externalId)).ifPresentOrElse(
-                charge -> {
-                    charge.setStatus(finalNewStatus);
-                    if (finalNewStatus == ChargeStatus.PAID) {
-                        charge.setPaymentDate(LocalDate.now());
-                    }
-                    chargeRepository.save(charge);
-                    log.info("Cobrança {} atualizada para {}", externalId, finalNewStatus);
-                },
-                () -> log.warn("Cobrança não encontrada para externalId {}", externalId)
-        );
+            chargeRepository.save(charge);
+            log.info("Order PIX gerado para charge {}: orderId={}", charge.getId(), response.id());
+        }
     }
 
     private void sendWhatsAppNotification(Charge charge) {
@@ -416,4 +370,89 @@ public class ChargeService {
         chargeRepository.saveAll(pendingOverdue);
         log.info("Cobranças marcadas como OVERDUE: {}", pendingOverdue.size());
     }
+
+    public void processWebhookMercadoPago(MercadoPagoWebhookDTO dto) {
+        if (!"payment".equals(dto.type()) && !"order".equals(dto.type())) {
+            log.info("Evento MP ignorado: type={}", dto.type());
+            return;
+        }
+
+        String resourceId = dto.data().id();
+        if (resourceId == null) {
+            log.warn("Webhook MP sem data.id, ignorado");
+            return;
+        }
+
+        Optional<Charge> chargeOpt = chargeRepository.findByMercadoPagoOrderId(resourceId);
+
+        if (chargeOpt.isEmpty()) {
+            log.info("Nao achou por orderId, tentando buscar order pelo paymentId={}", resourceId);
+            MercadoPagoOrderResponse orderByPayment = findOrderByPaymentId(resourceId);
+            if (orderByPayment != null && orderByPayment.externalReference() != null) {
+                try {
+                    UUID chargeId = UUID.fromString(orderByPayment.externalReference());
+                    chargeOpt = chargeRepository.findById(chargeId);
+                } catch (Exception e) {
+                    log.warn("externalReference nao e UUID valido: {}", orderByPayment.externalReference());
+                }
+            }
+        }
+
+        if (chargeOpt.isEmpty()) {
+            log.warn("Nenhuma charge encontrada para resourceId={}", resourceId);
+            return;
+        }
+
+        Charge charge = chargeOpt.get();
+
+        String tenantKey = encryptionService.decrypt(
+                charge.getEnrollment().getTenant().getMercadoPagoApiKey()
+        );
+
+        String orderId = charge.getMercadoPagoOrderId() != null ? charge.getMercadoPagoOrderId() : resourceId;
+        MercadoPagoOrderResponse order = mercadoPagoClient.getOrder(orderId, tenantKey);
+
+        if (order == null) {
+            log.warn("Webhook MP: order {} nao encontrada na API", orderId);
+            return;
+        }
+
+        ChargeStatus newStatus = switch (order.status()) {
+            case "paid", "processed"     -> ChargeStatus.PAID;
+            case "canceled" -> ChargeStatus.CANCELLED;
+            case "expired"  -> ChargeStatus.LOST;
+            default -> {
+                if (order.transactions() != null && order.transactions().payments() != null) {
+                    boolean approved = order.transactions().payments().stream()
+                            .anyMatch(p -> "approved".equals(p.status()));
+                    yield approved ? ChargeStatus.PAID : null;
+                }
+                yield null;
+            }
+        };
+
+        if (newStatus != null) {
+            charge.setStatus(newStatus);
+            if (newStatus == ChargeStatus.PAID) {
+                charge.setPaymentDate(LocalDate.now());
+            }
+            chargeRepository.save(charge);
+            log.info("Charge {} atualizada via webhook MP para {}", charge.getId(), newStatus);
+        } else {
+            log.warn("Webhook MP: status '{}' da order {} nao mapeado", order.status(), orderId);
+        }
+    }
+
+    private MercadoPagoOrderResponse findOrderByPaymentId(String paymentId) {
+        return chargeRepository.findAll().stream()
+                .map(c -> c.getEnrollment().getTenant().getMercadoPagoApiKey())
+                .filter(key -> key != null && !key.isBlank())
+                .findFirst()
+                .map(encryptedKey -> {
+                    String apiKey = encryptionService.decrypt(encryptedKey);
+                    return mercadoPagoClient.getOrderByPaymentId(paymentId, apiKey);
+                })
+                .orElse(null);
+    }
+
 }

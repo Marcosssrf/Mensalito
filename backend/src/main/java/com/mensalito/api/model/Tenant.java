@@ -38,7 +38,7 @@ public class Tenant {
     private Boolean active = true;
 
     @Column
-    private String abacatePayApiKey;
+    private String mercadoPagoApiKey;
 
     @Column
     private String evolutionInstanceName;
