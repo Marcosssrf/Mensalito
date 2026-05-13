@@ -251,6 +251,21 @@ public class ChargeService {
     }
 
     /**
+     * Decripta e retorna o access token do MercadoPago do tenant da cobrança.
+     * Retorna null se não houver chave configurada (não lança exceção — o PDF simplesmente não é enviado).
+     */
+    private String resolveMercadoPagoToken(Charge charge) {
+        try {
+            String encrypted = charge.getTenant().getMercadoPagoApiKey();
+            if (encrypted == null || encrypted.isBlank()) return null;
+            return encryptionService.decrypt(encrypted);
+        } catch (Exception e) {
+            log.warn("[ChargeService] Não foi possível decriptar token MP para envio do PDF: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Lança exceção se já existe cobrança ativa (qualquer tipo: manual ou normal) para a
      * matrícula no mesmo mês/ano da {@code dueDate}. Cobranças CANCELLED são ignoradas.
      */
@@ -458,8 +473,20 @@ public class ChargeService {
                     charge.getTenant().getId(), student.getId());
             return;
         }
-        boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(),
-                messageBuilder.buildChargeNotification(charge));
+        String pdfUrl = messageBuilder.boletoDocumentUrl(charge);
+        String message = messageBuilder.buildChargeNotification(charge);
+        boolean sent;
+
+        if (pdfUrl != null) {
+            // Boleto: envia PDF com a mensagem como legenda (caption) — tudo em uma mensagem só
+            String fileName = "boleto_" + charge.getDueDate() + ".pdf";
+            String bearerToken = resolveMercadoPagoToken(charge);
+            sent = whatsAppClient.sendDocument(instanceName, student.getPhone(), pdfUrl, fileName, message, bearerToken);
+        } else {
+            // PIX ou boleto sem PDF: mensagem de texto simples
+            sent = whatsAppClient.sendText(instanceName, student.getPhone(), message);
+        }
+
         if (sent) {
             charge.setWhatsappSentAt(LocalDateTime.now());
             chargeRepository.save(charge);
@@ -505,8 +532,18 @@ public class ChargeService {
             throw new IllegalStateException("WhatsApp não configurado para esta escola");
         }
 
-        boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(),
-                messageBuilder.buildChargeNotification(charge));
+        String pdfUrl = messageBuilder.boletoDocumentUrl(charge);
+        String message = messageBuilder.buildChargeNotification(charge);
+        boolean sent;
+
+        if (pdfUrl != null) {
+            String fileName = "boleto_" + charge.getDueDate() + ".pdf";
+            String bearerToken = resolveMercadoPagoToken(charge);
+            sent = whatsAppClient.sendDocument(instanceName, student.getPhone(), pdfUrl, fileName, message, bearerToken);
+        } else {
+            sent = whatsAppClient.sendText(instanceName, student.getPhone(), message);
+        }
+
         if (sent) {
             charge.setWhatsappSentAt(LocalDateTime.now());
             charge = chargeRepository.save(charge);

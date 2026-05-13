@@ -84,11 +84,16 @@ public class InviteService {
     public LoginResponseDTO registerWithInvite(RegisterWithInviteRequestDTO dto) {
         Invite invite = findValidInvite(dto.token());
 
-        if (invite.getEmail() == null) {
-            throw new InvalidInviteException("Este convite não possui email associado. Solicite um novo convite ao dono da escola.");
+        // Convite com email fixo → usa o email do convite (ignora o que veio no DTO)
+        // Convite genérico → usa o email informado pelo usuário no cadastro
+        String email;
+        if (invite.getEmail() != null && !invite.getEmail().isBlank()) {
+            email = invite.getEmail();
+        } else if (dto.email() != null && !dto.email().isBlank()) {
+            email = dto.email();
+        } else {
+            throw new InvalidInviteException("Informe seu email para concluir o cadastro.");
         }
-
-        String email = invite.getEmail();
 
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email já cadastrado");
