@@ -20,7 +20,7 @@ public class CorsConfig {
                 "https://marcosssrf.dev", // produção — troque pela sua URL
                 "https://www.marcosssrf.dev"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH","DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

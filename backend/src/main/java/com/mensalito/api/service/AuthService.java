@@ -1,9 +1,5 @@
 package com.mensalito.api.service;
 
-import com.mensalito.api.client.EvolutionInstanceClient;
-import com.mensalito.api.dto.request.LoginRequestDTO;
-import com.mensalito.api.dto.request.RegisterRequestDTO;
-import com.mensalito.api.dto.response.LoginResponseDTO;
 import com.mensalito.api.exception.TooManyRequestsException;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.User;
@@ -15,17 +11,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * AuthService simplificado para a Opção A:
+ * - Login/registro/verificação de email → Supabase (frontend chama direto)
+ * - Spring só provisiona o tenant+user local após confirmação do Supabase
+ * - Logout → blacklist do token no Redis
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,88 +36,83 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final AuthenticationManager authenticationManager;
     private final StringRedisTemplate redisTemplate;
-    private final EvolutionInstanceClient evolutionInstanceClient;
 
     @Value("${app.admin-secret}")
     private String adminSecret;
 
+    @Value("${app.trusted-proxies:}")
+    private java.util.List<String> trustedProxies;
+
+    // -------------------------------------------------------------------------
+    // Provisionamento local após registro confirmado pelo Supabase
+    // -------------------------------------------------------------------------
+
+    /**
+     * Chamado pelo frontend após o usuário confirmar o email no Supabase.
+     * Cria o Tenant e o User local se ainda não existirem.
+     * Retorna o User (existente ou recém-criado).
+     */
     @Transactional
-    public LoginResponseDTO register(RegisterRequestDTO dto) {
-        if (userRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("Email já cadastrado");
-        }
+    public User provisionLocalUser(String email, String name,
+                                   String schoolName, String schoolPhone,
+                                   String schoolDocument) {
+        return userRepository.findByEmail(email).orElseGet(() -> {
+            Tenant tenant = tenantRepository.findByEmail(email).orElseGet(() -> {
+                Tenant t = Tenant.builder()
+                        .name(schoolName != null ? schoolName : name)
+                        .email(email)
+                        .phone(schoolPhone)
+                        .document(schoolDocument)
+                        .build();
+                return tenantRepository.save(t);
+            });
 
-        if (tenantRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("Email já cadastrado");
-        }
+            User user = User.builder()
+                    .name(name)
+                    .email(email)
+                    .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
+                    .tenant(tenant)
+                    .role(Role.OWNER)
+                    .active(true)
+                    .build();
 
-        Tenant tenant = Tenant.builder()
-                .name(dto.schoolName())
-                .email(dto.email())
-                .phone(dto.schoolPhone())
-                .document(dto.schoolDocument())
-                .build();
-        tenant = tenantRepository.save(tenant);
-
-        User user = User.builder()
-                .name(dto.name())
-                .email(dto.email())
-                .password(passwordEncoder.encode(dto.password()))
-                .tenant(tenant)
-                .role(Role.OWNER)
-                .active(true)
-                .build();
-        user = userRepository.save(user);
-
-        String token = jwtService.generateToken(user);
-        return new LoginResponseDTO(token, user.getName(), tenant.getId(), user.getRole());
+            log.info("[AuthService] Usuário local provisionado: {}", email);
+            return userRepository.save(user);
+        });
     }
 
-    public void provisionEvolutionInstanceAfterRegister(UUID tenantId, String schoolName) {
-        try {
-            String instanceName = evolutionInstanceClient.createInstance(schoolName);
-            Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-            if (tenant != null) {
-                tenant.setEvolutionInstanceName(instanceName);
-                tenantRepository.save(tenant);
-                log.info("[AuthService] Instância Evolution '{}' provisionada para tenant {}", instanceName, tenantId);
-            }
-        } catch (Exception e) {
-            log.error("[AuthService] Falha ao provisionar Evolution para tenant {}: {}", tenantId, e.getMessage());
-        }
-    }
-
-    public LoginResponseDTO login(LoginRequestDTO dto, String clientIp) {
-        checkRateLimit(clientIp);
-
-        try {
-            Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(dto.email(), dto.password())
-            );
-
-            redisTemplate.delete(LOGIN_ATTEMPTS_PREFIX + clientIp);
-
-            User user = (User) auth.getPrincipal();
-            String token = jwtService.generateToken(user);
-            return new LoginResponseDTO(token, user.getName(), user.getTenant().getId(), user.getRole());
-
-        } catch (BadCredentialsException ex) {
-            registerFailedAttempt(clientIp);
-            throw ex;
-        }
-    }
+    // -------------------------------------------------------------------------
+    // Logout
+    // -------------------------------------------------------------------------
 
     public void logout(String token) {
         jwtService.invalidateToken(token);
     }
 
-    @Value("${app.trusted-proxies:}")
-    private java.util.List<String> trustedProxies;
+    // -------------------------------------------------------------------------
+    // Rate limit (mantido para proteção de outros endpoints)
+    // -------------------------------------------------------------------------
 
-    public boolean isTrustedProxy(String ip) {
-        return trustedProxies != null && trustedProxies.contains(ip);
+    public void checkRateLimit(String clientIp) {
+        String key = LOGIN_ATTEMPTS_PREFIX + clientIp;
+        String attempts = redisTemplate.opsForValue().get(key);
+        if (attempts != null && Integer.parseInt(attempts) >= MAX_ATTEMPTS) {
+            throw new TooManyRequestsException(
+                    "Muitas tentativas. Tente novamente em " + BLOCK_MINUTES + " minutos.");
+        }
+    }
+
+    public void registerFailedAttempt(String clientIp) {
+        String key = LOGIN_ATTEMPTS_PREFIX + clientIp;
+        Long attempts = redisTemplate.opsForValue().increment(key);
+        if (attempts != null && attempts == 1) {
+            redisTemplate.expire(key, BLOCK_MINUTES, TimeUnit.MINUTES);
+        }
+    }
+
+    public void unlockIp(String ip) {
+        redisTemplate.delete(LOGIN_ATTEMPTS_PREFIX + ip);
     }
 
     public void unlockIpWithSecret(String ip, String secret) {
@@ -130,33 +122,14 @@ public class AuthService {
         unlockIp(ip);
     }
 
-    public void unlockIp(String ip) {
-        redisTemplate.delete(LOGIN_ATTEMPTS_PREFIX + ip);
-    }
-
     public Long getRemainingAttempts(String ip) {
         String key = LOGIN_ATTEMPTS_PREFIX + ip;
         String attempts = redisTemplate.opsForValue().get(key);
-        if (attempts == null) return 0L;
-        long used = Long.parseLong(attempts);
-        return Math.max(0, MAX_ATTEMPTS - used);
+        if (attempts == null) return (long) MAX_ATTEMPTS;
+        return Math.max(0, MAX_ATTEMPTS - Long.parseLong(attempts));
     }
 
-    private void checkRateLimit(String clientIp) {
-        String key = LOGIN_ATTEMPTS_PREFIX + clientIp;
-        String attempts = redisTemplate.opsForValue().get(key);
-        if (attempts != null && Integer.parseInt(attempts) >= MAX_ATTEMPTS) {
-            throw new TooManyRequestsException(
-                    "Muitas tentativas de login. Tente novamente em " + BLOCK_MINUTES + " minutos."
-            );
-        }
-    }
-
-    private void registerFailedAttempt(String clientIp) {
-        String key = LOGIN_ATTEMPTS_PREFIX + clientIp;
-        Long attempts = redisTemplate.opsForValue().increment(key);
-        if (attempts != null && attempts == 1) {
-            redisTemplate.expire(key, BLOCK_MINUTES, TimeUnit.MINUTES);
-        }
+    public boolean isTrustedProxy(String ip) {
+        return trustedProxies != null && trustedProxies.contains(ip);
     }
 }

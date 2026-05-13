@@ -1,20 +1,26 @@
 package com.mensalito.api.controller;
 
-import com.mensalito.api.dto.request.LoginRequestDTO;
-import com.mensalito.api.dto.request.RegisterRequestDTO;
-import com.mensalito.api.dto.response.LoginResponseDTO;
+import com.mensalito.api.dto.response.UserResponseDTO;
+import com.mensalito.api.model.User;
 import com.mensalito.api.service.AuthService;
+import com.mensalito.api.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * AuthController — Opção A (Supabase como provedor de auth).
+ *
+ * Login, registro e verificação de email acontecem no Supabase (frontend).
+ * O Spring expõe apenas:
+ *   POST /api/auth/provision  — cria tenant+user local após confirmação do Supabase
+ *   POST /api/auth/logout     — blacklista o token no Redis
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
@@ -22,43 +28,52 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
 
-    @PostMapping("/register")
-    public ResponseEntity<LoginResponseDTO> register(@RequestBody @Valid RegisterRequestDTO dto) {
-        // 1. Cadastra tenant + user em transação própria
-        LoginResponseDTO response = authService.register(dto);
+    /**
+     * Chamado pelo frontend logo após o usuário confirmar o email no Supabase
+     * e receber o token. Cria (ou retorna) o Tenant e User local.
+     *
+     * Este endpoint é público no SecurityConfig. O token Supabase pode ser
+     * válido sem que exista um User local ainda, portanto não dependemos do
+     * principal Spring Security aqui.
+     *
+     * Body esperado:
+     * {
+     *   "email":          "<email do usuário>",
+     *   "name":           "<nome do usuário>",
+     *   "schoolName":     "<nome da escola>",       // opcional
+     *   "schoolPhone":    "<telefone da escola>",    // opcional
+     *   "schoolDocument": "<CNPJ/CPF da escola>"    // opcional
+     * }
+     */
+    @PostMapping("/provision")
+    public ResponseEntity<UserResponseDTO> provision(
+            @RequestBody Map<String, String> body) {
 
-        // 2. Provisiona instância Evolution APÓS o commit — falha aqui NÃO afeta o cadastro
-        try {
-            authService.provisionEvolutionInstanceAfterRegister(response.tenantId(), dto.schoolName());
-        } catch (Exception e) {
-            log.warn("[AuthController] Falha ao provisionar Evolution (não bloqueia cadastro): {}", e.getMessage());
+        String email          = body.get("email");
+        String name           = body.get("name");
+        String schoolName     = body.get("schoolName");
+        String schoolPhone    = body.get("schoolPhone");
+        String schoolDocument = body.get("schoolDocument");
+
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().build();
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(
-            @RequestBody @Valid LoginRequestDTO dto,
-            HttpServletRequest request) {
-        String clientIp = getClientIp(request);
-        return ResponseEntity.ok(authService.login(dto, clientIp));
+        User user = authService.provisionLocalUser(email, name, schoolName, schoolPhone, schoolDocument);
+        return ResponseEntity.ok(userService.toResponse(user));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.substring(7);
-        authService.logout(token);
+        authService.logout(authHeader.substring(7));
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/login-attempts")
-    public ResponseEntity<Map<String, Long>> getLoginAttempts(HttpServletRequest request) {
-        String clientIp = getClientIp(request);
-        Long remaining = authService.getRemainingAttempts(clientIp);
-        return ResponseEntity.ok(Map.of("remainingAttempts", remaining));
-    }
+    // -------------------------------------------------------------------------
+    // Utilitários (mantidos)
+    // -------------------------------------------------------------------------
 
     @DeleteMapping("/login-attempts/{ip}")
     @PreAuthorize("hasRole('OWNER')")
@@ -72,29 +87,21 @@ public class AuthController {
             @RequestBody Map<String, String> body,
             HttpServletRequest request) {
         String clientIp = getClientIp(request);
-        String secret = body.get("secret");
-        authService.unlockIpWithSecret(clientIp, secret);
+        authService.unlockIpWithSecret(clientIp, body.get("secret"));
         return ResponseEntity.noContent().build();
     }
-
-    private static final String TRUSTED_PROXY_HEADER = "X-Forwarded-For";
 
     private String getClientIp(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
         boolean isLoopback = "127.0.0.1".equals(remoteAddr)
                 || "0:0:0:0:0:0:0:1".equals(remoteAddr)
                 || "::1".equals(remoteAddr);
-
         if (isLoopback || authService.isTrustedProxy(remoteAddr)) {
-            String forwarded = request.getHeader(TRUSTED_PROXY_HEADER);
+            String forwarded = request.getHeader("X-Forwarded-For");
             if (forwarded != null && !forwarded.isBlank()) {
-                // Pega o primeiro IP da cadeia (o cliente original)
                 return forwarded.split(",")[0].trim();
             }
         }
-
-        return "127.0.0.1".equals(remoteAddr) ? remoteAddr
-                : ("0:0:0:0:0:0:0:1".equals(remoteAddr) || "::1".equals(remoteAddr)) ? "127.0.0.1"
-                : remoteAddr;
+        return remoteAddr;
     }
 }

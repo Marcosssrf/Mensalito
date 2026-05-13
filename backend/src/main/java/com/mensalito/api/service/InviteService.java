@@ -1,10 +1,8 @@
 package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.InviteRequestDTO;
-import com.mensalito.api.dto.request.RegisterWithInviteRequestDTO;
 import com.mensalito.api.dto.response.InvitePreviewResponseDTO;
 import com.mensalito.api.dto.response.InviteResponseDTO;
-import com.mensalito.api.dto.response.LoginResponseDTO;
 import com.mensalito.api.exception.InvalidInviteException;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Invite;
@@ -14,7 +12,6 @@ import com.mensalito.api.model.enums.Role;
 import com.mensalito.api.repository.InviteRepository;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.repository.UserRepository;
-import com.mensalito.api.security.JwtService;
 import com.mensalito.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,7 +30,6 @@ public class InviteService {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
-    private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.frontend-url}")
@@ -80,41 +76,45 @@ public class InviteService {
         );
     }
 
+    /**
+     * Chamado pelo frontend após o usuário confirmar o email no Supabase e estar autenticado.
+     * Cria o User local vinculado ao Tenant do convite e marca o convite como usado.
+     *
+     * O email e nome vêm do body (fornecidos pelo frontend após autenticação Supabase).
+     */
     @Transactional
-    public LoginResponseDTO registerWithInvite(RegisterWithInviteRequestDTO dto) {
-        Invite invite = findValidInvite(dto.token());
+    public void acceptInvite(String token, String email, String name) {
+        Invite invite = findValidInvite(token);
 
-        // Convite com email fixo → usa o email do convite (ignora o que veio no DTO)
-        // Convite genérico → usa o email informado pelo usuário no cadastro
-        String email;
+        // Convite com email fixo → valida que o email autenticado bate com o convite
         if (invite.getEmail() != null && !invite.getEmail().isBlank()) {
-            email = invite.getEmail();
-        } else if (dto.email() != null && !dto.email().isBlank()) {
-            email = dto.email();
-        } else {
-            throw new InvalidInviteException("Informe seu email para concluir o cadastro.");
+            if (!invite.getEmail().equalsIgnoreCase(email)) {
+                throw new InvalidInviteException(
+                        "Este convite foi emitido para outro email.");
+            }
         }
 
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email já cadastrado");
+            // Usuário já provisionado — apenas marca o convite como usado
+            invite.setUsed(true);
+            inviteRepository.save(invite);
+            return;
         }
 
         User user = User.builder()
-                .name(dto.name())
+                .name(name)
                 .email(email)
-                .password(passwordEncoder.encode(dto.password()))
+                // Senha aleatória — autenticação é feita pelo Supabase
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .tenant(invite.getTenant())
                 .role(invite.getRole())
                 .active(true)
                 .build();
 
-        user = userRepository.save(user);
+        userRepository.save(user);
 
         invite.setUsed(true);
         inviteRepository.save(invite);
-
-        String jwtToken = jwtService.generateToken(user);
-        return new LoginResponseDTO(jwtToken, user.getName(), invite.getTenant().getId(), user.getRole());
     }
 
     private Invite findValidInvite(String token) {

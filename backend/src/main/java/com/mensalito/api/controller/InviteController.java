@@ -1,18 +1,17 @@
 package com.mensalito.api.controller;
 
 import com.mensalito.api.dto.request.InviteRequestDTO;
-import com.mensalito.api.dto.request.RegisterWithInviteRequestDTO;
 import com.mensalito.api.dto.response.InvitePreviewResponseDTO;
 import com.mensalito.api.dto.response.InviteResponseDTO;
-import com.mensalito.api.dto.response.LoginResponseDTO;
 import com.mensalito.api.service.InviteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/invites")
@@ -32,13 +31,31 @@ public class InviteController {
         return ResponseEntity.ok(inviteService.previewInvite(token));
     }
 
-    // Rejeita se já estiver autenticado (owner/teacher não podem aceitar convite)
+    /**
+     * Aceita o convite — usuário já deve estar autenticado via Supabase.
+     * Fluxo: frontend registra no Supabase → confirma email → chama este endpoint com o token JWT.
+     *
+     * Body esperado:
+     * {
+     *   "token": "<invite-token>",
+     *   "email": "<email do usuário autenticado>",
+     *   "name": "<nome do usuário>"
+     * }
+     */
     @PostMapping("/accept")
-    public ResponseEntity<LoginResponseDTO> accept(@RequestBody @Valid RegisterWithInviteRequestDTO dto,
-                                                   Authentication authentication) {
-        if (authentication != null && authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    public ResponseEntity<Void> accept(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String email = body.get("email");
+        String name  = body.get("name");
+
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(inviteService.registerWithInvite(dto));
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        inviteService.acceptInvite(token, email, name != null ? name : "");
+        return ResponseEntity.ok().build();
     }
 }

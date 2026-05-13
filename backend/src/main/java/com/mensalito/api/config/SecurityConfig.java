@@ -36,8 +36,8 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Auth pública (register + login)
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // Provision e logout são públicos (token validado pelo JwtFilter)
+                        .requestMatchers("/api/auth/provision", "/api/auth/logout").permitAll()
                         // Convites: preview e accept são públicos; criar exige auth
                         .requestMatchers(HttpMethod.GET,  "/api/invites/*/preview").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/invites/accept").permitAll()
