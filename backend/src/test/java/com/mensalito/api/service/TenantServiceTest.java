@@ -76,7 +76,7 @@ class TenantServiceTest {
         assertEquals("Escola de Inglês do João", response.name());
         assertEquals("joao@escola.com", response.email());
         assertEquals("34999999999", response.phone());
-        assertEquals("12345678000199", response.document());
+        assertEquals("12.345.678/0001-99", response.document());
         assertEquals(true, response.active());
         verify(tenantRepository, times(1)).save(any(Tenant.class));
     }
