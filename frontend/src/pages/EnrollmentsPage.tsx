@@ -267,8 +267,6 @@ export default function EnrollmentsPage() {
     const [loading, setLoading] = useState(true)
     const [tab, setTab] = useState<TabStatus>('Todos')
     const [search, setSearch] = useState('')
-    const [filterClass, setFilterClass] = useState('')
-    const [filterPlan, setFilterPlan] = useState('')
     const [showModal, setShowModal] = useState(false)
 
     function load() {
@@ -289,20 +287,14 @@ export default function EnrollmentsPage() {
         catch (err) { console.error(err) }
     }
 
-    const uniqueClasses = Array.from(new Set(enrollments.map(e => e.className))).sort()
-    const uniquePlans   = Array.from(new Set(enrollments.map(e => e.planName))).sort()
-
     const filtered = enrollments.filter(e => {
         const q = search.toLowerCase()
         const matchSearch = !q || e.studentName.toLowerCase().includes(q) || e.className.toLowerCase().includes(q) || e.planName.toLowerCase().includes(q)
         const matchTab = tab === 'Todos' || (tab === 'Ativas' && e.active) || (tab === 'Inativas' && !e.active)
-        const matchClass = !filterClass || e.className === filterClass
-        const matchPlan  = !filterPlan  || e.planName  === filterPlan
-        return matchSearch && matchTab && matchClass && matchPlan
+        return matchSearch && matchTab
     })
 
     const totalAtivas = enrollments.filter(e => e.active).length
-    const hasFilters = search || tab !== 'Todos' || filterClass || filterPlan
 
     return (
         <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
@@ -330,8 +322,7 @@ export default function EnrollmentsPage() {
 
                 {/* Toolbar */}
                 <div style={{ padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-                    {/* Linha 1: tabs + busca */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
                             {(['Todos', 'Ativas', 'Inativas'] as TabStatus[]).map(t => (
                                 <button key={t} onClick={() => setTab(t)} style={{
