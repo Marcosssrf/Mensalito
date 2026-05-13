@@ -23,8 +23,10 @@ interface Charge {
   paymentDate: string | null
   pixCode: string | null
   boletoUrl: string | null
+  ticketUrl: string | null
   checkoutUrl: string | null
   createdAt: string
+  manual: boolean | null
 }
 
 interface Student {
@@ -256,15 +258,12 @@ interface ManualChargeModalProps {
 type ModalStep = 'student' | 'enrollment' | 'payment'
 
 const PAYMENT_METHODS = [
-  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
   { value: 'DINHEIRO', label: 'Dinheiro', icon: '💵' },
   { value: 'CARTAO',   label: 'Cartão',   icon: '💳' },
-  { value: 'BOLETO',   label: 'Boleto',   icon: '📄' },
-  { value: 'OUTROS',   label: 'Outros',   icon: '🔄' },
+  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
 ]
 
 // Methods that bypass the payment gateway — mark as PAID directly
-const OFFLINE_METHODS = new Set(['DINHEIRO', 'CARTAO', 'OUTROS', 'PIX'])
 
 function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalProps) {
   const [step, setStep]               = useState<ModalStep>('student')
@@ -273,7 +272,7 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
   const [loadingEnroll, setLoadingEnroll] = useState(false)
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null)
   const [dueDate, setDueDate]         = useState(todayISO())
-  const [paymentMethod, setPaymentMethod] = useState('PIX')
+  const [paymentMethod, setPaymentMethod] = useState('DINHEIRO')
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -318,18 +317,17 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
     setStep('payment')
   }
 
-  // Passo 3: criar cobrança e marcar como pago direto (sem gateway)
+  // Passo 3: criar cobrança manual diretamente como paga
   const handleSubmit = async () => {
     if (!selectedEnrollment) { setError('Selecione uma matrícula.'); return }
     setError(null)
     setSaving(true)
     try {
-      const res = await api.post('/charges', { enrollmentId: selectedEnrollment.id, dueDate })
-      const charge = res.data as any
-      // Todos os meios manuais: marca direto como pago sem passar pelo Mercado Pago
-      if (OFFLINE_METHODS.has(paymentMethod)) {
-        await api.patch(`/charges/${charge.id}/status`, { status: 'PAID' })
-      }
+      await api.post('/charges/manual', {
+        enrollmentId: selectedEnrollment.id,
+        dueDate,
+        paymentMethod,
+      })
       onSuccess()
       onClose()
     } catch (err: any) {
@@ -543,7 +541,7 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
                 </div>
 
                 <label style={{ ...labelStyle, marginTop: 0 }}>Como foi recebido?</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                   {PAYMENT_METHODS.map(m => (
                       <button
                           key={m.value}
@@ -878,9 +876,15 @@ export default function DashboardPage() {
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 500, color: '#111827' }}>{fmt(c.amount)}</span>
                     <span style={{ fontSize: 14, color: '#374151' }}>{fmtDate(c.dueDate)}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.color }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.color, flexShrink: 0 }} />
                       <span style={{ fontSize: 13, color: st.color, fontWeight: 500 }}>{st.label}</span>
+                      {c.manual && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 20,
+                            background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb',
+                          }}>Manual</span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {c.checkoutUrl && (
@@ -889,11 +893,17 @@ export default function DashboardPage() {
                             Link
                           </a>
                       )}
-                      {c.pixCode && (
+                      {c.pixCode && !c.pixCode.startsWith('MANUAL:') && c.status !== 'CANCELLED' && (
                           <button onClick={() => navigator.clipboard.writeText(c.pixCode!)}
                                   style={{ fontSize: 12, color: '#6b7280', padding: '3px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>
                             PIX
                           </button>
+                      )}
+                      {c.ticketUrl && c.status !== 'CANCELLED' && (
+                          <a href={c.ticketUrl} target="_blank" rel="noreferrer"
+                             style={{ fontSize: 12, color: '#6b7280', textDecoration: 'none', padding: '3px 8px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                            Boleto
+                          </a>
                       )}
                     </div>
                   </div>

@@ -11,8 +11,10 @@ interface Charge {
   paymentDate: string | null
   pixCode: string | null
   boletoUrl: string | null
+  ticketUrl: string | null
   checkoutUrl: string | null
   createdAt: string
+  manual: boolean | null
 }
 
 interface Enrollment {
@@ -72,11 +74,9 @@ function todayStr() {
 }
 
 const PAYMENT_METHODS = [
-  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
-  { value: 'BOLETO',   label: 'Boleto',   icon: '📄' },
-  { value: 'CARTAO',   label: 'Cartão',   icon: '💳' },
   { value: 'DINHEIRO', label: 'Dinheiro', icon: '💵' },
-  { value: 'OUTROS',   label: 'Outros',   icon: '🔄' },
+  { value: 'CARTAO',   label: 'Cartão',   icon: '💳' },
+  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
 ]
 
 function ManualPaymentModal({
@@ -92,15 +92,20 @@ function ManualPaymentModal({
   onClose: () => void
   onPaid: () => void
 }) {
-  const [method, setMethod] = useState('PIX')
+  const [method, setMethod] = useState('DINHEIRO')
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function confirm() {
     setSaving(true); setError('')
     try {
-      // For non-gateway payments: just mark as PAID directly
-      await api.patch(`/charges/${chargeId}/status`, { status: 'PAID' })
+      await api.patch(`/charges/${chargeId}/confirm-payment`, {
+        paymentMethod: method,
+        paymentDate,
+        notes: notes.trim() || null,
+      })
       onPaid(); onClose()
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Erro ao confirmar pagamento')
@@ -109,52 +114,63 @@ function ManualPaymentModal({
 
   return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Confirmar pagamento</h2>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Baixa manual</h2>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
-            Registrar baixa manual para <strong>{studentName}</strong> · {fmt(amount)}
+            Registrar recebimento de <strong>{studentName}</strong> · {fmt(amount)}
           </p>
 
           {error && (
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>
           )}
 
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Meio de pagamento</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 24 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>Meio de pagamento</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
             {PAYMENT_METHODS.map(m => (
                 <button
                     key={m.value}
                     onClick={() => setMethod(m.value)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      padding: '10px 8px', borderRadius: 8, cursor: 'pointer',
                       border: method === m.value ? '2px solid #111827' : '2px solid #e5e7eb',
                       background: method === m.value ? '#f9fafb' : '#fff',
-                      fontSize: 13, fontWeight: method === m.value ? 600 : 400,
+                      fontSize: 12, fontWeight: method === m.value ? 600 : 400,
                       color: '#111827', transition: 'all 0.15s',
                     }}
                 >
-                  <span style={{ fontSize: 16 }}>{m.icon}</span>
+                  <span style={{ fontSize: 20 }}>{m.icon}</span>
                   {m.label}
                 </button>
             ))}
           </div>
 
-          {(method === 'PIX' || method === 'BOLETO' || method === 'CARTAO') && (
-              <div style={{
-                background: '#f0fdf4', border: '1px solid #bbf7d0',
-                borderRadius: 8, padding: '10px 14px', fontSize: 12,
-                color: '#166534', marginBottom: 20,
-              }}>
-                Pagamento registrado manualmente — não será processado pelo gateway.
-              </div>
-          )}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Data do pagamento</label>
+            <input
+                type="date"
+                value={paymentDate}
+                onChange={e => setPaymentDate(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Observações (opcional)</label>
+            <input
+                type="text"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Ex: Pago com desconto, cheque, etc."
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
             <button onClick={confirm} disabled={saving}
                     style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#059669', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Confirmando...' : '✓ Confirmar como Pago'}
+              {saving ? 'Confirmando...' : '✓ Confirmar recebimento'}
             </button>
           </div>
         </div>
@@ -163,11 +179,9 @@ function ManualPaymentModal({
 }
 
 const CHARGE_PAYMENT_METHODS = [
-  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
   { value: 'DINHEIRO', label: 'Dinheiro', icon: '💵' },
   { value: 'CARTAO',   label: 'Cartão',   icon: '💳' },
-  { value: 'BOLETO',   label: 'Boleto',   icon: '📄' },
-  { value: 'OUTROS',   label: 'Outros',   icon: '🔄' },
+  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
 ]
 
 type NewChargeStep = 'enrollment' | 'payment'
@@ -177,8 +191,9 @@ function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null)
+  const [enrollSearch, setEnrollSearch] = useState('')
   const [dueDate, setDueDate] = useState(todayStr())
-  const [paymentMethod, setPaymentMethod] = useState('PIX')
+  const [paymentMethod, setPaymentMethod] = useState('DINHEIRO')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -203,10 +218,11 @@ function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated
     if (!selectedEnrollment) { setError('Selecione uma matrícula'); return }
     setSaving(true); setError('')
     try {
-      const res = await api.post('/charges', { enrollmentId: selectedEnrollment.id, dueDate })
-      const charge = res.data as any
-      // Todos os meios manuais: confirma como pago diretamente
-      await api.patch(`/charges/${charge.id}/status`, { status: 'PAID' })
+      await api.post('/charges/manual', {
+        enrollmentId: selectedEnrollment.id,
+        dueDate,
+        paymentMethod,
+      })
       onCreated(); onClose()
     } catch (e: any) {
       setError(e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao criar cobrança')
@@ -273,10 +289,26 @@ function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated
                 ) : (
                     <>
                       <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 8 }}>Matrícula ativa *</label>
+
+                      {/* Busca por nome do aluno */}
+                      <div style={{ position: 'relative', marginBottom: 10 }}>
+                        <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
+                             width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input
+                            type="text"
+                            value={enrollSearch}
+                            onChange={e => setEnrollSearch(e.target.value)}
+                            placeholder="Buscar aluno..."
+                            style={{ width: '100%', paddingLeft: 30, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: '#374151' }}
+                        />
+                      </div>
+
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto', marginBottom: 16 }}>
-                        {enrollments.length === 0 ? (
-                            <p style={{ color: '#9ca3af', fontSize: 13, padding: 8 }}>Nenhuma matrícula ativa encontrada.</p>
-                        ) : enrollments.map(e => {
+                        {enrollments.filter(e => e.studentName.toLowerCase().includes(enrollSearch.toLowerCase())).length === 0 ? (
+                            <p style={{ color: '#9ca3af', fontSize: 13, padding: 8 }}>Nenhuma matrícula encontrada.</p>
+                        ) : enrollments.filter(e => e.studentName.toLowerCase().includes(enrollSearch.toLowerCase())).map(e => {
                           const selected = selectedEnrollment?.id === e.id
                           return (
                               <label key={e.id} style={{
@@ -336,7 +368,7 @@ function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated
                 </div>
 
                 <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 10 }}>Como foi recebido?</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                   {CHARGE_PAYMENT_METHODS.map(m => (
                       <button key={m.value} onClick={() => setPaymentMethod(m.value)}
                               style={{
@@ -394,7 +426,7 @@ function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated
                             background: saving ? '#9ca3af' : '#059669',
                             color: '#fff', fontSize: 13, fontWeight: 600, opacity: saving ? 0.7 : 1,
                           }}>
-                    {saving ? 'Confirmando...' : '✓ Confirmar como Pago'}
+                    {saving ? 'Confirmando...' : '✓ Confirmar cobrança manual'}
                   </button>
                 </>
             )}
@@ -454,9 +486,10 @@ export default function ChargesPage() {
   }
 
   async function markCancelled(id: string) {
+    if (!confirm('Cancelar esta cobrança?')) return
     setUpdatingId(id)
     try {
-      await api.patch(`/charges/${id}/status`, { status: 'CANCELLED' })
+      await api.patch(`/charges/${id}/cancel`)
       load(page)
     } finally { setUpdatingId(null) }
   }
@@ -624,34 +657,48 @@ export default function ChargesPage() {
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.color }} />
                     <span style={{ fontSize: 13, color: st.color, fontWeight: 500 }}>{st.label}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {(c.status === 'PENDING' || c.status === 'OVERDUE') && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Badge manual */}
+                    {c.manual && (
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
+                          background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb',
+                        }}>
+                        Manual
+                      </span>
+                    )}
+                    {/* Baixa manual — só para cobranças manuais pendentes/atrasadas */}
+                    {c.manual && (c.status === 'PENDING' || c.status === 'OVERDUE') && (
                         <button onClick={() => openManualPay(c)} disabled={updatingId === c.id}
                                 style={{ fontSize: 12, padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#374151' }}>
                           {updatingId === c.id ? '...' : 'Baixa manual'}
                         </button>
                     )}
-                    {(c.status === 'PENDING' || c.status === 'OVERDUE') && (
+                    {/* Cancelar — apenas cobranças manuais pendentes/atrasadas */}
+                    {c.manual && (c.status === 'PENDING' || c.status === 'OVERDUE') && (
                         <button onClick={() => markCancelled(c.id)} disabled={updatingId === c.id}
                                 style={{ fontSize: 12, padding: '4px 9px', border: '1px solid #fecaca', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#ef4444' }}>
                           Cancelar
                         </button>
                     )}
+                    {/* Link de checkout (gateway) */}
                     {c.checkoutUrl && (
                         <a href={c.checkoutUrl} target="_blank" rel="noreferrer"
                            style={{ fontSize: 12, color: '#6b7280', textDecoration: 'none', padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
                           Link
                         </a>
                     )}
-                    {c.pixCode && (
+                    {/* PIX — só mostra se pixCode existe, NÃO é prefixo manual e não está cancelada */}
+                    {c.pixCode && !c.pixCode.startsWith('MANUAL:') && c.status !== 'CANCELLED' && (
                         <button onClick={() => copyPix(c.id, c.pixCode!)}
                                 title="Copiar código PIX"
                                 style={{ fontSize: 12, padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6, background: copiedId === c.id ? '#dcfce7' : '#fff', cursor: 'pointer', color: copiedId === c.id ? '#16a34a' : '#374151' }}>
                           {copiedId === c.id ? '✓ Copiado' : 'PIX'}
                         </button>
                     )}
-                    {c.boletoUrl && (
-                        <a href={c.boletoUrl} target="_blank" rel="noreferrer"
+                    {/* Boleto — ticketUrl é a URL real para abrir; boletoUrl é linha digitável (não é URL) */}
+                    {c.ticketUrl && (
+                        <a href={c.ticketUrl} target="_blank" rel="noreferrer"
                            style={{ fontSize: 12, color: '#6b7280', textDecoration: 'none', padding: '4px 9px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
                           Boleto
                         </a>

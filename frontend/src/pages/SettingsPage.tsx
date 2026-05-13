@@ -281,10 +281,11 @@ function InvitesTab() {
   const [copied, setCopied] = useState(false)
 
   async function createInvite() {
-    if (!email.trim()) { setError('Insira um e-mail'); return }
     setLoading(true); setError(''); setInvite(null)
     try {
-      const res = await api.post<InviteResponse>('/invites', { email, role })
+      // Email vazio → convite genérico (qualquer pessoa com o link pode usar)
+      const body = { role, email: email.trim() || null }
+      const res = await api.post<InviteResponse>('/invites', body)
       setInvite(res.data)
       setEmail('')
     } catch (e: any) {
@@ -303,17 +304,19 @@ function InvitesTab() {
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 28 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Convites</h2>
         <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
-          Convide professores para acessar o sistema. O link expira em 24 horas.
+          Convide professores para acessar o sistema. Deixe o e-mail em branco para gerar um link genérico. O link expira em 7 dias.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 440 }}>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>E-mail do convidado</label>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+              E-mail do convidado <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span>
+            </label>
             <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="professor@escola.com"
+                placeholder="professor@escola.com — ou deixe vazio para link genérico"
                 style={inputStyle}
             />
           </div>
@@ -344,7 +347,9 @@ function InvitesTab() {
 
           {invite && (
               <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '16px 18px' }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#065f46', marginBottom: 8 }}>✓ Convite criado para {invite.email}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#065f46', marginBottom: 8 }}>
+                  ✓ {invite.email ? `Convite criado para ${invite.email}` : 'Convite genérico criado'}
+                </p>
                 <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 10 }}>
                   Expira em: {new Date(invite.expiresAt).toLocaleString('pt-BR')}
                 </p>

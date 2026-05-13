@@ -3,6 +3,7 @@ import {useAuth} from '@/contexts/AuthContext'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import AcceptInvitePage from '@/pages/AcceptInvitePage'
+import AuthCallbackPage from '@/pages/AuthCallbackPage'
 import LandingPage from '@/pages/LandingPage'
 import DashboardPage from '@/pages/DashboardPage'
 import StudentsPage from '@/pages/StudentsPage'
@@ -16,6 +17,7 @@ import ReportsPage from '@/pages/ReportsPage'
 import WhatsAppPage from '@/pages/WhatsAppPage'
 import ActivityPage from '@/pages/ActivityPage'
 import BillingPage from '@/pages/BillingPage'
+import TeachersPage from '@/pages/TeachersPage'
 import Layout from '@/components/Layout'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -31,9 +33,11 @@ function RegisterRoute() {
 export default function App() {
     return (
         <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/"         element={<LandingPage />} />
+            <Route path="/login"    element={<LoginPage />} />
             <Route path="/register" element={<RegisterRoute />} />
+            {/* Rota de callback do Supabase após confirmação de email */}
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/app" element={
                 <PrivateRoute>
                     <Layout />
@@ -52,6 +56,7 @@ export default function App() {
                 <Route path="whatsapp"    element={<WhatsAppPage />} />
                 <Route path="activity"    element={<ActivityPage />} />
                 <Route path="billing"     element={<BillingPage />} />
+                <Route path="teachers"    element={<TeachersPage />} />
             </Route>
         </Routes>
     )

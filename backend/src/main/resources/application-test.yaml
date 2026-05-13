@@ -30,3 +30,7 @@ EVOLUTION_INSTANCE: test-instance
 app:
   frontend-url: ${FRONTEND_URL}
   admin-secret: ${ADMIN_SECRET}
+
+supabase:
+  url: ${SUPABASE_URL}
+  anon-key: ${SUPABASE_ANON_KEY}
