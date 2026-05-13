@@ -43,6 +43,10 @@ public class Charge {
     @Column(nullable = false)
     private ChargeStatus status = ChargeStatus.PENDING;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean manual = false;
+
     @Column
     private LocalDate paymentDate;
 
@@ -60,6 +64,13 @@ public class Charge {
 
     @Column(length = 512)
     private String ticketUrl;
+
+    /**
+     * Data/hora em que a notificação WhatsApp foi enviada com sucesso.
+     * Null indica que o envio ainda não ocorreu ou falhou.
+     */
+    @Column
+    private LocalDateTime whatsappSentAt;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

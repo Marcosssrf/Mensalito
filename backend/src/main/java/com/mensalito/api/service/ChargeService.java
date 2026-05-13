@@ -68,6 +68,8 @@ public class ChargeService {
             throw new IllegalStateException("Não é possível criar cobrança para uma matrícula inativa");
         }
 
+        assertNoDuplicateInMonth(enrollment.getId(), dto.dueDate());
+
         Charge charge = Charge.builder()
                 .enrollment(enrollment)
                 .dueDate(dto.dueDate())
@@ -98,6 +100,8 @@ public class ChargeService {
 
         BigDecimal amount = dto.amount() != null ? dto.amount() : enrollment.getPlan().getAmount();
 
+        assertNoDuplicateInMonth(enrollment.getId(), dto.dueDate());
+
         Charge charge = Charge.builder()
                 .enrollment(enrollment)
                 .dueDate(dto.dueDate())
@@ -106,6 +110,7 @@ public class ChargeService {
                 .createdAt(LocalDateTime.now())
                 // Cobranças manuais ficam PENDING até confirmação explícita
                 .status(ChargeStatus.PENDING)
+                .manual(true)
                 .build();
 
         charge = chargeRepository.save(charge);
@@ -217,8 +222,12 @@ public class ChargeService {
                 LocalDate dueDate = LocalDate.now()
                         .withDayOfMonth(enrollment.getPlan().getDueDay());
 
+                // Checa duplicata no mês inteiro (cobre cobranças manuais com data diferente)
+                LocalDate monthStart = dueDate.withDayOfMonth(1);
+                LocalDate monthEnd   = dueDate.withDayOfMonth(dueDate.lengthOfMonth());
                 boolean alreadyExists = chargeRepository
-                        .existsByEnrollmentIdAndDueDate(enrollment.getId(), dueDate);
+                        .existsByEnrollmentIdAndDueDateBetweenAndStatusNot(
+                                enrollment.getId(), monthStart, monthEnd, ChargeStatus.CANCELLED);
 
                 if (!alreadyExists) {
                     Charge charge = Charge.builder()
@@ -241,6 +250,29 @@ public class ChargeService {
         redisTemplate.opsForValue().set(redisKey, String.valueOf(generated), 23, TimeUnit.HOURS);
     }
 
+    /**
+     * Lança exceção se já existe cobrança ativa (qualquer tipo: manual ou normal) para a
+     * matrícula no mesmo mês/ano da {@code dueDate}. Cobranças CANCELLED são ignoradas.
+     */
+    private void assertNoDuplicateInMonth(UUID enrollmentId, LocalDate dueDate) {
+        LocalDate monthStart = dueDate.withDayOfMonth(1);
+        LocalDate monthEnd   = dueDate.withDayOfMonth(dueDate.lengthOfMonth());
+
+        boolean exists = chargeRepository.existsByEnrollmentIdAndDueDateBetweenAndStatusNot(
+                enrollmentId, monthStart, monthEnd, ChargeStatus.CANCELLED);
+
+        if (exists) {
+            throw new IllegalStateException(
+                    "Já existe uma cobrança para esta matrícula em "
+                    + dueDate.getMonth().getDisplayName(
+                            java.time.format.TextStyle.FULL,
+                            new java.util.Locale("pt", "BR"))
+                    + "/" + dueDate.getYear()
+                    + ". Cancele a cobrança existente antes de criar uma nova."
+            );
+        }
+    }
+
     public ChargeResponseDTO toResponse(Charge charge) {
         return new ChargeResponseDTO(
                 charge.getId(),
@@ -253,7 +285,9 @@ public class ChargeService {
                 charge.getBoletoUrl(),
                 charge.getTicketUrl(),
                 charge.getCheckoutUrl(),
-                charge.getCreatedAt()
+                charge.getCreatedAt(),
+                charge.getManual(),
+                charge.getWhatsappSentAt()
         );
     }
 
@@ -424,7 +458,12 @@ public class ChargeService {
                     charge.getTenant().getId(), student.getId());
             return;
         }
-        whatsAppClient.sendText(instanceName, student.getPhone(), messageBuilder.buildChargeNotification(charge));
+        boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(),
+                messageBuilder.buildChargeNotification(charge));
+        if (sent) {
+            charge.setWhatsappSentAt(LocalDateTime.now());
+            chargeRepository.save(charge);
+        }
     }
 
     private void sendReminderNotification(Charge charge, int daysOverdue) {
@@ -436,8 +475,49 @@ public class ChargeService {
                     charge.getTenant().getId(), daysOverdue, student.getName());
             return;
         }
-        whatsAppClient.sendText(instanceName, student.getPhone(), messageBuilder.buildReminderNotification(charge, daysOverdue));
-        log.info("Lembrete D+{} enviado para {} via instância '{}'", daysOverdue, student.getName(), instanceName);
+        boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(),
+                messageBuilder.buildReminderNotification(charge, daysOverdue));
+        if (sent) {
+            charge.setWhatsappSentAt(LocalDateTime.now());
+            chargeRepository.save(charge);
+            log.info("Lembrete D+{} enviado para {} via instância '{}'", daysOverdue, student.getName(), instanceName);
+        }
+    }
+
+    /**
+     * Reenvia a notificação WhatsApp de uma cobrança específica.
+     * Pode ser chamado manualmente quando o envio original falhou (whatsappSentAt == null)
+     * ou para forçar reenvio independente.
+     *
+     * @return true se o envio foi bem-sucedido
+     */
+    public ChargeResponseDTO resendAndReturn(UUID chargeId) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Charge charge = chargeRepository.findByIdAndTenantId(chargeId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cobrança não encontrada"));
+
+        Student student = charge.getEnrollment().getStudent();
+        if (student.getPhone() == null) {
+            throw new IllegalStateException("Aluno sem número de telefone cadastrado");
+        }
+        String instanceName = charge.getTenant().getEvolutionInstanceName();
+        if (instanceName == null || instanceName.isBlank()) {
+            throw new IllegalStateException("WhatsApp não configurado para esta escola");
+        }
+
+        boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(),
+                messageBuilder.buildChargeNotification(charge));
+        if (sent) {
+            charge.setWhatsappSentAt(LocalDateTime.now());
+            charge = chargeRepository.save(charge);
+            log.info("[ChargeService] Reenvio de notificação para charge {} bem-sucedido", chargeId);
+        } else {
+            // Erro já logado no WhatsAppClient com o detalhe da resposta da Evolution API
+            throw new IllegalStateException(
+                "Falha ao enviar WhatsApp para o número " + student.getPhone()
+                + ". Verifique se o número tem WhatsApp e se a instância está conectada.");
+        }
+        return toResponse(charge);
     }
 
     public void sendOverdueReminders() {
@@ -455,7 +535,7 @@ public class ChargeService {
     }
 
     public void markAllOverdue(LocalDate referenceDate) {
-        List<Charge> pendingOverdue = chargeRepository.findAllByStatusAndDueDateBefore(
+        List<Charge> pendingOverdue = chargeRepository.findAllByStatusAndDueDateBeforeAndManualFalse(
                 ChargeStatus.PENDING, referenceDate);
 
         if (pendingOverdue.isEmpty()) return;

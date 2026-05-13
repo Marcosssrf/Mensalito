@@ -18,7 +18,9 @@ public record ChargeResponseDTO(
         String boletoUrl,
         String ticketUrl,
         String checkoutUrl,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Boolean manual,
+        LocalDateTime whatsappSentAt
 
 ) {
 }

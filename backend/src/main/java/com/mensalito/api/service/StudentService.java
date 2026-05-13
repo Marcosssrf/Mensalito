@@ -11,6 +11,7 @@ import com.mensalito.api.model.enums.PaymentPreference;
 import com.mensalito.api.repository.StudentRepository;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
+import com.mensalito.api.util.DocumentUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,7 @@ public class StudentService {
                 .name(dto.name())
                 .email(dto.email())
                 .phone(dto.phone())
-                .document(dto.document())
+                .document(DocumentUtils.normalize(dto.document()))
                 .paymentPreference(dto.paymentPreference() != null ? dto.paymentPreference() : PaymentPreference.BOLETO)
                 .address(toAddressModel(dto.address()))
                 .tenant(tenant)
@@ -70,12 +71,15 @@ public class StudentService {
         Student student = studentRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
 
-        if (dto.document() != null && !dto.document().equals(student.getDocument())) {
-            studentRepository.findByDocumentAndTenantId(dto.document(), tenantId)
-                    .ifPresent(s -> {
-                        throw new IllegalArgumentException("Já existe um aluno com o documento informado");
-                    });
-            student.setDocument(dto.document());
+        if (dto.document() != null) {
+            String normalizedDoc = DocumentUtils.normalize(dto.document());
+            if (!normalizedDoc.equals(student.getDocument())) {
+                studentRepository.findByDocumentAndTenantId(normalizedDoc, tenantId)
+                        .ifPresent(s -> {
+                            throw new IllegalArgumentException("Já existe um aluno com o documento informado");
+                        });
+                student.setDocument(normalizedDoc);
+            }
         }
 
         if (dto.email() != null && !dto.email().equals(student.getEmail())) {
@@ -148,7 +152,7 @@ public class StudentService {
                 student.getName(),
                 student.getEmail(),
                 student.getPhone(),
-                student.getDocument(),
+                DocumentUtils.format(student.getDocument()),
                 student.getActive(),
                 student.getPaymentPreference(),
                 toAddressDTO(student.getAddress()),

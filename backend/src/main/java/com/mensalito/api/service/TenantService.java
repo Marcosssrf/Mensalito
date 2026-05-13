@@ -8,6 +8,7 @@ import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
+import com.mensalito.api.util.DocumentUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -30,7 +31,7 @@ public class TenantService {
                 .name(dto.name())
                 .email(dto.email())
                 .phone(dto.phone())
-                .document(dto.document())
+                .document(DocumentUtils.normalize(dto.document()))
                 .build();
 
         Tenant saved = tenantRepository.save(tenant);
@@ -86,7 +87,7 @@ public class TenantService {
         if (dto.name() != null) tenant.setName(dto.name());
         if (dto.email() != null) tenant.setEmail(dto.email());
         if (dto.phone() != null) tenant.setPhone(dto.phone());
-        if (dto.document() != null) tenant.setDocument(dto.document());
+        if (dto.document() != null) tenant.setDocument(DocumentUtils.normalize(dto.document()));
 
         Tenant saved = tenantRepository.save(tenant);
         return toResponse(saved);
@@ -204,7 +205,7 @@ public class TenantService {
                 tenant.getName(),
                 tenant.getEmail(),
                 tenant.getPhone(),
-                tenant.getDocument(),
+                DocumentUtils.format(tenant.getDocument()),
                 tenant.getActive(),
                 tenant.getCreatedAt(),
                 tenant.getMercadoPagoApiKey() != null && !tenant.getMercadoPagoApiKey().isBlank()

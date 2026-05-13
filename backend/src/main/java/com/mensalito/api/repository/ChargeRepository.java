@@ -29,9 +29,14 @@ public interface ChargeRepository extends JpaRepository<Charge, UUID> {
 
     boolean existsByEnrollmentIdAndDueDate(UUID enrollmentId, LocalDate dueDate);
 
+    boolean existsByEnrollmentIdAndDueDateBetweenAndStatusNot(
+            UUID enrollmentId, LocalDate start, LocalDate end, ChargeStatus status);
+
     List<Charge> findByStatusAndDueDate(ChargeStatus status, LocalDate dueDate);
 
     List<Charge> findAllByStatusAndDueDateBefore(ChargeStatus status, LocalDate date);
+
+    List<Charge> findAllByStatusAndDueDateBeforeAndManualFalse(ChargeStatus status, LocalDate date);
 
     List<Charge> findByTenantIdAndDueDateBetween(UUID tenantId, LocalDate start, LocalDate end);
 

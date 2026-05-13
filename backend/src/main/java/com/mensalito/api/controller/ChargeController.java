@@ -96,11 +96,11 @@ public class ChargeController {
 
     // ----------------------------------------------------------------- UTIL --
 
-    /**
-     * Gera as cobranças do dia manualmente.
-     * Por padrão respeita o cache do Redis (não gera duas vezes no mesmo dia).
-     * Use ?force=true para forçar a geração mesmo que já tenha rodado hoje.
-     */
+    @PostMapping("/{id}/resend-notification")
+    public ResponseEntity<ChargeResponseDTO> resendNotification(@PathVariable UUID id) {
+        return ResponseEntity.ok(chargeService.resendAndReturn(id));
+    }
+
     @PostMapping("/generate-charges")
     public ResponseEntity<String> generateCharges(
             @RequestParam(defaultValue = "false") boolean force) {
