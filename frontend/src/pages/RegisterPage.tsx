@@ -6,28 +6,15 @@ import type {RegisterRequest} from '@/types'
 function maskDocument(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 14)
   if (digits.length <= 11) {
-    return digits
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    return digits.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2')
   }
-  return digits
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+  return digits.replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1/$2').replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
 function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)
-  if (digits.length <= 10) {
-    return digits
-      .replace(/(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{4})(\d{1,4})$/, '$1-$2')
-  }
-  return digits
-    .replace(/(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d{1,4})$/, '$1-$2')
+  if (digits.length <= 10) return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d{1,4})$/, '$1-$2')
+  return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d{1,4})$/, '$1-$2')
 }
 
 export default function RegisterPage() {
@@ -35,7 +22,7 @@ export default function RegisterPage() {
     name: '', email: '', password: '',
     schoolName: '', schoolPhone: '', schoolDocument: '',
   })
-  const [error, setError]   = useState('')
+  const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const { register } = useAuth()
@@ -51,139 +38,129 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const result = await register(form)
-      if (result.needsEmailConfirmation) {
-        setEmailSent(true)
-      } else {
-        navigate('/app/dashboard')
-      }
+      if (result.needsEmailConfirmation) setEmailSent(true)
+      else navigate('/app/dashboard')
     } catch (err: unknown) {
-      const e = err as Error
-      setError(e.message || 'Erro ao criar conta.')
+      setError((err as Error).message || 'Erro ao criar conta.')
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Tela de confirmação de email ──────────────────────────────────────────
   if (emailSent) {
     return (
-      <div style={{ fontFamily: "'Geist', 'Inter', sans-serif" }} className="min-h-screen bg-white flex flex-col">
-        <div className="border-b border-zinc-100 px-6 h-14 flex items-center">
-          <Link to="/" className="text-sm font-semibold tracking-tight text-zinc-900">Mensalito</Link>
+      <div style={{ minHeight: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Geist Variable', sans-serif" }}>
+        <div style={{ height: 52, background: '#fff', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', padding: '0 28px' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <div style={{ width: 26, height: 26, background: '#18181b', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/></svg>
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b' }}>Mensalito</span>
+          </Link>
         </div>
-        <div className="flex-1 flex items-center justify-center px-6">
-          <div className="w-full max-w-xs text-center">
-            <div className="text-4xl mb-4">📧</div>
-            <h1 className="text-xl font-semibold tracking-tight mb-2">Confirme seu email</h1>
-            <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-              Enviamos um link de confirmação para <strong className="text-zinc-700">{form.email}</strong>.
-              Clique no link para ativar sua conta e ser redirecionado automaticamente.
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+          <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, padding: '48px 40px', maxWidth: 380, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+            <div style={{ width: 52, height: 52, background: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <svg width="22" height="22" fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#18181b', margin: '0 0 10px', letterSpacing: '-0.02em' }}>Confirme seu email</h1>
+            <p style={{ fontSize: 14, color: '#71717a', lineHeight: 1.6, margin: '0 0 24px' }}>
+              Enviamos um link de confirmação para <strong style={{ color: '#18181b' }}>{form.email}</strong>. Clique no link para ativar sua conta.
             </p>
-            <p className="text-xs text-zinc-300">
-              Não recebeu?{' '}
-              <button
-                onClick={() => { setEmailSent(false) }}
-                className="text-zinc-500 underline underline-offset-2"
-              >
-                Tentar novamente
-              </button>
-            </p>
+            <button onClick={() => setEmailSent(false)} style={{ fontSize: 13, color: '#a1a1aa', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              Não recebeu? Tentar novamente
+            </button>
           </div>
         </div>
       </div>
     )
   }
 
-  // ── Formulário de cadastro ────────────────────────────────────────────────
   return (
-    <div style={{ fontFamily: "'Geist', 'Inter', sans-serif" }} className="min-h-screen bg-white flex flex-col">
-      <div className="border-b border-zinc-100 px-6 h-14 flex items-center justify-between">
-        <Link to="/" className="text-sm font-semibold tracking-tight text-zinc-900">Mensalito</Link>
-        <span className="text-sm text-zinc-400">
+    <div style={{ minHeight: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Geist Variable', sans-serif" }}>
+      <div style={{ height: 52, background: '#fff', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <div style={{ width: 26, height: 26, background: '#18181b', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/></svg>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b' }}>Mensalito</span>
+        </Link>
+        <span style={{ fontSize: 13, color: '#a1a1aa' }}>
           Já tem conta?{' '}
-          <Link to="/login" className="text-zinc-900 underline underline-offset-2">Entrar</Link>
+          <Link to="/login" style={{ color: '#18181b', fontWeight: 600, textDecoration: 'none', borderBottom: '1.5px solid #18181b' }}>Entrar</Link>
         </span>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-xs">
-          <h1 className="text-xl font-semibold tracking-tight mb-1">Criar conta</h1>
-          <p className="text-sm text-zinc-400 mb-8">30 dias grátis, sem cartão de crédito</p>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px' }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, padding: '36px 32px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.03em' }}>Criar conta</h1>
+            <p style={{ fontSize: 13.5, color: '#a1a1aa', margin: '0 0 28px' }}>30 dias grátis, sem cartão de crédito</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-xs text-zinc-400 uppercase tracking-widest pt-1">Seus dados</p>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Section: Seus dados */}
+              <div style={{ borderBottom: '1px solid #f4f4f5', paddingBottom: 14, marginBottom: 2 }}>
+                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 14px' }}>Seus dados</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label className="ms-label">Nome completo</label>
+                    <input className="ms-input" name="name" type="text" value={form.name} onChange={handleChange} placeholder="João Silva" required />
+                  </div>
+                  <div>
+                    <label className="ms-label">Email</label>
+                    <input className="ms-input" name="email" type="email" value={form.email} onChange={handleChange} placeholder="joao@escola.com" required />
+                  </div>
+                  <div>
+                    <label className="ms-label">Senha</label>
+                    <input className="ms-input" name="password" type="password" value={form.password} onChange={handleChange} placeholder="Mínimo 6 caracteres" required minLength={6} />
+                  </div>
+                </div>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Nome completo</label>
-              <input
-                name="name" type="text" value={form.name} onChange={handleChange}
-                placeholder="João Silva" required
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
+              {/* Section: Sua escola */}
+              <div>
+                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 14px' }}>Sua escola</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label className="ms-label">Nome da escola</label>
+                    <input className="ms-input" name="schoolName" type="text" value={form.schoolName} onChange={handleChange} placeholder="Escola de Inglês do João" required />
+                  </div>
+                  <div>
+                    <label className="ms-label">Telefone <span style={{ color: '#d4d4d8', fontWeight: 400 }}>(opcional)</span></label>
+                    <input
+                      className="ms-input"
+                      name="schoolPhone" type="tel" value={form.schoolPhone}
+                      onChange={(e) => setForm(prev => ({ ...prev, schoolPhone: maskPhone(e.target.value) }))}
+                      placeholder="(34) 99999-9999" maxLength={15}
+                    />
+                  </div>
+                  <div>
+                    <label className="ms-label">CPF ou CNPJ <span style={{ color: '#d4d4d8', fontWeight: 400 }}>(opcional)</span></label>
+                    <input
+                      className="ms-input"
+                      name="schoolDocument" type="text" value={form.schoolDocument}
+                      onChange={(e) => setForm(prev => ({ ...prev, schoolDocument: maskDocument(e.target.value) }))}
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18}
+                    />
+                  </div>
+                </div>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Email</label>
-              <input
-                name="email" type="email" value={form.email} onChange={handleChange}
-                placeholder="joao@escola.com" required
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
+              {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 13px', fontSize: 13, color: '#dc2626' }}>
+                  {error}
+                </div>
+              )}
 
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Senha</label>
-              <input
-                name="password" type="password" value={form.password} onChange={handleChange}
-                placeholder="Mínimo 6 caracteres" required minLength={6}
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
+              <button type="submit" disabled={loading} className="ms-btn ms-btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', marginTop: 4, fontSize: 14 }}>
+                {loading ? 'Criando conta...' : 'Criar conta grátis'}
+              </button>
 
-            <p className="text-xs text-zinc-400 uppercase tracking-widest pt-2">Sua escola</p>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Nome da escola</label>
-              <input
-                name="schoolName" type="text" value={form.schoolName} onChange={handleChange}
-                placeholder="Escola de Inglês do João" required
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">
-                Telefone <span className="text-zinc-300">(opcional)</span>
-              </label>
-              <input
-                name="schoolPhone" type="tel" value={form.schoolPhone}
-                onChange={(e) => setForm(prev => ({ ...prev, schoolPhone: maskPhone(e.target.value) }))}
-                placeholder="(34) 99999-9999" maxLength={15}
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">
-                CPF ou CNPJ <span className="text-zinc-300">(opcional)</span>
-              </label>
-              <input
-                name="schoolDocument" type="text" value={form.schoolDocument}
-                onChange={(e) => setForm(prev => ({ ...prev, schoolDocument: maskDocument(e.target.value) }))}
-                placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18}
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
-
-            {error && <p className="text-xs text-red-500">{error}</p>}
-
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-zinc-900 text-white text-sm py-2.5 rounded-md hover:bg-zinc-700 transition-colors disabled:opacity-40 mt-2"
-            >
-              {loading ? 'Criando conta...' : 'Criar conta grátis'}
-            </button>
-          </form>
+              <p style={{ fontSize: 12, color: '#a1a1aa', textAlign: 'center', margin: 0 }}>
+                Ao criar uma conta, você concorda com nossos <span style={{ color: '#71717a', textDecoration: 'underline', cursor: 'pointer' }}>Termos de Uso</span>
+              </p>
+            </form>
+          </div>
         </div>
       </div>
     </div>

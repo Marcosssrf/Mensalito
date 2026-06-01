@@ -3,12 +3,12 @@ import {Link, useNavigate} from 'react-router-dom'
 import {useAuth} from '@/contexts/AuthContext'
 
 export default function LoginPage() {
-  const [email, setEmail]     = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
-  const navigate = useNavigate()
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const { login }   = useAuth()
+  const navigate    = useNavigate()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -18,58 +18,68 @@ export default function LoginPage() {
       await login({ email, password })
       navigate('/app/dashboard')
     } catch (err: unknown) {
-      const e = err as Error
-      setError(e.message || 'Email ou senha inválidos')
+      setError((err as Error).message || 'Email ou senha inválidos')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div style={{ fontFamily: "'Geist', 'Inter', sans-serif" }} className="min-h-screen bg-white flex flex-col">
-      <div className="border-b border-zinc-100 px-6 h-14 flex items-center justify-between">
-        <Link to="/" className="text-sm font-semibold tracking-tight text-zinc-900">Mensalito</Link>
-        <span className="text-sm text-zinc-400">
+    <div style={{ minHeight: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Geist Variable', sans-serif" }}>
+      {/* Topbar */}
+      <div style={{ height: 52, background: '#fff', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <div style={{ width: 26, height: 26, background: '#18181b', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/></svg>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b', letterSpacing: '-0.01em' }}>Mensalito</span>
+        </Link>
+        <span style={{ fontSize: 13, color: '#a1a1aa' }}>
           Não tem conta?{' '}
-          <Link to="/register" className="text-zinc-900 underline underline-offset-2">Criar grátis</Link>
+          <Link to="/register" style={{ color: '#18181b', fontWeight: 600, textDecoration: 'none', borderBottom: '1.5px solid #18181b' }}>Criar grátis</Link>
         </span>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="w-full max-w-xs">
-          <h1 className="text-xl font-semibold tracking-tight mb-1">Entrar</h1>
-          <p className="text-sm text-zinc-400 mb-8">Acesse sua conta do Mensalito</p>
+      {/* Form */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          {/* Card */}
+          <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, padding: '36px 32px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.03em' }}>Entrar</h1>
+            <p style={{ fontSize: 13.5, color: '#a1a1aa', margin: '0 0 28px' }}>Acesse sua conta do Mensalito</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Email</label>
-              <input
-                type="email" value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="seu@email.com" required
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label className="ms-label">Email</label>
+                <input
+                  className="ms-input"
+                  type="email" value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="seu@email.com" required
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Senha</label>
-              <input
-                type="password" value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••" required
-                className="w-full border border-zinc-200 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300"
-              />
-            </div>
+              <div>
+                <label className="ms-label">Senha</label>
+                <input
+                  className="ms-input"
+                  type="password" value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••" required
+                />
+              </div>
 
-            {error && <p className="text-xs text-red-500">{error}</p>}
+              {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 13px', fontSize: 13, color: '#dc2626' }}>
+                  {error}
+                </div>
+              )}
 
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-zinc-900 text-white text-sm py-2.5 rounded-md hover:bg-zinc-700 transition-colors disabled:opacity-40"
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
+              <button type="submit" disabled={loading} className="ms-btn ms-btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', marginTop: 4, fontSize: 14 }}>
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
