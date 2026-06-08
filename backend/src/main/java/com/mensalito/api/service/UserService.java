@@ -5,6 +5,7 @@ import com.mensalito.api.dto.request.UpdateUserRequestDTO;
 import com.mensalito.api.dto.response.UserResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.User;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.model.enums.Role;
 import com.mensalito.api.repository.UserRepository;
 import com.mensalito.api.security.SecurityUtils;
@@ -16,6 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -25,12 +27,13 @@ public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecurityUtils securityUtils;
+    private final AuditService auditService;
 
     public UserResponseDTO getAuthenticatedUser() {
         return toResponse(securityUtils.getAuthenticatedUser());
     }
 
-    public java.util.List<UserResponseDTO> findAllByTenant() {
+    public List<UserResponseDTO> findAllByTenant() {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
         return userRepository.findByTenantId(tenantId)
                 .stream()
@@ -75,6 +78,10 @@ public class UserService implements UserDetailsService {
         if (dto.email() != null) target.setEmail(dto.email());
 
         userRepository.save(target);
+
+        auditService.log(AuditAction.USER_PASSWORD_CHANGED, "User", target.getId(),
+                "Dados do usuário atualizados: " + target.getName() + " (" + target.getEmail() + ")");
+
         return toResponse(target);
     }
 
@@ -90,6 +97,10 @@ public class UserService implements UserDetailsService {
         }
 
         userRepository.save(target);
+
+        auditService.log(AuditAction.USER_PASSWORD_CHANGED, "User", target.getId(),
+                "Senha alterada para o usuário: " + target.getName() + " (" + target.getEmail() + ")");
+
         return toResponse(target);
     }
 

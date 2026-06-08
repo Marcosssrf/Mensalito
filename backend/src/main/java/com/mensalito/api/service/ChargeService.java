@@ -15,6 +15,7 @@ import com.mensalito.api.model.Charge;
 import com.mensalito.api.model.Enrollment;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.model.Tenant;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.model.enums.ChargeStatus;
 import com.mensalito.api.model.enums.PaymentPreference;
 import com.mensalito.api.repository.ChargeRepository;
@@ -52,6 +53,7 @@ public class ChargeService {
     private final WhatsAppClient whatsAppClient;
     private final WhatsAppMessageBuilder messageBuilder;
     private final StringRedisTemplate redisTemplate;
+    private final AuditService auditService;
 
     private static final String SCHEDULER_KEY_PREFIX = "scheduler:charges:";
 
@@ -79,8 +81,12 @@ public class ChargeService {
                 .build();
 
         charge = chargeRepository.save(charge);
-
         generatePayment(charge);
+
+        auditService.log(AuditAction.CHARGE_CREATED, "Charge", charge.getId(),
+                "Cobrança criada para " + enrollment.getStudent().getName()
+                + " — vencimento " + charge.getDueDate()
+                + " — R$ " + charge.getAmount());
 
         return toResponse(charge);
     }
@@ -108,7 +114,6 @@ public class ChargeService {
                 .amount(amount)
                 .tenant(tenant)
                 .createdAt(LocalDateTime.now())
-                // Cobranças manuais ficam PENDING até confirmação explícita
                 .status(ChargeStatus.PENDING)
                 .manual(true)
                 .build();
@@ -117,6 +122,11 @@ public class ChargeService {
 
         log.info("Cobrança manual criada: chargeId={}, enrollmentId={}, amount={}, dueDate={}",
                 charge.getId(), enrollment.getId(), amount, dto.dueDate());
+
+        auditService.log(AuditAction.CHARGE_MANUAL_CREATED, "Charge", charge.getId(),
+                "Cobrança manual criada para " + enrollment.getStudent().getName()
+                + " — vencimento " + dto.dueDate()
+                + " — R$ " + amount);
 
         return toResponse(charge);
     }
@@ -136,9 +146,6 @@ public class ChargeService {
 
         charge.setStatus(ChargeStatus.PAID);
         charge.setPaymentDate(dto.paymentDate() != null ? dto.paymentDate() : LocalDate.now());
-
-        // Armazena métod de pagamento no campo pixCode para auditoria
-        // (campo reutilizado para evitar migration — prefixado com "MANUAL:")
         charge.setPixCode("MANUAL:" + dto.paymentMethod()
                 + (dto.notes() != null && !dto.notes().isBlank() ? " | " + dto.notes() : ""));
 
@@ -146,6 +153,11 @@ public class ChargeService {
 
         log.info("Pagamento manual confirmado: chargeId={}, method={}, date={}",
                 charge.getId(), dto.paymentMethod(), charge.getPaymentDate());
+
+        auditService.log(AuditAction.CHARGE_PAID_MANUAL, "Charge", charge.getId(),
+                "Pagamento manual confirmado para " + charge.getEnrollment().getStudent().getName()
+                + " — método: " + dto.paymentMethod()
+                + (dto.notes() != null && !dto.notes().isBlank() ? " | " + dto.notes() : ""));
 
         return toResponse(charge);
     }
@@ -168,6 +180,10 @@ public class ChargeService {
         charge = chargeRepository.save(charge);
 
         log.info("Cobrança cancelada: chargeId={}", charge.getId());
+
+        auditService.log(AuditAction.CHARGE_CANCELLED, "Charge", charge.getId(),
+                "Cobrança cancelada: aluno " + charge.getEnrollment().getStudent().getName()
+                + " — vencimento " + charge.getDueDate());
 
         return toResponse(charge);
     }
@@ -196,7 +212,13 @@ public class ChargeService {
         Charge charge = chargeRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cobrança não encontrada"));
         charge.setStatus(status);
-        return toResponse(chargeRepository.save(charge));
+        Charge saved = chargeRepository.save(charge);
+
+        auditService.log(AuditAction.CHARGE_STATUS_UPDATED, "Charge", saved.getId(),
+                "Status da cobrança atualizado para " + status
+                + " — aluno " + saved.getEnrollment().getStudent().getName());
+
+        return toResponse(saved);
     }
 
     public void generateMonthlyCharges() {
@@ -222,7 +244,6 @@ public class ChargeService {
                 LocalDate dueDate = LocalDate.now()
                         .withDayOfMonth(enrollment.getPlan().getDueDay());
 
-                // Checa duplicata no mês inteiro (cobre cobranças manuais com data diferente)
                 LocalDate monthStart = dueDate.withDayOfMonth(1);
                 LocalDate monthEnd   = dueDate.withDayOfMonth(dueDate.lengthOfMonth());
                 boolean alreadyExists = chargeRepository
@@ -239,6 +260,13 @@ public class ChargeService {
 
                     charge = chargeRepository.save(charge);
                     generatePayment(charge);
+
+                    auditService.logSystem(enrollment.getTenant().getId(),
+                            AuditAction.CHARGE_CREATED, "Charge", charge.getId(),
+                            "Cobrança mensal gerada automaticamente para " + enrollment.getStudent().getName()
+                            + " — vencimento " + dueDate
+                            + " — R$ " + charge.getAmount());
+
                     generated++;
                 }
             } catch (Exception e) {
@@ -250,10 +278,6 @@ public class ChargeService {
         redisTemplate.opsForValue().set(redisKey, String.valueOf(generated), 23, TimeUnit.HOURS);
     }
 
-    /**
-     * Decripta e retorna o access token do MercadoPago do tenant da cobrança.
-     * Retorna null se não houver chave configurada (não lança exceção — o PDF simplesmente não é enviado).
-     */
     private String resolveMercadoPagoToken(Charge charge) {
         try {
             String encrypted = charge.getTenant().getMercadoPagoApiKey();
@@ -265,10 +289,6 @@ public class ChargeService {
         }
     }
 
-    /**
-     * Lança exceção se já existe cobrança ativa (qualquer tipo: manual ou normal) para a
-     * matrícula no mesmo mês/ano da {@code dueDate}. Cobranças CANCELLED são ignoradas.
-     */
     private void assertNoDuplicateInMonth(UUID enrollmentId, LocalDate dueDate) {
         LocalDate monthStart = dueDate.withDayOfMonth(1);
         LocalDate monthEnd   = dueDate.withDayOfMonth(dueDate.lengthOfMonth());
@@ -359,7 +379,6 @@ public class ChargeService {
         if (response != null) {
             charge.setMercadoPagoOrderId(response.id());
 
-            // Extrai qr_code do primeiro pagamento, se disponível
             if (response.transactions() != null
                     && response.transactions().payments() != null
                     && !response.transactions().payments().isEmpty()) {
@@ -383,13 +402,11 @@ public class ChargeService {
 
         String amountStr = charge.getAmount().toPlainString();
 
-        // Divide nome do aluno em first/last name
         String fullName = student.getName() != null ? student.getName().trim() : "Aluno";
         int spaceIdx = fullName.indexOf(' ');
         String firstName = spaceIdx > 0 ? fullName.substring(0, spaceIdx) : fullName;
         String lastName  = spaceIdx > 0 ? fullName.substring(spaceIdx + 1) : "-";
 
-        // Monta identification — CPF ou CNPJ dependendo do tamanho do documento
         MercadoPagoOrderPayerIdentification identification = null;
         if (student.getDocument() != null && !student.getDocument().isBlank()) {
             String doc = student.getDocument().replaceAll("\\D", "");
@@ -397,7 +414,6 @@ public class ChargeService {
             identification = new MercadoPagoOrderPayerIdentification(docType, doc);
         }
 
-        // Endereço do aluno — usa dados cadastrados ou fallbacks mínimos exigidos pelo MP
         com.mensalito.api.model.Address studentAddress = student.getAddress();
         String zipCode      = (studentAddress != null && studentAddress.getZipCode()      != null) ? studentAddress.getZipCode().replaceAll("\\D", "")  : "01310100";
         String streetName   = (studentAddress != null && studentAddress.getStreet()        != null) ? studentAddress.getStreet()        : "Av. Paulista";
@@ -437,22 +453,15 @@ public class ChargeService {
         if (response != null) {
             charge.setMercadoPagoOrderId(response.id());
 
-            // Extrai barcode e URL do boleto do primeiro pagamento, se disponível
             if (response.transactions() != null
                     && response.transactions().payments() != null
                     && !response.transactions().payments().isEmpty()) {
                 MercadoPagoOrderResponse.MercadoPagoOrderPaymentMethodResponse pm =
                         response.transactions().payments().get(0).paymentMethod();
                 if (pm != null) {
-                    if (pm.digitable_line() != null) {
-                        charge.setBoletoUrl(pm.digitable_line());
-                    }
-                    if (pm.ticketUrl() != null) {
-                        charge.setTicketUrl(pm.ticketUrl());
-                    }
-                    if (pm.externalResourceUrl() != null) {
-                        charge.setCheckoutUrl(pm.externalResourceUrl());
-                    }
+                    if (pm.digitable_line() != null) charge.setBoletoUrl(pm.digitable_line());
+                    if (pm.ticketUrl() != null)      charge.setTicketUrl(pm.ticketUrl());
+                    if (pm.externalResourceUrl() != null) charge.setCheckoutUrl(pm.externalResourceUrl());
                 }
             }
 
@@ -478,12 +487,10 @@ public class ChargeService {
         boolean sent;
 
         if (pdfUrl != null) {
-            // Boleto: envia PDF com a mensagem como legenda (caption) — tudo em uma mensagem só
             String fileName = "boleto_" + charge.getDueDate() + ".pdf";
             String bearerToken = resolveMercadoPagoToken(charge);
             sent = whatsAppClient.sendDocument(instanceName, student.getPhone(), pdfUrl, fileName, message, bearerToken);
         } else {
-            // PIX ou boleto sem PDF: mensagem de texto simples
             sent = whatsAppClient.sendText(instanceName, student.getPhone(), message);
         }
 
@@ -511,13 +518,6 @@ public class ChargeService {
         }
     }
 
-    /**
-     * Reenvia a notificação WhatsApp de uma cobrança específica.
-     * Pode ser chamado manualmente quando o envio original falhou (whatsappSentAt == null)
-     * ou para forçar reenvio independente.
-     *
-     * @return true se o envio foi bem-sucedido
-     */
     public ChargeResponseDTO resendAndReturn(UUID chargeId) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
         Charge charge = chargeRepository.findByIdAndTenantId(chargeId, tenantId)
@@ -548,8 +548,10 @@ public class ChargeService {
             charge.setWhatsappSentAt(LocalDateTime.now());
             charge = chargeRepository.save(charge);
             log.info("[ChargeService] Reenvio de notificação para charge {} bem-sucedido", chargeId);
+
+            auditService.log(AuditAction.CHARGE_WHATSAPP_RESENT, "Charge", chargeId,
+                    "WhatsApp reenviado para " + student.getName() + " (" + student.getPhone() + ")");
         } else {
-            // Erro já logado no WhatsAppClient com o detalhe da resposta da Evolution API
             throw new IllegalStateException(
                 "Falha ao enviar WhatsApp para o número " + student.getPhone()
                 + ". Verifique se o número tem WhatsApp e se a instância está conectada.");
@@ -649,6 +651,18 @@ public class ChargeService {
             }
             chargeRepository.save(charge);
             log.info("Charge {} atualizada via webhook MP para {}", charge.getId(), newStatus);
+
+            if (newStatus == ChargeStatus.PAID) {
+                auditService.logSystem(charge.getEnrollment().getTenant().getId(),
+                        AuditAction.CHARGE_PAID_WEBHOOK, "Charge", charge.getId(),
+                        "Pagamento confirmado via webhook MercadoPago — order " + orderId
+                        + " — aluno " + charge.getEnrollment().getStudent().getName());
+            } else if (newStatus == ChargeStatus.LOST) {
+                auditService.logSystem(charge.getEnrollment().getTenant().getId(),
+                        AuditAction.CHARGE_EXPIRED_WEBHOOK, "Charge", charge.getId(),
+                        "Cobrança expirada via webhook MercadoPago — order " + orderId
+                        + " — aluno " + charge.getEnrollment().getStudent().getName());
+            }
         } else {
             log.warn("Webhook MP: status '{}' da order {} nao mapeado", order.status(), orderId);
         }
@@ -665,5 +679,4 @@ public class ChargeService {
                 })
                 .orElse(null);
     }
-
 }

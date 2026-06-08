@@ -1,0 +1,43 @@
+package com.mensalito.api.model.enums;
+
+public enum AuditAction {
+
+    // Alunos
+    STUDENT_CREATED,
+    STUDENT_UPDATED,
+    STUDENT_DEACTIVATED,
+    STUDENT_REACTIVATED,
+
+    // Matrículas
+    ENROLLMENT_CREATED,
+    ENROLLMENT_DEACTIVATED,
+
+    // Cobranças
+    CHARGE_CREATED,
+    CHARGE_MANUAL_CREATED,
+    CHARGE_CANCELLED,
+    CHARGE_PAID_MANUAL,
+    CHARGE_STATUS_UPDATED,
+    CHARGE_WHATSAPP_RESENT,
+
+    // Pagamentos via webhook
+    CHARGE_PAID_WEBHOOK,
+    CHARGE_EXPIRED_WEBHOOK,
+
+    // Planos
+    PLAN_CREATED,
+    PLAN_UPDATED,
+    PLAN_DEACTIVATED,
+
+    // Turmas
+    CLASS_CREATED,
+    CLASS_UPDATED,
+    CLASS_DEACTIVATED,
+
+    // Usuários / Auth
+    USER_INVITED,
+    USER_REGISTERED,
+    USER_PASSWORD_CHANGED,
+    USER_DEACTIVATED,
+    USER_REACTIVATED
+}

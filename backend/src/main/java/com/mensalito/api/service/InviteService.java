@@ -8,6 +8,7 @@ import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Invite;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.model.User;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.model.enums.Role;
 import com.mensalito.api.repository.InviteRepository;
 import com.mensalito.api.repository.TenantRepository;
@@ -31,6 +32,7 @@ public class InviteService {
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -55,6 +57,10 @@ public class InviteService {
 
         invite = inviteRepository.save(invite);
 
+        auditService.log(AuditAction.USER_INVITED, "Invite", invite.getId(),
+                "Convite enviado para " + (dto.email() != null ? dto.email() : "link aberto")
+                + " — role: " + role.name());
+
         String inviteUrl = frontendUrl + "/register?invite=" + token;
 
         return new InviteResponseDTO(
@@ -76,26 +82,17 @@ public class InviteService {
         );
     }
 
-    /**
-     * Chamado pelo frontend após o usuário confirmar o email no Supabase e estar autenticado.
-     * Cria o User local vinculado ao Tenant do convite e marca o convite como usado.
-     *
-     * O email e nome vêm do body (fornecidos pelo frontend após autenticação Supabase).
-     */
     @Transactional
     public void acceptInvite(String token, String email, String name) {
         Invite invite = findValidInvite(token);
 
-        // Convite com email fixo → valida que o email autenticado bate com o convite
         if (invite.getEmail() != null && !invite.getEmail().isBlank()) {
             if (!invite.getEmail().equalsIgnoreCase(email)) {
-                throw new InvalidInviteException(
-                        "Este convite foi emitido para outro email.");
+                throw new InvalidInviteException("Este convite foi emitido para outro email.");
             }
         }
 
         if (userRepository.existsByEmail(email)) {
-            // Usuário já provisionado — apenas marca o convite como usado
             invite.setUsed(true);
             inviteRepository.save(invite);
             return;
@@ -104,7 +101,6 @@ public class InviteService {
         User user = User.builder()
                 .name(name)
                 .email(email)
-                // Senha aleatória — autenticação é feita pelo Supabase
                 .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .tenant(invite.getTenant())
                 .role(invite.getRole())
@@ -115,6 +111,11 @@ public class InviteService {
 
         invite.setUsed(true);
         inviteRepository.save(invite);
+
+        // logSystem pois não há SecurityContext no momento do aceite
+        auditService.logSystem(invite.getTenant().getId(),
+                AuditAction.USER_REGISTERED, "User", user.getId(),
+                "Usuário registrado via convite: " + email + " — role: " + invite.getRole().name());
     }
 
     private Invite findValidInvite(String token) {

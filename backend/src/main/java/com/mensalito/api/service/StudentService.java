@@ -7,6 +7,7 @@ import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Address;
 import com.mensalito.api.model.Student;
 import com.mensalito.api.model.Tenant;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.model.enums.PaymentPreference;
 import com.mensalito.api.repository.StudentRepository;
 import com.mensalito.api.repository.TenantRepository;
@@ -31,6 +32,7 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final SecurityUtils securityUtils;
     private final TenantRepository tenantRepository;
+    private final AuditService auditService;
 
     public StudentResponseDTO create(StudentRequestDTO dto) {
         Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
@@ -49,6 +51,10 @@ public class StudentService {
 
         student = studentRepository.save(student);
         log.info("Aluno criado: studentId={}, tenantId={}, preferencia={}", student.getId(), tenant.getId(), student.getPaymentPreference());
+
+        auditService.log(AuditAction.STUDENT_CREATED, "Student", student.getId(),
+                "Aluno criado: " + student.getName()
+                + (student.getDocument() != null ? " — doc: " + DocumentUtils.format(student.getDocument()) : ""));
 
         return toResponse(student);
     }
@@ -97,6 +103,10 @@ public class StudentService {
 
         student = studentRepository.save(student);
         log.info("Aluno atualizado: studentId={}, preferencia={}", student.getId(), student.getPaymentPreference());
+
+        auditService.log(AuditAction.STUDENT_UPDATED, "Student", student.getId(),
+                "Dados do aluno atualizados: " + student.getName());
+
         return toResponse(student);
     }
 
@@ -106,6 +116,10 @@ public class StudentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         student.setActive(false);
         student = studentRepository.save(student);
+
+        auditService.log(AuditAction.STUDENT_DEACTIVATED, "Student", student.getId(),
+                "Aluno inativado: " + student.getName());
+
         return toResponse(student);
     }
 
@@ -115,6 +129,10 @@ public class StudentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
         student.setActive(true);
         student = studentRepository.save(student);
+
+        auditService.log(AuditAction.STUDENT_REACTIVATED, "Student", student.getId(),
+                "Aluno reativado: " + student.getName());
+
         return toResponse(student);
     }
 

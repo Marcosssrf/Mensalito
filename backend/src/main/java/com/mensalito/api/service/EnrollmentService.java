@@ -4,10 +4,12 @@ import com.mensalito.api.dto.request.EnrollmentRequestDTO;
 import com.mensalito.api.dto.response.EnrollmentResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.*;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.repository.*;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,6 +19,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
@@ -25,6 +28,7 @@ public class EnrollmentService {
     private final PlanRepository planRepository;
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
+    private final AuditService auditService;
 
     public EnrollmentResponseDTO create(EnrollmentRequestDTO dto) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
@@ -50,6 +54,11 @@ public class EnrollmentService {
                 .build();
 
         enrollment = enrollmentRepository.save(enrollment);
+
+        auditService.log(AuditAction.ENROLLMENT_CREATED, "Enrollment", enrollment.getId(),
+                "Matrícula criada: aluno " + student.getName()
+                + " — turma " + schoolClass.getName()
+                + " — plano " + plan.getName());
 
         return toResponse(enrollment);
     }
@@ -85,6 +94,11 @@ public class EnrollmentService {
         enrollment.setActive(false);
         enrollment.setEndDate(LocalDate.now());
         enrollment = enrollmentRepository.save(enrollment);
+
+        auditService.log(AuditAction.ENROLLMENT_DEACTIVATED, "Enrollment", enrollment.getId(),
+                "Matrícula encerrada: aluno " + enrollment.getStudent().getName()
+                + " — turma " + enrollment.getSchoolClass().getName());
+
         return toResponse(enrollment);
     }
 

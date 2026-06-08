@@ -5,11 +5,13 @@ import com.mensalito.api.dto.response.SchoolClassResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.SchoolClass;
 import com.mensalito.api.model.Tenant;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.repository.SchoolClassRepository;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,11 +21,13 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class SchoolClassService {
 
     private final SchoolClassRepository schoolClassRepository;
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
+    private final AuditService auditService;
 
     public SchoolClassResponseDTO create(SchoolClassRequestDTO dto) {
         Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
@@ -37,6 +41,9 @@ public class SchoolClassService {
                 .build();
 
         schoolClass = schoolClassRepository.save(schoolClass);
+
+        auditService.log(AuditAction.CLASS_CREATED, "SchoolClass", schoolClass.getId(),
+                "Turma criada: " + schoolClass.getName());
 
         return toResponse(schoolClass);
     }
@@ -61,14 +68,13 @@ public class SchoolClassService {
         SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
 
-        if (dto.name() != null) {
-            schoolClass.setName(dto.name());
-        }
-        if (dto.description() != null) {
-            schoolClass.setDescription(dto.description());
-        }
+        if (dto.name() != null) schoolClass.setName(dto.name());
+        if (dto.description() != null) schoolClass.setDescription(dto.description());
 
         schoolClass = schoolClassRepository.save(schoolClass);
+
+        auditService.log(AuditAction.CLASS_UPDATED, "SchoolClass", schoolClass.getId(),
+                "Turma atualizada: " + schoolClass.getName());
 
         return toResponse(schoolClass);
     }
@@ -79,6 +85,10 @@ public class SchoolClassService {
                 .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
         schoolClass.setActive(false);
         schoolClass = schoolClassRepository.save(schoolClass);
+
+        auditService.log(AuditAction.CLASS_DEACTIVATED, "SchoolClass", schoolClass.getId(),
+                "Turma inativada: " + schoolClass.getName());
+
         return toResponse(schoolClass);
     }
 
@@ -88,6 +98,10 @@ public class SchoolClassService {
                 .orElseThrow(() -> new ResourceNotFoundException("Turma não encontrada"));
         schoolClass.setActive(true);
         schoolClass = schoolClassRepository.save(schoolClass);
+
+        auditService.log(AuditAction.CLASS_CREATED, "SchoolClass", schoolClass.getId(),
+                "Turma reativada: " + schoolClass.getName());
+
         return toResponse(schoolClass);
     }
 

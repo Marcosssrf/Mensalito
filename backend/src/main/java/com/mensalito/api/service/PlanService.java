@@ -5,6 +5,7 @@ import com.mensalito.api.dto.response.PlanResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Plan;
 import com.mensalito.api.model.Tenant;
+import com.mensalito.api.model.enums.AuditAction;
 import com.mensalito.api.repository.PlanRepository;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
@@ -26,6 +27,7 @@ public class PlanService {
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final EncryptionService encryptionService;
+    private final AuditService auditService;
 
     public PlanResponseDTO create(PlanRequestDTO dto) {
         Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
@@ -39,6 +41,11 @@ public class PlanService {
                 .build();
 
         plan = planRepository.save(plan);
+
+        auditService.log(AuditAction.PLAN_CREATED, "Plan", plan.getId(),
+                "Plano criado: " + plan.getName()
+                + " — R$ " + plan.getAmount()
+                + " — venc. dia " + plan.getDueDay());
 
         return toResponse(plan);
     }
@@ -66,16 +73,19 @@ public class PlanService {
         if (dto.name() != null && !dto.name().equals(plan.getName())) {
             plan.setName(dto.name());
         }
-
         if (dto.amount() != null && dto.amount().compareTo(plan.getAmount()) != 0) {
             plan.setAmount(dto.amount());
         }
-
         if (dto.dueDay() != null) {
             plan.setDueDay(dto.dueDay());
         }
 
         plan = planRepository.save(plan);
+
+        auditService.log(AuditAction.PLAN_UPDATED, "Plan", plan.getId(),
+                "Plano atualizado: " + plan.getName()
+                + " — R$ " + plan.getAmount()
+                + " — venc. dia " + plan.getDueDay());
 
         return toResponse(plan);
     }
@@ -86,6 +96,10 @@ public class PlanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         plan.setActive(false);
         plan = planRepository.save(plan);
+
+        auditService.log(AuditAction.PLAN_DEACTIVATED, "Plan", plan.getId(),
+                "Plano inativado: " + plan.getName());
+
         return toResponse(plan);
     }
 
@@ -95,6 +109,10 @@ public class PlanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Plano não encontrado"));
         plan.setActive(true);
         plan = planRepository.save(plan);
+
+        auditService.log(AuditAction.PLAN_CREATED, "Plan", plan.getId(),
+                "Plano reativado: " + plan.getName());
+
         return toResponse(plan);
     }
 
