@@ -3,7 +3,7 @@ import {useNavigate, useParams} from 'react-router-dom'
 import api from '@/services/api'
 
 interface Address { zipCode: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string }
-interface Student { id: string; name: string; email: string | null; phone: string | null; document: string | null; active: boolean; createdAt: string; address: Address | null; paymentPreference: 'PIX' | 'BOLETO' | null }
+interface Student { id: string; name: string; email: string | null; phone: string | null; document: string | null; active: boolean; createdAt: string; address: Address | null; paymentPreference: 'PIX' | 'BOLETO' | null; trialEndsAt: string | null; inTrial: boolean }
 interface Charge { id: string; studentName: string; amount: number; dueDate: string; status: string; paymentDate: string | null; pixCode: string | null; boletoUrl: string | null; checkoutUrl: string | null; createdAt: string }
 interface Enrollment { id: string; studentName: string; className: string; planName: string; amount: number; startDate: string; endDate: string | null; active: boolean; createdAt: string }
 
@@ -33,6 +33,9 @@ const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#5c5f6
 
 function StudentEditModal({ student, onClose, onSaved }: { student: Student; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({ name: student.name, email: student.email ?? '', phone: student.phone ?? '', document: student.document ?? '', address: student.address ?? {...emptyAddress}, paymentPreference: student.paymentPreference ?? '' as 'PIX' | 'BOLETO' | '' })
+  const [trialOpen, setTrialOpen] = useState<boolean>(!!(student.trialEndsAt))
+  const [trialDate, setTrialDate] = useState<string>(student.trialEndsAt ?? '')
+  const [savingTrial, setSavingTrial] = useState(false)
   const [loadingCep, setLoadingCep] = useState(false)
   const [cepError, setCepError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,9 +61,18 @@ function StudentEditModal({ student, onClose, onSaved }: { student: Student; onC
     try {
       const hasAddress = Object.values(form.address).some(v => v.trim() !== '')
       await api.patch(`/students/${student.id}`, { ...form, address: hasAddress ? form.address : null, paymentPreference: form.paymentPreference || null })
+      // Salva trial separadamente se alterado
+      const originalTrial = student.trialEndsAt ?? ''
+      const newTrial = trialOpen ? trialDate : ''
+      if (newTrial !== originalTrial) {
+        setSavingTrial(true)
+        await api.patch(`/students/${student.id}/trial`, {
+          trialEndsAt: trialOpen && trialDate ? trialDate : null,
+        })
+      }
       onSaved(); onClose()
     } catch (e: any) { setError(e?.response?.data?.error ?? e?.response?.data?.message ?? 'Erro ao salvar aluno') }
-    finally { setLoading(false) }
+    finally { setLoading(false); setSavingTrial(false) }
   }
 
   return (
@@ -129,7 +141,7 @@ function StudentEditModal({ student, onClose, onSaved }: { student: Student; onC
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13.5, color: '#3f3f46', fontWeight: 500 }}>Cancelar</button>
           <button onClick={submit} disabled={loading} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#18181b', cursor: 'pointer', fontSize: 13.5, color: '#fff', fontWeight: 600, opacity: loading ? 0.5 : 1 }}>
-            {loading ? 'Salvando...' : 'Salvar alterações'}
+            {savingTrial ? 'Salvando trial...' : loading ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </div>
       </div>
@@ -273,6 +285,11 @@ export default function StudentDetailPage() {
                 <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 100, background: student.active ? '#dcfce7' : '#f4f4f5', color: student.active ? '#15803d' : '#71717a' }}>
                   {student.active ? 'Ativo' : 'Inativo'}
                 </span>
+                {student.inTrial && (
+                  <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 100, background: '#fef9c3', color: '#a16207' }}>
+                    ⏳ Trial até {fmtDate(student.trialEndsAt)}
+                  </span>
+                )}
                 <span style={{ fontSize: 13, color: '#a1a1aa' }}>Aluno desde {fmtDate(student.createdAt)}</span>
               </div>
             </div>
@@ -349,6 +366,21 @@ export default function StudentDetailPage() {
                 </div>
               )}
             </div>
+
+            {student.trialEndsAt && (
+              <div style={{ borderTop: '1px solid #f4f4f5', marginTop: 16, paddingTop: 16 }}>
+                <p style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>Trial</p>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ width: 28, height: 28, background: student.inTrial ? '#fef9c3' : '#f4f4f5', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }}>⏳</div>
+                  <div>
+                    <p style={{ fontSize: 13, color: '#3f3f46', margin: 0, fontWeight: 500 }}>Até {fmtDate(student.trialEndsAt)}</p>
+                    <p style={{ fontSize: 11.5, color: student.inTrial ? '#a16207' : '#a1a1aa', margin: '2px 0 0' }}>
+                      {student.inTrial ? 'Em trial — cobranças bloqueadas' : 'Trial encerrado'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {student.address && (student.address.street || student.address.city) && (
               <div style={{ borderTop: '1px solid #f4f4f5', marginTop: 16, paddingTop: 16 }}>

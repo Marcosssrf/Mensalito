@@ -70,6 +70,13 @@ public class ChargeService {
             throw new IllegalStateException("Não é possível criar cobrança para uma matrícula inativa");
         }
 
+        if (enrollment.getStudent().isInTrial(dto.dueDate())) {
+            throw new IllegalStateException(
+                    "O aluno " + enrollment.getStudent().getName()
+                            + " está em período de trial até " + enrollment.getStudent().getTrialEndsAt()
+                            + ". Nenhuma cobrança pode ser gerada durante o trial.");
+        }
+
         assertNoDuplicateInMonth(enrollment.getId(), dto.dueDate());
 
         Charge charge = Charge.builder()
@@ -85,8 +92,8 @@ public class ChargeService {
 
         auditService.log(AuditAction.CHARGE_CREATED, "Charge", charge.getId(),
                 "Cobrança criada para " + enrollment.getStudent().getName()
-                + " — vencimento " + charge.getDueDate()
-                + " — R$ " + charge.getAmount());
+                        + " — vencimento " + charge.getDueDate()
+                        + " — R$ " + charge.getAmount());
 
         return toResponse(charge);
     }
@@ -102,6 +109,13 @@ public class ChargeService {
 
         if (!Boolean.TRUE.equals(enrollment.getActive())) {
             throw new IllegalStateException("Não é possível criar cobrança para uma matrícula inativa");
+        }
+
+        if (enrollment.getStudent().isInTrial(dto.dueDate())) {
+            throw new IllegalStateException(
+                    "O aluno " + enrollment.getStudent().getName()
+                            + " está em período de trial até " + enrollment.getStudent().getTrialEndsAt()
+                            + ". Nenhuma cobrança pode ser gerada durante o trial.");
         }
 
         BigDecimal amount = dto.amount() != null ? dto.amount() : enrollment.getPlan().getAmount();
@@ -125,8 +139,8 @@ public class ChargeService {
 
         auditService.log(AuditAction.CHARGE_MANUAL_CREATED, "Charge", charge.getId(),
                 "Cobrança manual criada para " + enrollment.getStudent().getName()
-                + " — vencimento " + dto.dueDate()
-                + " — R$ " + amount);
+                        + " — vencimento " + dto.dueDate()
+                        + " — R$ " + amount);
 
         return toResponse(charge);
     }
@@ -156,8 +170,8 @@ public class ChargeService {
 
         auditService.log(AuditAction.CHARGE_PAID_MANUAL, "Charge", charge.getId(),
                 "Pagamento manual confirmado para " + charge.getEnrollment().getStudent().getName()
-                + " — método: " + dto.paymentMethod()
-                + (dto.notes() != null && !dto.notes().isBlank() ? " | " + dto.notes() : ""));
+                        + " — método: " + dto.paymentMethod()
+                        + (dto.notes() != null && !dto.notes().isBlank() ? " | " + dto.notes() : ""));
 
         return toResponse(charge);
     }
@@ -183,7 +197,7 @@ public class ChargeService {
 
         auditService.log(AuditAction.CHARGE_CANCELLED, "Charge", charge.getId(),
                 "Cobrança cancelada: aluno " + charge.getEnrollment().getStudent().getName()
-                + " — vencimento " + charge.getDueDate());
+                        + " — vencimento " + charge.getDueDate());
 
         return toResponse(charge);
     }
@@ -216,7 +230,7 @@ public class ChargeService {
 
         auditService.log(AuditAction.CHARGE_STATUS_UPDATED, "Charge", saved.getId(),
                 "Status da cobrança atualizado para " + status
-                + " — aluno " + saved.getEnrollment().getStudent().getName());
+                        + " — aluno " + saved.getEnrollment().getStudent().getName());
 
         return toResponse(saved);
     }
@@ -251,6 +265,14 @@ public class ChargeService {
                                 enrollment.getId(), monthStart, monthEnd, ChargeStatus.CANCELLED);
 
                 if (!alreadyExists) {
+                    if (enrollment.getStudent().isInTrial(dueDate)) {
+                        log.info("Scheduler: aluno {} em trial até {} — cobrança de {} ignorada",
+                                enrollment.getStudent().getName(),
+                                enrollment.getStudent().getTrialEndsAt(),
+                                dueDate);
+                        continue;
+                    }
+
                     Charge charge = Charge.builder()
                             .enrollment(enrollment)
                             .tenant(enrollment.getTenant())
@@ -264,8 +286,8 @@ public class ChargeService {
                     auditService.logSystem(enrollment.getTenant().getId(),
                             AuditAction.CHARGE_CREATED, "Charge", charge.getId(),
                             "Cobrança mensal gerada automaticamente para " + enrollment.getStudent().getName()
-                            + " — vencimento " + dueDate
-                            + " — R$ " + charge.getAmount());
+                                    + " — vencimento " + dueDate
+                                    + " — R$ " + charge.getAmount());
 
                     generated++;
                 }
@@ -299,11 +321,11 @@ public class ChargeService {
         if (exists) {
             throw new IllegalStateException(
                     "Já existe uma cobrança para esta matrícula em "
-                    + dueDate.getMonth().getDisplayName(
+                            + dueDate.getMonth().getDisplayName(
                             java.time.format.TextStyle.FULL,
                             new java.util.Locale("pt", "BR"))
-                    + "/" + dueDate.getYear()
-                    + ". Cancele a cobrança existente antes de criar uma nova."
+                            + "/" + dueDate.getYear()
+                            + ". Cancele a cobrança existente antes de criar uma nova."
             );
         }
     }
@@ -495,6 +517,13 @@ public class ChargeService {
         }
 
         if (sent) {
+            if (messageBuilder.isPixPreference(student)) {
+                whatsAppClient.sendText(instanceName, student.getPhone(),
+                        messageBuilder.buildPixCopyPasteMessage(charge));
+            } else if (messageBuilder.isBoletoPreference(student)) {
+                whatsAppClient.sendText(instanceName, student.getPhone(),
+                        messageBuilder.buildBoletoLineMessage(charge));
+            }
             charge.setWhatsappSentAt(LocalDateTime.now());
             chargeRepository.save(charge);
         }
@@ -512,6 +541,13 @@ public class ChargeService {
         boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(),
                 messageBuilder.buildReminderNotification(charge, daysOverdue));
         if (sent) {
+            if (messageBuilder.isPixPreference(student)) {
+                whatsAppClient.sendText(instanceName, student.getPhone(),
+                        messageBuilder.buildPixCopyPasteMessage(charge));
+            } else if (messageBuilder.isBoletoPreference(student)) {
+                whatsAppClient.sendText(instanceName, student.getPhone(),
+                        messageBuilder.buildBoletoLineMessage(charge));
+            }
             charge.setWhatsappSentAt(LocalDateTime.now());
             chargeRepository.save(charge);
             log.info("Lembrete D+{} enviado para {} via instância '{}'", daysOverdue, student.getName(), instanceName);
@@ -545,16 +581,22 @@ public class ChargeService {
         }
 
         if (sent) {
+            if (messageBuilder.isPixPreference(student)) {
+                whatsAppClient.sendText(instanceName, student.getPhone(),
+                        messageBuilder.buildPixCopyPasteMessage(charge));
+            } else if (messageBuilder.isBoletoPreference(student)) {
+                whatsAppClient.sendText(instanceName, student.getPhone(),
+                        messageBuilder.buildBoletoLineMessage(charge));
+            }
             charge.setWhatsappSentAt(LocalDateTime.now());
             charge = chargeRepository.save(charge);
-            log.info("[ChargeService] Reenvio de notificação para charge {} bem-sucedido", chargeId);
 
             auditService.log(AuditAction.CHARGE_WHATSAPP_RESENT, "Charge", chargeId,
                     "WhatsApp reenviado para " + student.getName() + " (" + student.getPhone() + ")");
         } else {
             throw new IllegalStateException(
-                "Falha ao enviar WhatsApp para o número " + student.getPhone()
-                + ". Verifique se o número tem WhatsApp e se a instância está conectada.");
+                    "Falha ao enviar WhatsApp para o número " + student.getPhone()
+                            + ". Verifique se o número tem WhatsApp e se a instância está conectada.");
         }
         return toResponse(charge);
     }
@@ -656,12 +698,12 @@ public class ChargeService {
                 auditService.logSystem(charge.getEnrollment().getTenant().getId(),
                         AuditAction.CHARGE_PAID_WEBHOOK, "Charge", charge.getId(),
                         "Pagamento confirmado via webhook MercadoPago — order " + orderId
-                        + " — aluno " + charge.getEnrollment().getStudent().getName());
+                                + " — aluno " + charge.getEnrollment().getStudent().getName());
             } else if (newStatus == ChargeStatus.LOST) {
                 auditService.logSystem(charge.getEnrollment().getTenant().getId(),
                         AuditAction.CHARGE_EXPIRED_WEBHOOK, "Charge", charge.getId(),
                         "Cobrança expirada via webhook MercadoPago — order " + orderId
-                        + " — aluno " + charge.getEnrollment().getStudent().getName());
+                                + " — aluno " + charge.getEnrollment().getStudent().getName());
             }
         } else {
             log.warn("Webhook MP: status '{}' da order {} nao mapeado", order.status(), orderId);

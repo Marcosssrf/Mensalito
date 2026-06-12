@@ -115,6 +115,10 @@ function StudentModal({
   const [cepError, setCepError] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // trial — estado separado, enviado via endpoint dedicado
+  const [trialOpen, setTrialOpen] = useState<boolean>(!!(initial?.trialEndsAt))
+  const [trialDate, setTrialDate] = useState<string>(initial?.trialEndsAt ?? '')
+  const [savingTrial, setSavingTrial] = useState(false)
 
   const isEdit = !!initial
 
@@ -160,13 +164,26 @@ function StudentModal({
       }
       if (isEdit) {
         await api.patch(`/students/${initial!.id}`, payload)
+        // Salva trial separadamente apenas se o valor foi alterado
+        const originalTrial = initial?.trialEndsAt ?? ''
+        const newTrial = trialOpen ? trialDate : ''
+        if (newTrial !== originalTrial) {
+          setSavingTrial(true)
+          await api.patch(`/students/${initial!.id}/trial`, {
+            trialEndsAt: trialOpen && trialDate ? trialDate : null,
+          })
+        }
       } else {
-        await api.post('/students', payload)
+        const res = await api.post('/students', payload)
+        // Se configurou trial, envia logo após criar
+        if (trialOpen && trialDate) {
+          await api.patch(`/students/${res.data.id}/trial`, { trialEndsAt: trialDate })
+        }
       }
       onSaved(); onClose()
     } catch (e: any) {
       setError(e?.response?.data?.error ?? e?.response?.data?.message ?? 'Erro ao salvar aluno')
-    } finally { setLoading(false) }
+    } finally { setLoading(false); setSavingTrial(false) }
   }
 
   return (
@@ -313,9 +330,9 @@ function StudentModal({
 
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
-            <button onClick={submit} disabled={loading}
+            <button onClick={submit} disabled={loading || savingTrial}
                     style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600 }}>
-              {loading ? 'Salvando...' : isEdit ? 'Salvar' : 'Adicionar'}
+              {savingTrial ? 'Salvando trial...' : loading ? 'Salvando...' : isEdit ? 'Salvar' : 'Adicionar'}
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ package com.mensalito.api.service;
 
 import com.mensalito.api.dto.request.AddressDTO;
 import com.mensalito.api.dto.request.StudentRequestDTO;
+import com.mensalito.api.dto.request.TrialRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Address;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -96,16 +98,41 @@ public class StudentService {
             student.setEmail(dto.email());
         }
 
-        if (dto.name() != null) student.setName(dto.name());
-        if (dto.phone() != null) student.setPhone(dto.phone());
+        if (dto.name() != null)              student.setName(dto.name());
+        if (dto.phone() != null)             student.setPhone(dto.phone());
         if (dto.paymentPreference() != null) student.setPaymentPreference(dto.paymentPreference());
-        if (dto.address() != null) student.setAddress(toAddressModel(dto.address()));
+        if (dto.address() != null)           student.setAddress(toAddressModel(dto.address()));
+
+        // trialEndsAt NÃO é tocado aqui — use PATCH /students/{id}/trial
 
         student = studentRepository.save(student);
         log.info("Aluno atualizado: studentId={}, preferencia={}", student.getId(), student.getPaymentPreference());
 
         auditService.log(AuditAction.STUDENT_UPDATED, "Student", student.getId(),
                 "Dados do aluno atualizados: " + student.getName());
+
+        return toResponse(student);
+    }
+
+    /**
+     * Define ou remove o período de trial do aluno.
+     * Endpoint dedicado: PATCH /students/{id}/trial
+     * trialEndsAt = null → remove o trial
+     */
+    public StudentResponseDTO setTrial(UUID id, TrialRequestDTO dto) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Student student = studentRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
+
+        student.setTrialEndsAt(dto.trialEndsAt());
+        student = studentRepository.save(student);
+
+        String msg = dto.trialEndsAt() != null
+                ? "Trial configurado até " + dto.trialEndsAt() + " para " + student.getName()
+                : "Trial removido de " + student.getName();
+
+        log.info("setTrial: studentId={}, trialEndsAt={}", student.getId(), dto.trialEndsAt());
+        auditService.log(AuditAction.STUDENT_UPDATED, "Student", student.getId(), msg);
 
         return toResponse(student);
     }
@@ -164,7 +191,8 @@ public class StudentService {
         );
     }
 
-    private StudentResponseDTO toResponse(Student student) {
+    public StudentResponseDTO toResponse(Student student) {
+        LocalDate today = LocalDate.now();
         return new StudentResponseDTO(
                 student.getId(),
                 student.getName(),
@@ -174,7 +202,9 @@ public class StudentService {
                 student.getActive(),
                 student.getPaymentPreference(),
                 toAddressDTO(student.getAddress()),
-                student.getCreatedAt()
+                student.getCreatedAt(),
+                student.getTrialEndsAt(),
+                student.isInTrial(today)
         );
     }
 }

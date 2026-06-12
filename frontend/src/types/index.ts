@@ -35,6 +35,8 @@ export interface Student {
     document: string
     active: boolean
     createdAt: string
+    trialEndsAt: string | null
+    inTrial: boolean
 }
 
 export interface Plan {

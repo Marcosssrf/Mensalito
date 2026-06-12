@@ -1,6 +1,7 @@
 package com.mensalito.api.controller;
 
 import com.mensalito.api.dto.request.StudentRequestDTO;
+import com.mensalito.api.dto.request.TrialRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
 import com.mensalito.api.service.StudentService;
 import jakarta.validation.Valid;
@@ -33,8 +34,7 @@ public class StudentController {
 
     @GetMapping(value = "/{id}")
     public ResponseEntity<StudentResponseDTO> findById(@PathVariable UUID id) {
-        StudentResponseDTO students = studentService.findById(id);
-        return ResponseEntity.ok(students);
+        return ResponseEntity.ok(studentService.findById(id));
     }
 
     @PostMapping
@@ -51,6 +51,21 @@ public class StudentController {
     @PatchMapping(value = "/{id}")
     public ResponseEntity<StudentResponseDTO> update(@PathVariable UUID id, @RequestBody @Valid StudentRequestDTO dto) {
         return ResponseEntity.ok(studentService.update(id, dto));
+    }
+
+    /**
+     * Define ou remove o período de trial de um aluno.
+     * PATCH /api/students/{id}/trial
+     *
+     * Body: { "trialEndsAt": "2026-08-31" }  → define trial
+     * Body: { "trialEndsAt": null }           → remove trial
+     */
+    @PreAuthorize("hasRole('OWNER')")
+    @PatchMapping(value = "/{id}/trial")
+    public ResponseEntity<StudentResponseDTO> setTrial(
+            @PathVariable UUID id,
+            @RequestBody TrialRequestDTO dto) {
+        return ResponseEntity.ok(studentService.setTrial(id, dto));
     }
 
     @PreAuthorize("hasRole('OWNER')")

@@ -45,19 +45,14 @@ public class WhatsAppMessageBuilder {
         String dueLabel  = dueDateLabel(charge.getDueDate());
 
         return ("Olá, %s! 👋\n\n"
-              + "Seu PIX de *R$ %s* vence %s, *%s*.\n\n"
-              + "📋 *Copia e cola:*\n"
-              + "`%s`\n\n"
-              + "🔗 *Link de pagamento:*\n"
-              + "%s\n\n"
-              + "Qualquer dúvida é só chamar aqui. 😊")
+                + "Seu PIX de *R$ %s* vence %s, *%s*.\n\n"
+                + "👇 Te mando o código copia e cola na próxima mensagem.\n\n"
+                + "Qualquer dúvida é só chamar aqui. 😊")
                 .formatted(
                         firstName,
                         formatAmount(charge),
                         dueLabel,
-                        charge.getDueDate().format(DATE_FORMAT),
-                        pixCode(charge),
-                        checkoutUrl(charge)
+                        charge.getDueDate().format(DATE_FORMAT)
                 );
     }
 
@@ -66,19 +61,14 @@ public class WhatsAppMessageBuilder {
         String daysLabel = daysOverdue == 1 ? "1 dia" : daysOverdue + " dias";
 
         return ("Olá, %s! ⚠️\n\n"
-              + "Seu PIX de *R$ %s* está em atraso há *%s*.\n\n"
-              + "Por favor, regularize o quanto antes para evitar suspensão. 🙏\n\n"
-              + "📋 *Copia e cola:*\n"
-              + "`%s`\n\n"
-              + "🔗 *Link de pagamento:*\n"
-              + "%s\n\n"
-              + "Qualquer dúvida é só chamar aqui. 😊")
+                + "Seu PIX de *R$ %s* está em atraso há *%s*.\n\n"
+                + "Por favor, regularize o quanto antes para evitar suspensão. 🙏\n\n"
+                + "👇 Te mando o código copia e cola na próxima mensagem.\n\n"
+                + "Qualquer dúvida é só chamar aqui. 😊")
                 .formatted(
                         firstName,
                         formatAmount(charge),
-                        daysLabel,
-                        pixCode(charge),
-                        checkoutUrl(charge)
+                        daysLabel
                 );
     }
 
@@ -93,9 +83,8 @@ public class WhatsAppMessageBuilder {
         boolean hasPdf = boletoDocumentUrl(charge) != null;
 
         String base = "Olá, %s! 👋\n\n"
-              + "Seu boleto de *R$ %s* vence %s, *%s*.\n\n"
-              + "📋 *Linha digitável:*\n"
-              + "`%s`";
+                + "Seu boleto de *R$ %s* vence %s, *%s*.\n\n"
+                + "👇 Te mando a linha digitável na próxima mensagem.";
 
         if (!hasPdf) {
             base += "\n\n🔗 *Visualizar boleto:*\n%s";
@@ -105,9 +94,9 @@ public class WhatsAppMessageBuilder {
 
         return hasPdf
                 ? base.formatted(firstName, formatAmount(charge), dueLabel,
-                        charge.getDueDate().format(DATE_FORMAT), boletoLine(charge))
+                charge.getDueDate().format(DATE_FORMAT))
                 : base.formatted(firstName, formatAmount(charge), dueLabel,
-                        charge.getDueDate().format(DATE_FORMAT), boletoLine(charge), boletoLink(charge));
+                charge.getDueDate().format(DATE_FORMAT), boletoLink(charge));
     }
 
     private String buildBoletoReminderMessage(Student student, Charge charge, int daysOverdue) {
@@ -117,10 +106,9 @@ public class WhatsAppMessageBuilder {
         boolean hasPdf = boletoDocumentUrl(charge) != null;
 
         String base = "Olá, %s! ⚠️\n\n"
-              + "Seu boleto de *R$ %s* está em atraso há *%s*.\n\n"
-              + "Por favor, regularize o quanto antes para evitar suspensão. 🙏\n\n"
-              + "📋 *Linha digitável:*\n"
-              + "`%s`";
+                + "Seu boleto de *R$ %s* está em atraso há *%s*.\n\n"
+                + "Por favor, regularize o quanto antes para evitar suspensão. 🙏\n\n"
+                + "👇 Te mando a linha digitável na próxima mensagem.";
 
         if (!hasPdf) {
             base += "\n\n🔗 *Visualizar boleto:*\n%s";
@@ -129,8 +117,38 @@ public class WhatsAppMessageBuilder {
         base += "\n\nQualquer dúvida é só chamar aqui. 😊";
 
         return hasPdf
-                ? base.formatted(firstName, formatAmount(charge), daysLabel, boletoLine(charge))
-                : base.formatted(firstName, formatAmount(charge), daysLabel, boletoLine(charge), boletoLink(charge));
+                ? base.formatted(firstName, formatAmount(charge), daysLabel)
+                : base.formatted(firstName, formatAmount(charge), daysLabel, boletoLink(charge));
+    }
+
+    /**
+     * Retorna true se a preferência de pagamento do aluno for PIX.
+     * Usado para decidir se deve enviar a mensagem de copia e cola separada.
+     */
+    public boolean isPixPreference(Student student) {
+        return resolvePreference(student) == PaymentPreference.PIX;
+    }
+
+    /**
+     * Retorna true se a preferência de pagamento do aluno for Boleto.
+     */
+    public boolean isBoletoPreference(Student student) {
+        return resolvePreference(student) == PaymentPreference.BOLETO;
+    }
+
+    /**
+     * Mensagem separada contendo apenas a linha digitável do boleto.
+     */
+    public String buildBoletoLineMessage(Charge charge) {
+        return boletoLine(charge);
+    }
+
+    /**
+     * Mensagem separada contendo apenas o código PIX copia e cola,
+     * para que o usuário possa copiá-lo facilmente.
+     */
+    public String buildPixCopyPasteMessage(Charge charge) {
+        return pixCode(charge);
     }
 
     // ---------------------------------------------------------------
