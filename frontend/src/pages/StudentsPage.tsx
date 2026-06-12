@@ -54,6 +54,8 @@ interface Student {
   createdAt: string
   address: Address | null
   paymentPreference: 'PIX' | 'BOLETO' | null
+  trialEndsAt: string | null
+  inTrial: boolean
 }
 
 function initials(name: string) {
@@ -116,8 +118,8 @@ function StudentModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   // trial — estado separado, enviado via endpoint dedicado
-  const [trialOpen, setTrialOpen] = useState<boolean>(!!(initial?.trialEndsAt))
-  const [trialDate, setTrialDate] = useState<string>(initial?.trialEndsAt ?? '')
+  const [trialOpen, _setTrialOpen] = useState<boolean>(!!(initial?.trialEndsAt))
+  const [trialDate, _setTrialDate] = useState<string>(initial?.trialEndsAt ?? '')
   const [savingTrial, setSavingTrial] = useState(false)
 
   const isEdit = !!initial
