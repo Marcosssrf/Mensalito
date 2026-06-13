@@ -5,10 +5,12 @@ import com.mensalito.api.client.EvolutionInstanceClient;
 import com.mensalito.api.dto.request.TenantRequestDTO;
 import com.mensalito.api.dto.request.WhatsAppTemplatesRequestDTO;
 import com.mensalito.api.dto.response.TenantResponseDTO;
+import com.mensalito.api.dto.response.WhatsAppStatsResponseDTO;
 import com.mensalito.api.dto.response.WhatsAppStatusResponseDTO;
 import com.mensalito.api.dto.response.WhatsAppTemplatesResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Tenant;
+import com.mensalito.api.repository.ChargeRepository;
 import com.mensalito.api.repository.TenantRepository;
 import com.mensalito.api.security.SecurityUtils;
 import com.mensalito.api.util.DocumentUtils;
@@ -17,6 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Slf4j
@@ -27,6 +32,7 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final SecurityUtils securityUtils;
     private final EncryptionService encryptionService;
+    private final ChargeRepository chargeRepository;
     private final EvolutionInstanceClient evolutionInstanceClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -251,6 +257,22 @@ public class TenantService {
         }
 
         return toSave;
+    }
+
+    public WhatsAppStatsResponseDTO getWhatsAppStats() {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay   = today.atStartOfDay();
+        LocalDateTime endOfDay     = today.atTime(LocalTime.MAX);
+        LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime endOfMonth   = today.withDayOfMonth(today.lengthOfMonth()).atTime(LocalTime.MAX);
+
+        long sentToday     = chargeRepository.countByTenantIdAndWhatsappSentAtBetween(tenantId, startOfDay, endOfDay);
+        long sentThisMonth = chargeRepository.countByTenantIdAndWhatsappSentAtBetween(tenantId, startOfMonth, endOfMonth);
+        long sentTotal     = chargeRepository.countByTenantIdAndWhatsappSentAtIsNotNull(tenantId);
+
+        return new WhatsAppStatsResponseDTO(sentToday, sentThisMonth, sentTotal);
     }
 
     private TenantResponseDTO toResponse(Tenant tenant) {

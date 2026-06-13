@@ -8,6 +8,12 @@ interface WAStatus {
     qrCodeBase64: string | null
 }
 
+interface WAStats {
+    sentToday: number
+    sentThisMonth: number
+    sentTotal: number
+}
+
 interface Charge {
     id: string
     studentName: string
@@ -25,9 +31,9 @@ interface Templates {
 }
 
 const TEMPLATE_LABELS: { key: keyof Templates; name: string; trigger: string }[] = [
-    { key: 'chargeNotificationPix',    name: 'Cobrança — PIX',           trigger: 'Enviado ao criar cobrança · aluno com preferência PIX' },
-    { key: 'chargeNotificationBoleto', name: 'Cobrança — Boleto',         trigger: 'Enviado ao criar cobrança · aluno com preferência Boleto' },
-    { key: 'reminderPix',              name: 'Lembrete de atraso — PIX',  trigger: 'Enviado automaticamente · aluno com preferência PIX' },
+    { key: 'chargeNotificationPix',    name: 'Cobrança — PIX',             trigger: 'Enviado ao criar cobrança · aluno com preferência PIX' },
+    { key: 'chargeNotificationBoleto', name: 'Cobrança — Boleto',           trigger: 'Enviado ao criar cobrança · aluno com preferência Boleto' },
+    { key: 'reminderPix',              name: 'Lembrete de atraso — PIX',    trigger: 'Enviado automaticamente · aluno com preferência PIX' },
     { key: 'reminderBoleto',           name: 'Lembrete de atraso — Boleto', trigger: 'Enviado automaticamente · aluno com preferência Boleto' },
 ]
 
@@ -40,40 +46,37 @@ const VARIABLES_HINT = [
 ]
 
 export default function WhatsAppPage() {
-    const [status, setStatus]           = useState<WAStatus | null>(null)
-    const [loading, setLoading]         = useState(true)
-    const [provisioning, setProvisioning] = useState(false)
+    const [status, setStatus]               = useState<WAStatus | null>(null)
+    const [stats, setStats]                 = useState<WAStats | null>(null)
+    const [loading, setLoading]             = useState(true)
+    const [provisioning, setProvisioning]   = useState(false)
     const [provisionError, setProvisionError] = useState<string | null>(null)
-    const [recentSends, setRecentSends] = useState<Charge[]>([])
-    const [sentToday, setSentToday]     = useState(0)
+    const [recentSends, setRecentSends]     = useState<Charge[]>([])
 
     // Templates
-    const [templates, setTemplates]         = useState<Templates | null>(null)
-    const [editingKey, setEditingKey]       = useState<keyof Templates | null>(null)
-    const [editingValue, setEditingValue]   = useState('')
+    const [templates, setTemplates]           = useState<Templates | null>(null)
+    const [editingKey, setEditingKey]         = useState<keyof Templates | null>(null)
+    const [editingValue, setEditingValue]     = useState('')
     const [savingTemplate, setSavingTemplate] = useState(false)
-    const [saveResult, setSaveResult]       = useState<{ success: boolean; text: string } | null>(null)
-    const [, setShowVars] = useState(false)
+    const [saveResult, setSaveResult]         = useState<{ success: boolean; text: string } | null>(null)
 
     useEffect(() => {
         Promise.all([
             api.get<WAStatus>('/tenants/me/whatsapp'),
-            api.get('/charges?size=500&sort=whatsappSentAt,desc'),
+            api.get<WAStats>('/tenants/me/whatsapp/stats'),
+            api.get('/charges?size=20&sort=whatsappSentAt,desc'),
             api.get<Templates>('/tenants/me/whatsapp/templates'),
         ])
-            .then(([waRes, chargesRes, tplRes]) => {
+            .then(([waRes, statsRes, chargesRes, tplRes]) => {
                 setStatus(waRes.data)
+                setStats(statsRes.data)
                 setTemplates(tplRes.data)
 
                 const charges: Charge[] = Array.isArray(chargesRes.data)
                     ? chargesRes.data
                     : (chargesRes.data?.content ?? [])
 
-                const sent = charges.filter((c) => c.whatsappSentAt != null)
-                setRecentSends(sent.slice(0, 10))
-
-                const today = new Date().toISOString().slice(0, 10)
-                setSentToday(sent.filter((c) => c.whatsappSentAt!.slice(0, 10) === today).length)
+                setRecentSends(charges.filter((c) => c.whatsappSentAt != null).slice(0, 10))
             })
             .catch(console.error)
             .finally(() => setLoading(false))
@@ -92,7 +95,6 @@ export default function WhatsAppPage() {
         setEditingKey(key)
         setEditingValue(templates?.[key] ?? '')
         setSaveResult(null)
-        setShowVars(false)
     }
 
     function cancelEdit() {
@@ -123,7 +125,10 @@ export default function WhatsAppPage() {
     function formatSentAt(iso: string) {
         const d = new Date(iso)
         const today = new Date()
-        const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+        const isToday =
+            d.getDate() === today.getDate() &&
+            d.getMonth() === today.getMonth() &&
+            d.getFullYear() === today.getFullYear()
         const hh = d.getHours().toString().padStart(2, '0')
         const mm = d.getMinutes().toString().padStart(2, '0')
         if (isToday) return `hoje ${hh}:${mm}`
@@ -161,21 +166,22 @@ export default function WhatsAppPage() {
                 <div style={{ padding: 60, textAlign: 'center', color: '#9ca3af' }}>Carregando...</div>
             ) : (
                 <>
-                    {/* Status cards */}
+                    {/* Status + Stats cards */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 28, background: '#e5e7eb', gap: 1 }}>
+
                         {/* Conexão */}
                         <div style={{ background: '#fff', padding: '24px 28px' }}>
                             <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', margin: '0 0 14px' }}>
                                 {connected ? (
                                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                    CONECTADO
-                  </span>
+                                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                                        CONECTADO
+                                    </span>
                                 ) : (
                                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#d1d5db', display: 'inline-block' }} />
-                    DESCONECTADO
-                  </span>
+                                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#d1d5db', display: 'inline-block' }} />
+                                        DESCONECTADO
+                                    </span>
                                 )}
                             </p>
                             <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Evolution API</p>
@@ -186,15 +192,23 @@ export default function WhatsAppPage() {
                         {/* Enviadas hoje */}
                         <div style={{ background: '#fff', padding: '24px 28px' }}>
                             <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', margin: '0 0 14px' }}>ENVIADAS HOJE</p>
-                            <p style={{ fontSize: 32, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>{sentToday}</p>
-                            <p style={{ fontSize: 12, color: '#6b7280' }}>mensagens disparadas via scheduler</p>
+                            <p style={{ fontSize: 32, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>
+                                {stats?.sentToday ?? '—'}
+                            </p>
+                            <p style={{ fontSize: 12, color: '#6b7280' }}>
+                                {stats?.sentThisMonth != null
+                                    ? `${stats.sentThisMonth} este mês`
+                                    : 'carregando...'}
+                            </p>
                         </div>
 
-                        {/* Total rastreado */}
+                        {/* Total enviado */}
                         <div style={{ background: '#fff', padding: '24px 28px' }}>
-                            <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', margin: '0 0 14px' }}>HISTÓRICO RASTREADO</p>
-                            <p style={{ fontSize: 32, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>{recentSends.length > 0 ? `${recentSends.length}+` : '0'}</p>
-                            <p style={{ fontSize: 12, color: '#6b7280' }}>cobranças com WhatsApp enviado</p>
+                            <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', margin: '0 0 14px' }}>TOTAL ENVIADO</p>
+                            <p style={{ fontSize: 32, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>
+                                {stats?.sentTotal ?? '—'}
+                            </p>
+                            <p style={{ fontSize: 12, color: '#6b7280' }}>mensagens desde o início</p>
                         </div>
                     </div>
 
@@ -229,9 +243,9 @@ export default function WhatsAppPage() {
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px' }}>
                                 {VARIABLES_HINT.map(v => (
                                     <span key={v.v} style={{ fontSize: 12, color: '#6b7280' }}>
-                    <code style={{ fontSize: 11, background: '#e5e7eb', padding: '1px 5px', borderRadius: 4, color: '#374151', marginRight: 4 }}>{v.v}</code>
+                                        <code style={{ fontSize: 11, background: '#e5e7eb', padding: '1px 5px', borderRadius: 4, color: '#374151', marginRight: 4 }}>{v.v}</code>
                                         {v.desc}
-                  </span>
+                                    </span>
                                 ))}
                             </div>
                         </div>
@@ -244,18 +258,15 @@ export default function WhatsAppPage() {
                             return (
                                 <div key={tpl.key} style={{ borderBottom: i < TEMPLATE_LABELS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
                                     <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                                        {/* Ícone */}
                                         <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                                             <svg width="16" height="16" fill="none" stroke="#6b7280" strokeWidth="1.8" viewBox="0 0 24 24">
                                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                             </svg>
                                         </div>
-                                        {/* Info */}
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{tpl.name}</span>
                                             <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>{tpl.trigger}</p>
                                         </div>
-                                        {/* Botão */}
                                         {!isEditing && (
                                             <button
                                                 onClick={() => startEdit(tpl.key)}
@@ -270,19 +281,18 @@ export default function WhatsAppPage() {
                                         )}
                                     </div>
 
-                                    {/* Visualização ou edição */}
                                     {!isEditing ? (
                                         <div style={{ margin: '0 24px 18px 74px', padding: '12px 16px', background: '#f9fafb', borderRadius: 8, fontSize: 13, color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-line', fontFamily: 'inherit' }}>
                                             {value}
                                         </div>
                                     ) : (
                                         <div style={{ margin: '0 24px 20px 74px' }}>
-                      <textarea
-                          value={editingValue}
-                          onChange={e => setEditingValue(e.target.value)}
-                          rows={7}
-                          style={{ width: '100%', padding: '10px 13px', border: '1.5px solid #6366f1', borderRadius: 9, fontSize: 13, color: '#111827', fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
-                      />
+                                            <textarea
+                                                value={editingValue}
+                                                onChange={e => setEditingValue(e.target.value)}
+                                                rows={7}
+                                                style={{ width: '100%', padding: '10px 13px', border: '1.5px solid #6366f1', borderRadius: 9, fontSize: 13, color: '#111827', fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                                            />
                                             {saveResult && (
                                                 <p style={{ fontSize: 12.5, fontWeight: 500, color: saveResult.success ? '#15803d' : '#dc2626', margin: '6px 0 8px' }}>
                                                     {saveResult.text}
@@ -307,7 +317,7 @@ export default function WhatsAppPage() {
                         })}
                     </div>
 
-                    {/* Histórico real */}
+                    {/* Histórico recente */}
                     <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>Histórico recente</h2>
                     <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
                         {recentSends.length === 0 ? (
@@ -321,11 +331,11 @@ export default function WhatsAppPage() {
                                     <span style={{ fontSize: 13, color: '#9ca3af', width: 90, flexShrink: 0 }}>{formatSentAt(c.whatsappSentAt!)}</span>
                                     <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', flex: 1 }}>{c.studentName}</span>
                                     <span style={{ fontSize: 13, color: '#6b7280' }}>
-                    vencimento {new Date(c.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                  </span>
+                                        vencimento {new Date(c.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                    </span>
                                     <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: c.status === 'PAID' ? '#dcfce7' : c.status === 'OVERDUE' ? '#fee2e2' : '#f3f4f6', color: c.status === 'PAID' ? '#15803d' : c.status === 'OVERDUE' ? '#dc2626' : '#6b7280' }}>
-                    {c.status === 'PAID' ? 'Pago' : c.status === 'OVERDUE' ? 'Em atraso' : 'Pendente'}
-                  </span>
+                                        {c.status === 'PAID' ? 'Pago' : c.status === 'OVERDUE' ? 'Em atraso' : 'Pendente'}
+                                    </span>
                                 </div>
                             ))
                         )}
