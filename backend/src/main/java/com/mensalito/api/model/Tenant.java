@@ -42,9 +42,17 @@ public class Tenant {
 
     @Column
     private String evolutionInstanceName;
-    
+
     @Column(unique = true)
     private String evolutionInstanceKey;
+
+    /**
+     * Templates de mensagem WhatsApp personalizados por tenant.
+     * Armazenado como JSON string com os 4 templates (pix, boleto, reminder_pix, reminder_boleto).
+     * NULL = usa os templates padrão do WhatsAppMessageBuilder.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String whatsappTemplates;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
