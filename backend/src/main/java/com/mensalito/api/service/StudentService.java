@@ -1,9 +1,11 @@
 package com.mensalito.api.service;
 
+import com.mensalito.api.client.WhatsAppClient;
 import com.mensalito.api.dto.request.AddressDTO;
 import com.mensalito.api.dto.request.StudentRequestDTO;
 import com.mensalito.api.dto.request.TrialRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
+import com.mensalito.api.dto.response.WhatsAppSendResultDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Address;
 import com.mensalito.api.model.Student;
@@ -35,6 +37,7 @@ public class StudentService {
     private final SecurityUtils securityUtils;
     private final TenantRepository tenantRepository;
     private final AuditService auditService;
+    private final WhatsAppClient whatsAppClient;
 
     public StudentResponseDTO create(StudentRequestDTO dto) {
         Tenant tenant = tenantRepository.findById(securityUtils.getAuthenticatedTenantId())
@@ -56,7 +59,7 @@ public class StudentService {
 
         auditService.log(AuditAction.STUDENT_CREATED, "Student", student.getId(),
                 "Aluno criado: " + student.getName()
-                + (student.getDocument() != null ? " — doc: " + DocumentUtils.format(student.getDocument()) : ""));
+                        + (student.getDocument() != null ? " — doc: " + DocumentUtils.format(student.getDocument()) : ""));
 
         return toResponse(student);
     }
@@ -161,6 +164,44 @@ public class StudentService {
                 "Aluno reativado: " + student.getName());
 
         return toResponse(student);
+    }
+
+    /**
+     * Envia uma mensagem de texto personalizada via WhatsApp para um aluno específico.
+     * Requer que o aluno tenha telefone cadastrado e que o tenant tenha instância Evolution configurada.
+     */
+    public WhatsAppSendResultDTO sendCustomWhatsAppMessage(UUID studentId, String message) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+
+        Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Aluno não encontrado"));
+
+        if (student.getPhone() == null || student.getPhone().isBlank()) {
+            return new WhatsAppSendResultDTO(false, "Aluno não possui telefone cadastrado.");
+        }
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
+        String instanceName = tenant.getEvolutionInstanceKey();
+        if (instanceName == null || instanceName.isBlank()) {
+            instanceName = tenant.getEvolutionInstanceName();
+        }
+
+        if (instanceName == null || instanceName.isBlank()) {
+            return new WhatsAppSendResultDTO(false, "Instância WhatsApp não configurada. Acesse a página do WhatsApp para conectar.");
+        }
+
+        boolean sent = whatsAppClient.sendText(instanceName, student.getPhone(), message);
+
+        if (sent) {
+            log.info("[WhatsApp] Mensagem manual enviada para aluno {} ({})", student.getName(), student.getPhone());
+            auditService.log(AuditAction.STUDENT_UPDATED, "Student", student.getId(),
+                    "Mensagem WhatsApp manual enviada para: " + student.getName());
+            return new WhatsAppSendResultDTO(true, "Mensagem enviada com sucesso!");
+        } else {
+            return new WhatsAppSendResultDTO(false, "Falha ao enviar a mensagem. Verifique se o WhatsApp está conectado.");
+        }
     }
 
     // ---------- helpers ----------

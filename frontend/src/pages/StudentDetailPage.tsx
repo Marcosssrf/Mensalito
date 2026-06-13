@@ -203,6 +203,124 @@ function NewChargeModal({ studentId: _studentId, onClose, onCreated }: { student
   )
 }
 
+function WhatsAppMessageModal({ student, onClose }: { student: Student; onClose: () => void }) {
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState<{ success: boolean; text: string } | null>(null)
+  const maxLen = 4096
+
+  const hasPhone = !!(student.phone && student.phone.trim())
+
+  async function send() {
+    if (!message.trim() || sending) return
+    setSending(true)
+    setResult(null)
+    try {
+      await api.post(`/students/${student.id}/whatsapp/message`, { message: message.trim() })
+      setResult({ success: true, text: 'Mensagem enviada com sucesso! ✓' })
+      setMessage('')
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao enviar mensagem.'
+      setResult({ success: false, text: msg })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.40)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
+        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 480, maxWidth: '94vw', boxShadow: '0 24px 64px rgba(0,0,0,0.16)', border: '1.5px solid #e8eaed' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#16a34a">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                  <path d="M13 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.854L.057 23.428a.5.5 0 0 0 .625.601l5.822-1.526A11.944 11.944 0 0 0 12 24c6.627 0 12-5.373 12-12S19.627 0 13 0zm0 22c-1.9 0-3.67-.522-5.188-1.429l-.37-.217-3.828 1.003 1.022-3.722-.237-.385A9.96 9.96 0 0 1 3 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#18181b', margin: 0, letterSpacing: '-0.02em' }}>Enviar mensagem</h2>
+                <p style={{ fontSize: 12.5, color: '#a1a1aa', margin: '2px 0 0' }}>
+                  {hasPhone ? `WhatsApp · ${maskPhone(student.phone!)}` : 'Sem telefone cadastrado'}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#a1a1aa' }}>
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          {/* Aluno */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', background: '#f9fafb', borderRadius: 9, border: '1px solid #f0f0f0', marginBottom: 18 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #18181b 0%, #3f3f46 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              {initials(student.name)}
+            </div>
+            <div>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: '#18181b', margin: 0 }}>{student.name}</p>
+              {hasPhone && <p style={{ fontSize: 12, color: '#71717a', margin: 0 }}>{maskPhone(student.phone!)}</p>}
+            </div>
+          </div>
+
+          {!hasPhone && (
+              <div style={{ background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 9, padding: '11px 14px', marginBottom: 18, fontSize: 13, color: '#92400e' }}>
+                ⚠️ Este aluno não tem telefone cadastrado. Adicione um número na edição do aluno para enviar mensagens.
+              </div>
+          )}
+
+          {/* Textarea */}
+          <div style={{ marginBottom: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#5c5f6b', display: 'block', marginBottom: 6, letterSpacing: '0.01em' }}>
+              MENSAGEM
+            </label>
+            <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value.slice(0, maxLen))}
+                disabled={!hasPhone || sending}
+                placeholder="Digite a mensagem que será enviada via WhatsApp..."
+                rows={5}
+                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e8eaed', borderRadius: 9, fontSize: 13.5, color: '#18181b', outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.55, boxSizing: 'border-box', background: hasPhone ? '#fff' : '#f9fafb', opacity: !hasPhone ? 0.7 : 1 }}
+            />
+            <p style={{ fontSize: 11.5, color: message.length > maxLen * 0.9 ? '#f59e0b' : '#a1a1aa', margin: '4px 0 0', textAlign: 'right' }}>
+              {message.length}/{maxLen}
+            </p>
+          </div>
+
+          {/* Feedback */}
+          {result && (
+              <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 500, background: result.success ? '#dcfce7' : '#fef2f2', border: `1px solid ${result.success ? '#bbf7d0' : '#fecaca'}`, color: result.success ? '#15803d' : '#dc2626' }}>
+                {result.text}
+              </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13.5, color: '#3f3f46', fontWeight: 500 }}>
+              {result?.success ? 'Fechar' : 'Cancelar'}
+            </button>
+            <button
+                onClick={send}
+                disabled={!hasPhone || !message.trim() || sending}
+                style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: (!hasPhone || !message.trim() || sending) ? '#e8eaed' : '#16a34a', cursor: (!hasPhone || !message.trim() || sending) ? 'not-allowed' : 'pointer', fontSize: 13.5, color: (!hasPhone || !message.trim() || sending) ? '#a1a1aa' : '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, transition: 'background 0.15s' }}
+            >
+              {sending ? (
+                  <>
+                    <div style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                    Enviando...
+                  </>
+              ) : (
+                  <>
+                    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Enviar mensagem
+                  </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+  )
+}
+
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -213,6 +331,7 @@ export default function StudentDetailPage() {
   const [loading, setLoading]       = useState(true)
   const [showNewCharge, setShowNewCharge] = useState(false)
   const [showEdit, setShowEdit]     = useState(false)
+  const [showWhatsApp, setShowWhatsApp] = useState(false)
 
   function loadData() {
     if (!id) return
@@ -266,6 +385,7 @@ export default function StudentDetailPage() {
       <div style={{ padding: '32px 40px', maxWidth: 1240, margin: '0 auto', fontFamily: "'Geist Variable', sans-serif" }}>
         {showNewCharge && <NewChargeModal studentId={student.id} onClose={() => setShowNewCharge(false)} onCreated={loadData} />}
         {showEdit && <StudentEditModal student={student} onClose={() => setShowEdit(false)} onSaved={loadData} />}
+        {showWhatsApp && <WhatsAppMessageModal student={student} onClose={() => setShowWhatsApp(false)} />}
 
         {/* Breadcrumb */}
         <div style={{ marginBottom: 24 }}>
@@ -296,7 +416,7 @@ export default function StudentDetailPage() {
             </div>
 
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#3f3f46' }}>
+              <button onClick={() => setShowWhatsApp(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#3f3f46' }}>
                 <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Mensagem
               </button>

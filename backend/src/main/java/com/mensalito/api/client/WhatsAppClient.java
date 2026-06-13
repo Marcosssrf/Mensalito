@@ -40,14 +40,17 @@ public class WhatsAppClient {
             String normalized = normalizePhone(phone);
             log.info("[WhatsApp] Enviando para número normalizado: '{}' (original: '{}')", normalized, phone);
 
+            java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("number", normalized);
+            payload.put("text", message);
+
+            log.info("[WhatsApp] Payload sendText para instância '{}': number={}, textLen={}", instanceName, normalized, message.length());
+
             String responseBody = restClient.post()
                     .uri(config.getApiUrl() + "/message/sendText/" + instanceName)
                     .header("apikey", config.getApiKey())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of(
-                            "number", normalized,
-                            "text", message
-                    ))
+                    .body(payload)
                     .retrieve()
                     .body(String.class);
 

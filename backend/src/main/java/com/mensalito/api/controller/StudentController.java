@@ -2,7 +2,9 @@ package com.mensalito.api.controller;
 
 import com.mensalito.api.dto.request.StudentRequestDTO;
 import com.mensalito.api.dto.request.TrialRequestDTO;
+import com.mensalito.api.dto.request.WhatsAppCustomMessageRequestDTO;
 import com.mensalito.api.dto.response.StudentResponseDTO;
+import com.mensalito.api.dto.response.WhatsAppSendResultDTO;
 import com.mensalito.api.service.StudentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -78,5 +80,19 @@ public class StudentController {
     @PatchMapping(value = "/{id}/reactivate")
     public ResponseEntity<StudentResponseDTO> reactivate(@PathVariable UUID id) {
         return ResponseEntity.ok(studentService.reactivate(id));
+    }
+
+    /**
+     * Envia uma mensagem de texto personalizada via WhatsApp para o aluno.
+     * POST /api/students/{id}/whatsapp/message
+     */
+    @PostMapping(value = "/{id}/whatsapp/message")
+    public ResponseEntity<WhatsAppSendResultDTO> sendWhatsAppMessage(
+            @PathVariable UUID id,
+            @RequestBody @Valid WhatsAppCustomMessageRequestDTO dto) {
+        WhatsAppSendResultDTO result = studentService.sendCustomWhatsAppMessage(id, dto.message());
+        return result.sent()
+                ? ResponseEntity.ok(result)
+                : ResponseEntity.badRequest().body(result);
     }
 }
