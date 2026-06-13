@@ -1,9 +1,12 @@
 package com.mensalito.api.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mensalito.api.client.EvolutionInstanceClient;
 import com.mensalito.api.dto.request.TenantRequestDTO;
+import com.mensalito.api.dto.request.WhatsAppTemplatesRequestDTO;
 import com.mensalito.api.dto.response.TenantResponseDTO;
 import com.mensalito.api.dto.response.WhatsAppStatusResponseDTO;
+import com.mensalito.api.dto.response.WhatsAppTemplatesResponseDTO;
 import com.mensalito.api.exception.ResourceNotFoundException;
 import com.mensalito.api.model.Tenant;
 import com.mensalito.api.repository.TenantRepository;
@@ -25,6 +28,7 @@ public class TenantService {
     private final SecurityUtils securityUtils;
     private final EncryptionService encryptionService;
     private final EvolutionInstanceClient evolutionInstanceClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public TenantResponseDTO create(TenantRequestDTO dto) {
         Tenant tenant = Tenant.builder()
@@ -197,6 +201,56 @@ public class TenantService {
             log.warn("[TenantService] Fallback getPhoneNumber falhou para '{}': {}", instanceName, e.getMessage());
             return null;
         }
+    }
+
+    public WhatsAppTemplatesResponseDTO getWhatsAppTemplates() {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
+        if (tenant.getWhatsappTemplates() == null || tenant.getWhatsappTemplates().isBlank()) {
+            // Retorna os defaults
+            return new WhatsAppTemplatesResponseDTO(
+                    WhatsAppMessageBuilder.DEFAULT_PIX_CHARGE,
+                    WhatsAppMessageBuilder.DEFAULT_BOLETO_CHARGE,
+                    WhatsAppMessageBuilder.DEFAULT_PIX_REMINDER,
+                    WhatsAppMessageBuilder.DEFAULT_BOLETO_REMINDER
+            );
+        }
+        try {
+            return objectMapper.readValue(tenant.getWhatsappTemplates(), WhatsAppTemplatesResponseDTO.class);
+        } catch (Exception e) {
+            log.warn("[TenantService] Erro ao ler templates do tenant {}: {}", tenantId, e.getMessage());
+            return new WhatsAppTemplatesResponseDTO(
+                    WhatsAppMessageBuilder.DEFAULT_PIX_CHARGE,
+                    WhatsAppMessageBuilder.DEFAULT_BOLETO_CHARGE,
+                    WhatsAppMessageBuilder.DEFAULT_PIX_REMINDER,
+                    WhatsAppMessageBuilder.DEFAULT_BOLETO_REMINDER
+            );
+        }
+    }
+
+    public WhatsAppTemplatesResponseDTO saveWhatsAppTemplates(WhatsAppTemplatesRequestDTO dto) {
+        UUID tenantId = securityUtils.getAuthenticatedTenantId();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
+
+        WhatsAppTemplatesResponseDTO toSave = new WhatsAppTemplatesResponseDTO(
+                dto.chargeNotificationPix(),
+                dto.chargeNotificationBoleto(),
+                dto.reminderPix(),
+                dto.reminderBoleto()
+        );
+
+        try {
+            tenant.setWhatsappTemplates(objectMapper.writeValueAsString(toSave));
+            tenantRepository.save(tenant);
+            log.info("[TenantService] Templates WhatsApp salvos para tenant {}", tenantId);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao salvar templates: " + e.getMessage(), e);
+        }
+
+        return toSave;
     }
 
     private TenantResponseDTO toResponse(Tenant tenant) {
