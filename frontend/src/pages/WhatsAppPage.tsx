@@ -53,7 +53,7 @@ export default function WhatsAppPage() {
     const [editingValue, setEditingValue]   = useState('')
     const [savingTemplate, setSavingTemplate] = useState(false)
     const [saveResult, setSaveResult]       = useState<{ success: boolean; text: string } | null>(null)
-    const [setShowVars]           = useState(false)
+    const [, setShowVars] = useState(false)
 
     useEffect(() => {
         Promise.all([
