@@ -79,7 +79,7 @@ public class UserService implements UserDetailsService {
 
         userRepository.save(target);
 
-        auditService.log(AuditAction.USER_PASSWORD_CHANGED, "User", target.getId(),
+        auditService.log(AuditAction.USER_PROFILE_UPDATED, "User", target.getId(),
                 "Dados do usuário atualizados: " + target.getName() + " (" + target.getEmail() + ")");
 
         return toResponse(target);

@@ -218,10 +218,15 @@ function NewChargeModal({ onClose, onCreated }: { onClose: () => void; onCreated
     if (!selectedEnrollment) { setError('Selecione uma matrícula'); return }
     setSaving(true); setError('')
     try {
-      await api.post('/charges/manual', {
+      // Cria a cobrança manual (PENDING)
+      const res = await api.post('/charges/manual', {
         enrollmentId: selectedEnrollment.id,
         dueDate,
+      })
+      // Confirma o pagamento imediatamente
+      await api.patch(`/charges/${res.data.id}/confirm-payment`, {
         paymentMethod,
+        paymentDate: dueDate,
       })
       onCreated(); onClose()
     } catch (e: any) {

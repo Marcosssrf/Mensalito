@@ -110,7 +110,7 @@ public class PlanService {
         plan.setActive(true);
         plan = planRepository.save(plan);
 
-        auditService.log(AuditAction.PLAN_CREATED, "Plan", plan.getId(),
+        auditService.log(AuditAction.PLAN_REACTIVATED, "Plan", plan.getId(),
                 "Plano reativado: " + plan.getName());
 
         return toResponse(plan);

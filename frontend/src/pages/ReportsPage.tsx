@@ -1,19 +1,19 @@
 import {useEffect, useState} from 'react'
 import api from '@/services/api'
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
 } from 'recharts'
 
 interface MonthlyData {
@@ -115,10 +115,12 @@ export default function ReportsPage() {
       const curDefault = monthlyData.length >= 1 ? monthlyData[monthlyData.length - 1].defaultRate : 0
       const defaultRateChange = curDefault - prevDefault
 
+      // Churn: matrículas canceladas no mês atual (endDate no mês corrente)
+      const now2 = new Date()
+      const curMonthKey = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}`
       const churnedEnrollments = allEnrollments.filter((e: any) => {
         if (e.active !== false) return false
-        const created = new Date(e.createdAt ?? e.startDate ?? '')
-        return (new Date().getTime() - created.getTime()) > 30 * 86400000
+        return (e.endDate ?? '').slice(0, 7) === curMonthKey
       })
       const activeCount = allEnrollments.filter((e: any) => e.active !== false).length
       const churnRate = (activeCount + churnedEnrollments.length) > 0

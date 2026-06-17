@@ -323,10 +323,15 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
     setError(null)
     setSaving(true)
     try {
-      await api.post('/charges/manual', {
+      // Cria a cobrança manual (status PENDING)
+      const res = await api.post('/charges/manual', {
         enrollmentId: selectedEnrollment.id,
         dueDate,
+      })
+      // Confirma o pagamento imediatamente com o meio escolhido
+      await api.patch(`/charges/${res.data.id}/confirm-payment`, {
         paymentMethod,
+        paymentDate: dueDate,
       })
       onSuccess()
       onClose()
@@ -721,7 +726,7 @@ export default function DashboardPage() {
   const inadimplPct =
       dash && dash.expectedRevenue > 0
           ? ((dash.overdueRevenue / dash.expectedRevenue) * 100).toFixed(1)
-          : '0,0'
+          : (0).toFixed(1)
 
   const kpis = [
     {
@@ -745,7 +750,7 @@ export default function DashboardPage() {
     {
       label: 'TOTAL DE ALUNOS',
       value: loading ? '—' : String(dash?.totalActiveStudents ?? 0),
-      sub: `${dash?.totalPendingCharges ?? 0} pendentes`,
+      sub: `${dash?.totalPendingCharges ?? 0} pendentes este mês`,
       subColor: '#6b7280',
     },
   ]
@@ -810,7 +815,6 @@ export default function DashboardPage() {
               Lançar cobrança manual
             </button>
 
-            <WAStatusBtn />
           </div>
 
           {/* Tabela de cobranças */}

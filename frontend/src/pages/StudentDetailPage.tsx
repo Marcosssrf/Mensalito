@@ -338,15 +338,24 @@ export default function StudentDetailPage() {
     setLoading(true)
     Promise.all([
       api.get(`/students/${id}`),
-      api.get(`/charges?size=20&sort=dueDate,desc`),
-      api.get('/enrollments'),
-    ]).then(([sRes, cRes, eRes]) => {
+      api.get(`/enrollments/student/${id}`),
+    ]).then(async ([sRes, eRes]) => {
       const s: Student = sRes.data
       setStudent(s)
-      const allCharges: Charge[] = Array.isArray(cRes.data) ? cRes.data : (cRes.data?.content ?? [])
-      setCharges(allCharges.filter(c => c.studentName === s.name))
-      const allEnrollments: Enrollment[] = Array.isArray(eRes.data) ? eRes.data : (eRes.data?.content ?? [])
-      setEnrollments(allEnrollments.filter(e => e.studentName === s.name))
+      const studentEnrollments: Enrollment[] = Array.isArray(eRes.data) ? eRes.data : (eRes.data?.content ?? [])
+      setEnrollments(studentEnrollments)
+
+      // Busca cobranças por cada matrícula do aluno
+      const chargePromises = studentEnrollments.map((e: Enrollment) =>
+        api.get(`/charges?enrollmentId=${e.id}&size=50&sort=dueDate,desc`)
+          .then(r => Array.isArray(r.data) ? r.data : (r.data?.content ?? []))
+          .catch(() => [] as Charge[])
+      )
+      const chargeArrays = await Promise.all(chargePromises)
+      const allCharges: Charge[] = chargeArrays.flat()
+      // Ordena por dueDate desc
+      allCharges.sort((a, b) => b.dueDate.localeCompare(a.dueDate))
+      setCharges(allCharges)
     }).catch(console.error).finally(() => setLoading(false))
   }
 

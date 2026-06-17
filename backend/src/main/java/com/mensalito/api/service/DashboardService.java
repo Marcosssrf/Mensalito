@@ -30,33 +30,43 @@ public class DashboardService {
         LocalDate startOfMonth = now.withDayOfMonth(1);
         LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
 
+        // Todas as cobranças do mês atual
         List<Charge> monthCharges = chargeRepository
                 .findByTenantIdAndDueDateBetween(tenantId, startOfMonth, endOfMonth);
 
+        // Receita prevista: PAID + PENDING do mês atual (mesma base temporal)
         BigDecimal expectedRevenue = monthCharges.stream()
                 .filter(c -> c.getStatus() == ChargeStatus.PENDING || c.getStatus() == ChargeStatus.PAID)
                 .map(Charge::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // Receita recebida: apenas PAID do mês atual
         BigDecimal receivedRevenue = monthCharges.stream()
                 .filter(c -> c.getStatus() == ChargeStatus.PAID)
                 .map(Charge::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal overdueRevenue = chargeRepository
-                .findByTenantIdAndStatusAndDueDateBefore(tenantId, ChargeStatus.PENDING, now)
-                .stream()
+        // Inadimplência: cobranças PENDING do mês atual com vencimento já passado
+        // (mesma base temporal que expectedRevenue — comparação coerente)
+        BigDecimal overdueRevenue = monthCharges.stream()
+                .filter(c -> c.getStatus() == ChargeStatus.PENDING && c.getDueDate().isBefore(now))
                 .map(Charge::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Long totalActiveStudents = studentRepository.countByTenantIdAndActiveTrue(tenantId);
 
+        // Pendentes do mês atual ainda não vencidas (aguardando pagamento)
         Long totalPending = monthCharges.stream()
-                .filter(c -> c.getStatus() == ChargeStatus.PENDING).count();
+                .filter(c -> c.getStatus() == ChargeStatus.PENDING && !c.getDueDate().isBefore(now))
+                .count();
+
         Long totalPaid = monthCharges.stream()
                 .filter(c -> c.getStatus() == ChargeStatus.PAID).count();
-        Long totalOverdue = chargeRepository
-                .countByTenantIdAndStatusAndDueDateBefore(tenantId, ChargeStatus.PENDING, now);
+
+        // Total de cobranças vencidas e não pagas no mês atual
+        Long totalOverdue = monthCharges.stream()
+                .filter(c -> c.getStatus() == ChargeStatus.PENDING && c.getDueDate().isBefore(now))
+                .count();
 
         return new DashboardResponseDTO(
                 expectedRevenue,

@@ -45,11 +45,14 @@ const ACTION_TO_CATEGORY: Record<AuditAction, Category> = {
   PLAN_CREATED:            'Plano',
   PLAN_UPDATED:            'Plano',
   PLAN_DEACTIVATED:        'Plano',
+  PLAN_REACTIVATED:        'Plano',
   CLASS_CREATED:           'Turma',
   CLASS_UPDATED:           'Turma',
   CLASS_DEACTIVATED:       'Turma',
+  CLASS_REACTIVATED:       'Turma',
   USER_INVITED:            'Usuário',
   USER_REGISTERED:         'Usuário',
+  USER_PROFILE_UPDATED:    'Usuário',
   USER_PASSWORD_CHANGED:   'Usuário',
   USER_DEACTIVATED:        'Usuário',
   USER_REACTIVATED:        'Usuário',
@@ -184,14 +187,7 @@ export default function ActivityPage() {
       page: String(p),
       sort: 'createdAt,desc',
     }
-    if (tab !== 'Todos') {
-      // passa a primeira AuditAction que corresponde à categoria como filtro
-      const match = Object.entries(ACTION_TO_CATEGORY).find(([, cat]) => cat === tab)
-      if (match) {
-        // não filtra por action específica — filtra no frontend pois uma categoria
-        // abrange várias actions; não passamos action param aqui
-      }
-    }
+    // Filtro de categoria é feito no cliente (uma categoria mapeia N actions)
     if (from) params.from = from
     if (to)   params.to   = to
     return new URLSearchParams(params).toString()

@@ -77,7 +77,7 @@ interface StudentFormData {
   phone: string
   document: string
   address: Address
-  paymentPreference: 'PIX' | 'BOLETO' | ''
+  paymentPreference: 'PIX' | 'BOLETO' | ''  // '' = not yet selected
 }
 
 const emptyAddress: Address = {
@@ -156,13 +156,21 @@ function StudentModal({
 
   async function submit() {
     if (!form.name.trim()) { setError('Nome é obrigatório'); return }
+    if (!form.email.trim()) { setError('E-mail é obrigatório'); return }
+    if (!form.phone.trim()) { setError('Telefone é obrigatório'); return }
+    if (!form.paymentPreference) { setError('Preferência de pagamento é obrigatória'); return }
+    if (!form.address.zipCode.trim()) { setError('CEP é obrigatório'); return }
+    if (!form.address.street.trim()) { setError('Rua é obrigatória'); return }
+    if (!form.address.number.trim()) { setError('Número é obrigatório'); return }
+    if (!form.address.neighborhood.trim()) { setError('Bairro é obrigatório'); return }
+    if (!form.address.city.trim()) { setError('Cidade é obrigatória'); return }
+    if (!form.address.state.trim()) { setError('Estado é obrigatório'); return }
     setLoading(true); setError('')
     try {
-      const hasAddress = Object.values(form.address).some(v => v.trim() !== '')
       const payload = {
         ...form,
-        address: hasAddress ? form.address : null,
-        paymentPreference: form.paymentPreference || null,
+        address: form.address,
+        paymentPreference: form.paymentPreference,
       }
       if (isEdit) {
         await api.patch(`/students/${initial!.id}`, payload)
@@ -206,28 +214,28 @@ function StudentModal({
           <div style={{ marginBottom: 14 }}>
             <label style={lbl}>Nome completo *</label>
             <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                   placeholder="Ex: João da Silva" style={inp} />
+                   placeholder="Ex: João da Silva" style={inp} required />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label style={lbl}>E-mail</label>
+              <label style={lbl}>E-mail *</label>
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                     placeholder="joao@email.com" style={inp} />
+                     placeholder="joao@email.com" style={inp} required />
             </div>
             <div>
-              <label style={lbl}>Telefone</label>
+              <label style={lbl}>Telefone *</label>
               <input type="text" value={form.phone}
                      onChange={e => setForm(f => ({ ...f, phone: maskPhone(e.target.value) }))}
-                     placeholder="(21) 99999-9999" maxLength={15} style={inp} />
+                     placeholder="(21) 99999-9999" maxLength={15} style={inp} required />
             </div>
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label style={lbl}>CPF / Documento</label>
+            <label style={lbl}>CPF / Documento *</label>
             <input type="text" value={form.document}
                    onChange={e => setForm(f => ({ ...f, document: maskDocument(e.target.value) }))}
-                   placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18} style={inp} />
+                   placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18} style={inp} required />
           </div>
 
           {/* ── Endereço ── */}
@@ -237,7 +245,7 @@ function StudentModal({
             {/* CEP */}
             <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={lbl}>CEP</label>
+                <label style={lbl}>CEP *</label>
                 <input
                     type="text"
                     value={form.address.zipCode}
@@ -249,31 +257,32 @@ function StudentModal({
                     placeholder="00000-000"
                     maxLength={9}
                     style={{ ...inp, borderColor: cepError && !loadingCep ? '#fca5a5' : '#e5e7eb' }}
+                    required
                 />
                 {loadingCep && <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, display: 'block' }}>Buscando...</span>}
                 {cepError && !loadingCep && <span style={{ fontSize: 11, color: '#ef4444', marginTop: 4, display: 'block' }}>{cepError}</span>}
               </div>
               <div>
-                <label style={lbl}>Bairro</label>
+                <label style={lbl}>Bairro *</label>
                 <input type="text" value={form.address.neighborhood}
                        onChange={e => setAddr('neighborhood', e.target.value)}
-                       placeholder="Bairro" style={inp} />
+                       placeholder="Bairro" style={inp} required />
               </div>
             </div>
 
             {/* Rua + número */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={lbl}>Rua / Logradouro</label>
+                <label style={lbl}>Rua / Logradouro *</label>
                 <input type="text" value={form.address.street}
                        onChange={e => setAddr('street', e.target.value)}
-                       placeholder="Rua das Flores" style={inp} />
+                       placeholder="Rua das Flores" style={inp} required />
               </div>
               <div>
-                <label style={lbl}>Número</label>
+                <label style={lbl}>Número *</label>
                 <input type="text" value={form.address.number}
                        onChange={e => setAddr('number', e.target.value)}
-                       placeholder="123" style={inp} />
+                       placeholder="123" style={inp} required />
               </div>
             </div>
 
@@ -288,16 +297,16 @@ function StudentModal({
             {/* Cidade + Estado */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 12 }}>
               <div>
-                <label style={lbl}>Cidade</label>
+                <label style={lbl}>Cidade *</label>
                 <input type="text" value={form.address.city}
                        onChange={e => setAddr('city', e.target.value)}
-                       placeholder="São Paulo" style={inp} />
+                       placeholder="São Paulo" style={inp} required />
               </div>
               <div>
-                <label style={lbl}>UF</label>
+                <label style={lbl}>UF *</label>
                 <input type="text" value={form.address.state}
                        onChange={e => setAddr('state', e.target.value.toUpperCase().slice(0, 2))}
-                       placeholder="SP" maxLength={2} style={inp} />
+                       placeholder="SP" maxLength={2} style={inp} required />
               </div>
             </div>
           </div>
@@ -305,8 +314,8 @@ function StudentModal({
           {/* ── Preferência de pagamento ── */}
           <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 20, marginBottom: 20 }}>
             <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 12 }}>PREFERÊNCIA DE PAGAMENTO</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              {([['', 'Sem preferência'], ['PIX', 'PIX'], ['BOLETO', 'Boleto']] as const).map(([val, label]) => {
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {([['PIX', 'PIX'], ['BOLETO', 'Boleto']] as const).map(([val, label]) => {
                 const selected = form.paymentPreference === val
                 return (
                     <button

@@ -99,7 +99,7 @@ public class SchoolClassService {
         schoolClass.setActive(true);
         schoolClass = schoolClassRepository.save(schoolClass);
 
-        auditService.log(AuditAction.CLASS_CREATED, "SchoolClass", schoolClass.getId(),
+        auditService.log(AuditAction.CLASS_REACTIVATED, "SchoolClass", schoolClass.getId(),
                 "Turma reativada: " + schoolClass.getName());
 
         return toResponse(schoolClass);
