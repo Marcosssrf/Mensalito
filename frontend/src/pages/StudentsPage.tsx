@@ -17,6 +17,36 @@ function maskDocument(value: string): string {
       .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
+function validateCpf(digits: string): boolean {
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false
+  let sum = 0
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i)
+  let r = (sum * 10) % 11; if (r === 10 || r === 11) r = 0
+  if (r !== parseInt(digits[9])) return false
+  sum = 0
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i)
+  r = (sum * 10) % 11; if (r === 10 || r === 11) r = 0
+  return r === parseInt(digits[10])
+}
+
+function validateCnpj(digits: string): boolean {
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false
+  const calc = (d: string, n: number) => {
+    let s = 0, p = n
+    for (let i = 0; i < d.length; i++) { s += parseInt(d[i]) * p--; if (p < 2) p = 9 }
+    const r = s % 11; return r < 2 ? 0 : 11 - r
+  }
+  return calc(digits.slice(0, 12), 5) === parseInt(digits[12]) &&
+      calc(digits.slice(0, 13), 6) === parseInt(digits[13])
+}
+
+function validateDocument(value: string): boolean {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 11) return validateCpf(digits)
+  if (digits.length === 14) return validateCnpj(digits)
+  return false
+}
+
 function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)
   if (digits.length <= 10) {
@@ -158,6 +188,8 @@ function StudentModal({
     if (!form.name.trim()) { setError('Nome é obrigatório'); return }
     if (!form.email.trim()) { setError('E-mail é obrigatório'); return }
     if (!form.phone.trim()) { setError('Telefone é obrigatório'); return }
+    if (!form.document.trim()) { setError('CPF/CNPJ é obrigatório'); return }
+    if (!validateDocument(form.document)) { setError('CPF ou CNPJ inválido. Verifique os dígitos informados.'); return }
     if (!form.paymentPreference) { setError('Preferência de pagamento é obrigatória'); return }
     if (!form.address.zipCode.trim()) { setError('CEP é obrigatório'); return }
     if (!form.address.street.trim()) { setError('Rua é obrigatória'); return }

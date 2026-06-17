@@ -90,6 +90,8 @@ function ClassCard({ cls, onEdit, onDeactivate }: { cls: SchoolClass; onEdit: ()
 
   function parseDesc() {
     if (!cls.description) return { teacher: null, schedule: null, days: null, slots: null, price: null, raw: null }
+    const hasStructure = cls.description.includes('·')
+    if (!hasStructure) return { teacher: null, schedule: null, days: null, slots: null, price: null, raw: cls.description }
     const parts = cls.description.split('·').map(p => p.trim())
     const teacher = parts.find(p => p.toLowerCase().startsWith('prof')) ?? null
     const days = parts.find(p => /seg|ter|qua|qui|sex|sáb|dom/i.test(p)) ?? null
