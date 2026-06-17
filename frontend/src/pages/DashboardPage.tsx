@@ -93,7 +93,7 @@ function todayISO() {
 
 // ── WAStatusBtn ────────────────────────────────────────────────────────────
 
-function WAStatusBtn() {
+function _WAStatusBtn() {
   const [online, setOnline] = useState<boolean | null>(null)
 
   useEffect(() => {

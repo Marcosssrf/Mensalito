@@ -181,7 +181,7 @@ export default function ActivityPage() {
 
   const PAGE_SIZE = 50
 
-  function buildParams(p: number, tab: Category, from: string, to: string) {
+  function buildParams(p: number, _tab: Category, from: string, to: string) {
     const params: Record<string,string> = {
       size: String(PAGE_SIZE),
       page: String(p),
