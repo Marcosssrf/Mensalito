@@ -91,36 +91,6 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// ── WAStatusBtn ────────────────────────────────────────────────────────────
-
-function _WAStatusBtn() {
-  const [online, setOnline] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const url  = localStorage.getItem('evo_url')
-    const key  = localStorage.getItem('evo_key')
-    const inst = localStorage.getItem('evo_instance')
-    if (!url || !key || !inst) { setOnline(false); return }
-    fetch(`${url}/instance/connectionState/${inst}`, { headers: { apikey: key } })
-        .then((r) => r.json())
-        .then((d) => setOnline(d?.instance?.state === 'open' || d?.state === 'open'))
-        .catch(() => setOnline(false))
-  }, [])
-
-  return (
-      <button style={btnStyle}>
-        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        Status do WhatsApp
-        <span style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: online === null ? '#d1d5db' : online ? '#10b981' : '#ef4444',
-        }} />
-      </button>
-  )
-}
-
 interface StudentAutocompleteProps {
   students: Student[]
   value: Student | null
