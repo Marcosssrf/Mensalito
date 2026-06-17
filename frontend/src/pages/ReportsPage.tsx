@@ -1,19 +1,19 @@
 import {useEffect, useState} from 'react'
 import api from '@/services/api'
 import {
-    Area,
-    AreaChart,
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    Legend,
-    Pie,
-    PieChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
 } from 'recharts'
 
 interface MonthlyData {
@@ -182,8 +182,8 @@ export default function ReportsPage() {
   ] : []
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+    <div className="ms-page">
+      <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
           <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>INSIGHTS</p>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Relatórios</h1>
@@ -213,7 +213,7 @@ export default function ReportsPage() {
         <div style={{ padding: 60, textAlign: 'center', color: '#9ca3af' }}>Carregando relatórios...</div>
       ) : (
         <>
-          <div style={{
+          <div className="ms-kpi-grid" style={{
             display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 1, background: '#e5e7eb',
             border: '1px solid #e5e7eb', borderRadius: 12,
@@ -228,8 +228,8 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
+          <div className="ms-chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+            <div className="ms-chart-card" style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>Receita mensal</h3>
                 <span style={{ fontSize: 12, color: '#9ca3af' }}>Últimos 7 meses</span>
@@ -253,7 +253,7 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
 
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
+            <div className="ms-chart-card" style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>Taxa de inadimplência</h3>
                 <span style={{ fontSize: 12, color: '#9ca3af' }}>% cobranças em atraso</span>
@@ -278,8 +278,8 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
+          <div className="ms-chart-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="ms-chart-card" style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>Matrículas vs cancelamentos</h3>
                 <span style={{ fontSize: 12, color: '#9ca3af' }}>Movimento mensal</span>
@@ -303,14 +303,14 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
 
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
+            <div className="ms-chart-card" style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, background: '#fff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>Mix de meios de pagamento</h3>
                 <span style={{ fontSize: 12, color: '#9ca3af' }}>
                   {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 32 }}>
+              <div className="ms-payment-mix" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 32 }}>
                 <PieChart width={180} height={180}>
                   <Pie data={paymentMixData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={2} dataKey="value">
                     {paymentMixData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}

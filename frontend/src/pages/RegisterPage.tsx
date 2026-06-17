@@ -2,6 +2,7 @@ import {useState} from 'react'
 import {Link, useNavigate} from 'react-router-dom'
 import {useAuth} from '@/contexts/AuthContext'
 import type {RegisterRequest} from '@/types'
+import BrandMark from '@/components/BrandMark'
 
 function maskDocument(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 14)
@@ -98,10 +99,8 @@ export default function RegisterPage() {
         <div style={{ minHeight: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Geist Variable', sans-serif" }}>
           <div style={{ height: 52, background: '#fff', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', padding: '0 28px' }}>
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-              <div style={{ width: 26, height: 26, background: '#18181b', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/></svg>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b' }}>Mensalito</span>
+              <BrandMark size={26} radius={7} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b', letterSpacing: '-0.01em' }}>Mensalito</span>
             </Link>
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
@@ -126,10 +125,8 @@ export default function RegisterPage() {
       <div style={{ minHeight: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Geist Variable', sans-serif" }}>
         <div style={{ height: 52, background: '#fff', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px' }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-            <div style={{ width: 26, height: 26, background: '#18181b', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/></svg>
-            </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b' }}>Mensalito</span>
+            <BrandMark size={26} radius={7} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b', letterSpacing: '-0.01em' }}>Mensalito</span>
           </Link>
           <span style={{ fontSize: 13, color: '#a1a1aa' }}>
           Já tem conta?{' '}

@@ -141,38 +141,77 @@
 
 /* ── Shared design tokens ────────────────────────────────────────────── */
 
+:root {
+  --ms-surface: #fff;
+  --ms-page-bg: #fafafa;
+  --ms-border: #e8eaed;
+  --ms-border-soft: #f4f4f5;
+  --ms-text: #18181b;
+  --ms-text-muted: #52525b;
+  --ms-text-subtle: #71717a;
+  --ms-text-faint: #9ca3af;
+  --ms-focus: rgba(24,24,27,0.16);
+  --ms-shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --ms-shadow-md: 0 12px 34px rgba(0,0,0,0.10);
+}
+
 /* Card */
 .ms-card {
-  background: #fff;
-  border: 1px solid #e8eaed;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  background: var(--ms-surface);
+  border: 1px solid var(--ms-border);
+  border-radius: 10px;
+  box-shadow: var(--ms-shadow-sm);
+}
+
+.ms-surface,
+.ms-list-panel,
+.ms-detail-card,
+.ms-chart-card,
+.ms-settings-card,
+.ms-integration-card {
+  background: var(--ms-surface) !important;
+  border-color: var(--ms-border) !important;
+  box-shadow: var(--ms-shadow-sm);
 }
 
 /* Input */
 .ms-input {
   width: 100%;
   padding: 9px 13px;
-  border: 1.5px solid #e8eaed;
+  border: 1.5px solid var(--ms-border);
   border-radius: 8px;
   font-size: 14px;
-  color: #0f0f11;
+  color: var(--ms-text);
   outline: none;
-  background: #fff;
+  background: var(--ms-surface);
   transition: border-color 0.15s, box-shadow 0.15s;
   box-sizing: border-box;
 }
 .ms-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+  border-color: var(--ms-text);
+  box-shadow: 0 0 0 3px var(--ms-focus);
 }
 .ms-input::placeholder { color: #c4c7cd; }
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--ms-text) !important;
+  box-shadow: 0 0 0 3px var(--ms-focus) !important;
+  outline: none !important;
+}
 
 /* Label */
 .ms-label {
   font-size: 12px;
   font-weight: 600;
-  color: #5c5f6b;
+  color: var(--ms-text-muted);
   display: block;
   margin-bottom: 5px;
   letter-spacing: 0.01em;
@@ -182,6 +221,7 @@
 .ms-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   padding: 9px 18px;
   border: none;
@@ -189,21 +229,75 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  line-height: 1.2;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, transform 0.1s;
 }
 .ms-btn:active { transform: scale(0.98); }
 .ms-btn-primary {
-  background: #18181b;
+  background: var(--ms-text);
   color: #fff;
 }
 .ms-btn-primary:hover { background: #27272a; }
 .ms-btn-secondary {
-  background: #fff;
+  background: var(--ms-surface);
   color: #3f3f46;
-  border: 1.5px solid #e8eaed;
+  border: 1.5px solid var(--ms-border);
 }
 .ms-btn-secondary:hover { background: #f9fafb; }
 .ms-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+button {
+  font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--ms-focus) !important;
+}
+
+.ms-icon-button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--ms-border);
+  border-radius: 8px;
+  background: var(--ms-surface);
+  color: var(--ms-text-subtle);
+  cursor: pointer;
+}
+
+.ms-empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--ms-text-faint);
+  font-size: 14px;
+}
+
+.ms-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,0.42);
+  backdrop-filter: blur(2px);
+}
+
+.ms-modal-card {
+  width: min(100%, 520px);
+  max-height: min(90vh, 760px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1.5px solid var(--ms-border);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.14);
+}
 
 /* Badge */
 .ms-badge {
@@ -231,8 +325,751 @@
   padding: 36px 44px;
   max-width: 1280px;
   margin: 0 auto;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
   .ms-page { padding: 20px 16px; }
+}
+
+/* App shell */
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  background: #fafafa;
+  font-family: 'Geist Variable', sans-serif;
+}
+
+.app-sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #e8eaed;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+}
+
+.app-sidebar-close {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  background: #fff;
+  color: #3f3f46;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-sidebar-backdrop {
+  display: none;
+}
+
+.app-main {
+  margin-left: 232px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-topbar {
+  height: 52px;
+  background: #fff;
+  border-bottom: 1px solid #e8eaed;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.app-menu-button {
+  display: none;
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #fff;
+  color: #18181b;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #fafafa;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    display: block;
+  }
+
+  .app-sidebar {
+    width: min(86vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 18px 0 48px rgba(0,0,0,0.12);
+  }
+
+  .app-sidebar-open {
+    transform: translateX(0);
+  }
+
+  .app-sidebar-close {
+    display: inline-flex;
+  }
+
+  .app-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: 0;
+    background: rgba(24,24,27,0.38);
+    backdrop-filter: blur(2px);
+  }
+
+  .app-main {
+    margin-left: 0;
+    min-height: 100dvh;
+  }
+
+  .app-topbar {
+    height: 56px;
+    justify-content: space-between;
+    padding: 0 14px;
+  }
+
+  .app-menu-button {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .app-content {
+    overflow-x: hidden;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-topbar [style*="text-align: left"] {
+    display: none;
+  }
+
+  .ms-page {
+    padding: 18px 14px;
+  }
+
+  .ms-card {
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ms-page-header {
+    flex-direction: column !important;
+    gap: 16px !important;
+    align-items: stretch !important;
+  }
+
+  .ms-page-header h1 {
+    font-size: 30px !important;
+    line-height: 1.05 !important;
+  }
+
+  .ms-page-actions {
+    width: 100% !important;
+    flex-direction: column !important;
+  }
+
+  .ms-page-actions > *,
+  .ms-action-button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .ms-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ms-kpi-grid > div {
+    padding: 18px 16px !important;
+    min-width: 0 !important;
+  }
+
+  .ms-kpi-grid p:nth-child(2) {
+    font-size: 22px !important;
+    line-height: 1.15 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .ms-classes-grid,
+  .ms-chart-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ms-chart-card {
+    padding: 16px !important;
+    min-width: 0 !important;
+  }
+
+  .ms-plan-grid,
+  .ms-usage-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ms-kpi-grid-five {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ms-modal-backdrop {
+    align-items: flex-end !important;
+    padding: 10px !important;
+  }
+
+  .ms-modal-card {
+    width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 12px !important;
+  }
+
+  .ms-modal-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .ms-modal-actions > * {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .ms-list-panel {
+    overflow: visible !important;
+    border-radius: 10px !important;
+  }
+
+  .ms-list-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .ms-list-toolbar-inner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .ms-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .ms-tabs button {
+    width: 100% !important;
+    padding: 9px 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .ms-search-wrap {
+    width: 100% !important;
+  }
+
+  .ms-search-wrap input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .ms-table-head {
+    display: none !important;
+  }
+
+  .ms-table-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+
+  .ms-table-row > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .ms-table-row span {
+    overflow-wrap: anywhere !important;
+  }
+
+  .ms-table-row button,
+  .ms-table-row a {
+    min-height: 34px !important;
+  }
+
+  .ms-student-row > div:first-child,
+  .ms-charge-row > div:first-child {
+    align-items: flex-start !important;
+  }
+
+  .ms-student-row > div:first-child span,
+  .ms-charge-row > div:first-child span {
+    font-size: 16px !important;
+    line-height: 1.25 !important;
+  }
+
+  .ms-student-row > span:nth-of-type(1)::before {
+    content: "Cadastro: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-student-row > span:nth-of-type(2) {
+    width: fit-content !important;
+  }
+
+  .ms-student-row > span:nth-of-type(2)::before {
+    content: "Status: ";
+    color: inherit;
+  }
+
+  .ms-student-row > div:last-child,
+  .ms-charge-row > div:last-child {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .ms-student-row > div:last-child button,
+  .ms-charge-row > div:last-child button,
+  .ms-charge-row > div:last-child a {
+    flex: 1 1 auto !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
+  .ms-charge-row > span:nth-of-type(1)::before {
+    content: "Valor: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-charge-row > span:nth-of-type(2)::before {
+    content: "Vencimento: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-charge-row > div:nth-child(4) {
+    align-self: flex-start !important;
+    background: #f9fafb !important;
+    border: 1px solid #f3f4f6 !important;
+    border-radius: 999px !important;
+    padding: 5px 10px !important;
+  }
+
+  .ms-payment-mix {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .ms-enrollment-row > div:first-child,
+  .ms-teacher-row > div:first-child,
+  .ms-billing-user-row > div:first-child {
+    align-items: flex-start !important;
+  }
+
+  .ms-enrollment-row > span:nth-of-type(1)::before {
+    content: "Turma: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-enrollment-row > span:nth-of-type(2)::before {
+    content: "Plano: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-enrollment-row > span:nth-of-type(3)::before {
+    content: "Valor: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-enrollment-row > span:nth-of-type(4)::before {
+    content: "Inicio: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-enrollment-row > span:nth-of-type(5) {
+    width: fit-content !important;
+  }
+
+  .ms-enrollment-row > div:last-child,
+  .ms-billing-user-row > div:last-child,
+  .ms-invoice-row > div:last-child {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .ms-enrollment-row > div:last-child button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .ms-teacher-row > span:nth-of-type(1)::before,
+  .ms-billing-user-row > span:nth-of-type(1)::before {
+    content: "E-mail: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-teacher-row > span:nth-of-type(2),
+  .ms-teacher-row > span:nth-of-type(3),
+  .ms-billing-user-row > span:nth-of-type(2),
+  .ms-billing-user-row > span:nth-of-type(3) {
+    width: fit-content !important;
+  }
+
+  .ms-teacher-row > span:nth-of-type(3)::before,
+  .ms-billing-user-row > span:nth-of-type(4)::before {
+    content: "Desde: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-invoice-row > span:nth-of-type(1)::before {
+    content: "Data: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-invoice-row > span:nth-of-type(2)::before {
+    content: "Valor: ";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-invoice-row > span:nth-of-type(3) {
+    width: fit-content !important;
+  }
+
+  .ms-invoice-row button {
+    justify-content: center !important;
+    width: 100% !important;
+    padding: 8px 10px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+  }
+
+  .ms-panel-header,
+  .ms-inline-form,
+  .ms-date-filters,
+  .ms-activity-toolbar,
+  .ms-qr-panel,
+  .ms-info-panel,
+  .ms-template-head,
+  .ms-history-row,
+  .ms-integration-card,
+  .ms-integration-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .ms-inline-form > *,
+  .ms-inline-form button,
+  .ms-date-filters input,
+  .ms-date-filters button,
+  .ms-integration-actions button {
+    width: 100% !important;
+  }
+
+  .ms-activity-toolbar {
+    padding: 12px !important;
+  }
+
+  .ms-activity-tabs {
+    width: 100% !important;
+    overflow-x: auto !important;
+    padding-bottom: 2px !important;
+  }
+
+  .ms-activity-row {
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 14px 16px !important;
+  }
+
+  .ms-activity-row > div:nth-child(2) p:first-child {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.35 !important;
+  }
+
+  .ms-activity-row > div:last-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .ms-activity-row > div:last-child > div {
+    text-align: left !important;
+  }
+
+  .ms-template-head button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .ms-template-body,
+  .ms-template-editor {
+    margin: 0 16px 16px !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .ms-history-row > span,
+  .ms-history-row > svg {
+    width: auto !important;
+  }
+
+  .ms-history-row > span:nth-of-type(2) {
+    flex: none !important;
+  }
+
+  .ms-settings-layout {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .ms-settings-tabs {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding-bottom: 4px !important;
+  }
+
+  .ms-settings-tabs button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  .ms-settings-card {
+    padding: 18px !important;
+  }
+
+  .ms-settings-card input,
+  .ms-settings-card button,
+  .ms-billing-current button,
+  .ms-integration-card button {
+    min-height: 38px !important;
+  }
+
+  .ms-settings-field {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .ms-billing-current {
+    padding: 20px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .ms-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ms-page-header h1 {
+    font-size: 28px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .ms-student-detail-page {
+    max-width: 100% !important;
+  }
+
+  .ms-student-detail-header {
+    gap: 14px !important;
+  }
+
+  .ms-student-identity {
+    align-items: flex-start !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .ms-student-identity > div:last-child {
+    min-width: 0 !important;
+  }
+
+  .ms-student-identity h1 {
+    font-size: 24px !important;
+    line-height: 1.12 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .ms-student-badges {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .ms-student-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .ms-student-actions button {
+    min-width: 0 !important;
+    padding: 10px 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .ms-student-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ms-student-detail-grid > div {
+    min-width: 0 !important;
+  }
+
+  .ms-detail-card {
+    padding: 18px !important;
+    min-width: 0 !important;
+  }
+
+  .ms-detail-card span,
+  .ms-detail-card p {
+    overflow-wrap: anywhere !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ms-student-detail-page {
+    padding-top: 16px !important;
+  }
+
+  .ms-student-identity {
+    gap: 12px !important;
+  }
+
+  .ms-student-identity > div:first-child {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 15px !important;
+  }
+
+  .ms-student-identity h1 {
+    font-size: 22px !important;
+  }
+
+  .ms-student-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ms-student-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 11px 12px !important;
+  }
+
+  .ms-student-detail-page .ms-kpi-grid {
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .ms-student-detail-page .ms-kpi-grid > div {
+    border-radius: 10px !important;
+    padding: 16px !important;
+  }
+
+  .ms-student-detail-page .ms-kpi-grid p:nth-child(2) {
+    font-size: 20px !important;
+  }
+
+  .ms-student-detail-grid {
+    gap: 12px !important;
+  }
+
+  .ms-detail-card {
+    border-radius: 10px !important;
+    padding: 16px !important;
+  }
+
+  .ms-detail-card [style*="justify-content: space-between"] {
+    gap: 10px !important;
+  }
+
+  .ms-detail-card [style*="justify-content: space-between"] > div:first-child {
+    min-width: 0 !important;
+  }
+
+  .ms-student-detail-page .ms-list-panel > div:nth-child(2) {
+    padding: 0 !important;
+  }
+
+  .ms-student-charge-row {
+    margin: 0 !important;
+    border-bottom: 1px solid #f4f4f5 !important;
+    background: #fff !important;
+  }
+
+  .ms-student-charge-row > span {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    font-size: 13px !important;
+  }
+
+  .ms-student-charge-row > span:nth-child(1) {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+
+  .ms-student-charge-row > span:nth-child(2)::before {
+    content: "Valor";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-student-charge-row > span:nth-child(3)::before {
+    content: "Pago em";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-student-charge-row > span:nth-child(4)::before {
+    content: "Metodo";
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .ms-student-charge-row > span:nth-child(5) {
+    align-self: flex-start !important;
+    width: fit-content !important;
+  }
 }

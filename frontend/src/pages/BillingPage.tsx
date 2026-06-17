@@ -112,7 +112,7 @@ export default function BillingPage() {
   const s: React.CSSProperties = { fontFamily: "'Geist Variable', sans-serif" }
 
   return (
-    <div style={{ ...s, padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+    <div className="ms-page" style={{ ...s, maxWidth: 1100 }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.09em', textTransform: 'uppercase', margin: '0 0 4px' }}>Workspace</p>
@@ -126,8 +126,8 @@ export default function BillingPage() {
         <>
           {/* Current plan banner */}
           {plan && (
-            <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, padding: '28px 32px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+            <div className="ms-billing-current" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, padding: '28px 32px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div className="ms-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 6px' }}>Plano atual</p>
                   <p style={{ fontSize: 22, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
@@ -135,7 +135,7 @@ export default function BillingPage() {
                   </p>
                   <p style={{ fontSize: 13, color: '#a1a1aa', margin: 0 }}>Renova em {plan.renewDate}</p>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="ms-page-actions" style={{ display: 'flex', gap: 8 }}>
                   <button style={{ padding: '8px 16px', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#3f3f46' }}>
                     Alterar pagamento
                   </button>
@@ -146,7 +146,7 @@ export default function BillingPage() {
               </div>
 
               {/* Usage meters */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <div className="ms-usage-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                 {[
                   { label: 'Alunos ativos', value: plan.activeStudents, max: plan.studentLimit },
                   { label: 'Mensagens WhatsApp', value: plan.waMessages, max: plan.waMessageLimit },
@@ -165,7 +165,7 @@ export default function BillingPage() {
           )}
 
           {/* Plan cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+          <div className="ms-plan-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
             {PLANS.map(p => {
               const isCurrent = p.key === plan?.name
               return (
@@ -192,8 +192,8 @@ export default function BillingPage() {
           </div>
 
           {/* Users */}
-          <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #f4f4f5' }}>
+          <div className="ms-list-panel" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+            <div className="ms-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #f4f4f5' }}>
               <div>
                 <h2 style={{ fontSize: 14, fontWeight: 700, color: '#18181b', margin: '0 0 2px' }}>Usuários do workspace</h2>
                 <p style={{ fontSize: 13, color: '#a1a1aa', margin: 0 }}>Professores e administradores com acesso à plataforma.</p>
@@ -205,7 +205,7 @@ export default function BillingPage() {
             </div>
 
             {showInviteForm && (
-              <div style={{ padding: '16px 24px', background: '#fafafa', borderBottom: '1px solid #f4f4f5', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+              <div className="ms-inline-form" style={{ padding: '16px 24px', background: '#fafafa', borderBottom: '1px solid #f4f4f5', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#5c5f6b', display: 'block', marginBottom: 5 }}>E-mail do novo usuário</label>
                   <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendInvite()} placeholder="professor@escola.com" style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e8eaed', borderRadius: 8, fontSize: 13.5, outline: 'none', boxSizing: 'border-box' }} />
@@ -223,7 +223,7 @@ export default function BillingPage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '10px 24px', borderBottom: '1px solid #f4f4f5' }}>
+            <div className="ms-table-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '10px 24px', borderBottom: '1px solid #f4f4f5' }}>
               {['NOME', 'E-MAIL', 'PERFIL', 'STATUS', 'DESDE'].map(h => (
                 <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.07em' }}>{h}</span>
               ))}
@@ -232,7 +232,7 @@ export default function BillingPage() {
             {users.length === 0 ? (
               <div style={{ padding: '32px 24px', textAlign: 'center', color: '#a1a1aa', fontSize: 13.5 }}>Nenhum usuário encontrado.</div>
             ) : users.map((u, i) => (
-              <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '13px 24px', alignItems: 'center', borderBottom: i < users.length - 1 ? '1px solid #fafafa' : 'none' }}>
+              <div className="ms-table-row ms-billing-user-row" key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '13px 24px', alignItems: 'center', borderBottom: i < users.length - 1 ? '1px solid #fafafa' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#52525b', flexShrink: 0 }}>{initials(u.name)}</div>
                   <span style={{ fontSize: 13.5, fontWeight: 500, color: '#18181b' }}>{u.name}</span>
@@ -251,17 +251,17 @@ export default function BillingPage() {
           </div>
 
           {/* Invoices */}
-          <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, overflow: 'hidden' }}>
+          <div className="ms-list-panel" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid #f4f4f5' }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: '#18181b', margin: 0 }}>Histórico de faturas</h2>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', padding: '10px 24px', borderBottom: '1px solid #f4f4f5' }}>
+            <div className="ms-table-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', padding: '10px 24px', borderBottom: '1px solid #f4f4f5' }}>
               {['FATURA', 'DATA', 'VALOR', 'STATUS', ''].map(h => (
                 <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.07em' }}>{h}</span>
               ))}
             </div>
             {invoices.map((inv, i) => (
-              <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', padding: '14px 24px', alignItems: 'center', borderBottom: i < invoices.length - 1 ? '1px solid #fafafa' : 'none' }}>
+              <div className="ms-table-row ms-invoice-row" key={inv.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', padding: '14px 24px', alignItems: 'center', borderBottom: i < invoices.length - 1 ? '1px solid #fafafa' : 'none' }}>
                 <span style={{ fontSize: 13.5, color: '#3f3f46', fontWeight: 500 }}>{inv.id}</span>
                 <span style={{ fontSize: 13.5, color: '#71717a' }}>{inv.date}</span>
                 <span style={{ fontSize: 13.5, color: '#3f3f46' }}>{fmt(inv.amount)}</span>

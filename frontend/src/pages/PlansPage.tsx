@@ -90,16 +90,17 @@ export default function PlansPage() {
     const inactivePlans = plans.filter(p => !p.active)
 
     return (
-        <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
+        <div className="ms-page" style={{ maxWidth: 1200, fontFamily: "'Geist Variable', sans-serif" }}>
 
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+            <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
                 <div>
                     <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>PLANOS</p>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Planos</h1>
                     <p style={{ fontSize: 14, color: '#6b7280' }}>{activePlans.length} ativo{activePlans.length !== 1 ? 's' : ''}</p>
                 </div>
                 <button
+                    className="ms-action-button"
                     onClick={openNew}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#111827', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}
                 >
@@ -116,7 +117,7 @@ export default function PlansPage() {
                     ))}
                 </div>
             ) : plans.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '80px 0', color: '#9ca3af', fontSize: 14 }}>
+                <div className="ms-empty-state" style={{ padding: '80px 0' }}>
                     <svg width="40" height="40" fill="none" stroke="#d1d5db" strokeWidth="1.5" viewBox="0 0 24 24" style={{ margin: '0 auto 12px', display: 'block' }}>
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14,2 14,8 20,8"/>
@@ -132,7 +133,7 @@ export default function PlansPage() {
                     {/* Ativos */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
                         {activePlans.map(plan => (
-                            <div key={plan.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div className="ms-card" key={plan.id} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                     <div>
                                         <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981', background: '#ecfdf5', padding: '2px 8px', borderRadius: 20, letterSpacing: '0.04em' }}>ATIVO</span>
@@ -142,6 +143,7 @@ export default function PlansPage() {
                                         onClick={() => openEdit(plan)}
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4, borderRadius: 6, lineHeight: 0 }}
                                         title="Editar"
+                                        aria-label={`Editar plano ${plan.name}`}
                                     >
                                         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                                     </button>
@@ -173,7 +175,7 @@ export default function PlansPage() {
                             <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 12 }}>INATIVOS</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
                                 {inactivePlans.map(plan => (
-                                    <div key={plan.id} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, opacity: 0.7, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    <div className="ms-card" key={plan.id} style={{ background: '#f9fafb', padding: 20, opacity: 0.7, display: 'flex', flexDirection: 'column', gap: 8 }}>
                                         <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 4 }}>INATIVO</p>
                                         <p style={{ fontSize: 15, fontWeight: 600, color: '#374151' }}>{plan.name}</p>
                                         <p style={{ fontSize: 22, fontWeight: 700, color: '#374151', margin: '4px 0' }}>
@@ -199,8 +201,8 @@ export default function PlansPage() {
 
             {/* Modal */}
             {modal.open && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+                <div className="ms-modal-backdrop">
+                    <div className="ms-modal-card" style={{ padding: 32, width: 420 }}>
                         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 24 }}>
                             {modal.plan.id ? 'Editar plano' : 'Novo plano'}
                         </h2>
@@ -246,7 +248,7 @@ export default function PlansPage() {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+                        <div className="ms-modal-actions" style={{ display: 'flex', gap: 10, marginTop: 28 }}>
                             <button
                                 onClick={() => setModal({ open: false })}
                                 style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}

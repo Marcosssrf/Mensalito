@@ -51,7 +51,7 @@ const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#5c5f6
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', alignItems: 'start', gap: 20, paddingBottom: 18, borderBottom: '1px solid #f4f4f5', marginBottom: 18 }}>
+      <div className="ms-settings-field" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', alignItems: 'start', gap: 20, paddingBottom: 18, borderBottom: '1px solid #f4f4f5', marginBottom: 18 }}>
         <div>
           <p style={{ fontSize: 13.5, fontWeight: 500, color: '#3f3f46', margin: 0 }}>{label}</p>
           {hint && <p style={{ fontSize: 12, color: '#a1a1aa', margin: '3px 0 0' }}>{hint}</p>}
@@ -63,7 +63,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function IntegrationCard({ acronym, name, description, connected, connectedLabel, onManage }: { acronym: string; name: string; description: string; connected: boolean; connectedLabel?: string; onManage: () => void }) {
   return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #f4f4f5' }}>
+      <div className="ms-integration-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #f4f4f5' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 38, height: 38, borderRadius: 9, background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#52525b', flexShrink: 0 }}>{acronym}</div>
           <div>
@@ -71,7 +71,7 @@ function IntegrationCard({ acronym, name, description, connected, connectedLabel
             <p style={{ fontSize: 12.5, color: '#71717a', margin: '2px 0 0' }}>{description}</p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="ms-integration-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 100, background: connected ? '#f0fdf4' : '#f4f4f5', border: `1px solid ${connected ? '#bbf7d0' : '#e8eaed'}` }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: connected ? '#22c55e' : '#d1d5db' }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: connected ? '#15803d' : '#71717a' }}>{connected ? (connectedLabel ?? 'Conectado') : 'Não conectado'}</span>
@@ -97,14 +97,14 @@ function MercadoPagoModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
     finally { setLoading(false) }
   }
   return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
-        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.14)', border: '1.5px solid #e8eaed' }}>
+      <div className="ms-modal-backdrop">
+        <div className="ms-modal-card" style={{ padding: 32, width: 440 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>Mercado Pago · Chave de API</h2>
           <p style={{ fontSize: 13, color: '#71717a', margin: '0 0 24px' }}>Sua chave é armazenada de forma criptografada e nunca exibida novamente.</p>
           {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 13px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>}
           <label style={lbl}>Chave de API (Access Token)</label>
           <input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder="APP_USR-..." autoComplete="off" style={{ ...inp, marginBottom: 24 }} />
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="ms-modal-actions" style={{ display: 'flex', gap: 10 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13.5, color: '#3f3f46' }}>Cancelar</button>
             <button onClick={save} disabled={loading} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#18181b', cursor: 'pointer', fontSize: 13.5, color: '#fff', fontWeight: 600, opacity: loading ? 0.5 : 1 }}>
               {loading ? 'Salvando...' : 'Salvar chave'}
@@ -146,13 +146,13 @@ function WhatsAppModal({ onClose, onConnected }: { onClose: () => void; onConnec
   }
 
   return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
-        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.14)', border: '1.5px solid #e8eaed' }}>
+      <div className="ms-modal-backdrop">
+        <div className="ms-modal-card" style={{ padding: 32, width: 440 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>WhatsApp · Conectar</h2>
           <p style={{ fontSize: 13, color: '#71717a', margin: '0 0 24px' }}>Escaneie o QR Code com o WhatsApp para ativar o envio de mensagens automáticas.</p>
           {status === 'loading' && <div style={{ textAlign: 'center', padding: '32px 0', color: '#a1a1aa', fontSize: 14 }}><div style={{ width: 32, height: 32, border: '2.5px solid #e8eaed', borderTopColor: '#18181b', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.7s linear infinite' }} />Carregando QR Code...</div>}
           {status === 'error' && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{errorMsg}</div>}
-          {status === 'connected' && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16 }}><span style={{ fontSize: 28 }}>✅</span><span style={{ fontSize: 15, fontWeight: 700, color: '#15803d' }}>WhatsApp conectado!</span>{instanceName && <span style={{ fontSize: 12, color: '#71717a' }}>Instância: {instanceName}</span>}</div>}
+          {status === 'connected' && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16 }}><svg width="26" height="26" fill="none" stroke="#15803d" strokeWidth="2.4" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="8 12 11 15 16 9"/></svg><span style={{ fontSize: 15, fontWeight: 700, color: '#15803d' }}>WhatsApp conectado!</span>{instanceName && <span style={{ fontSize: 12, color: '#71717a' }}>Instância: {instanceName}</span>}</div>}
           {status === 'qr' && qr && (
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
                 <img src={qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`} alt="QR Code" style={{ width: 220, height: 220, border: '1px solid #e8eaed', borderRadius: 10, margin: '0 auto' }} />
@@ -161,7 +161,7 @@ function WhatsAppModal({ onClose, onConnected }: { onClose: () => void; onConnec
               </div>
           )}
           <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="ms-modal-actions" style={{ display: 'flex', gap: 10 }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13.5, color: '#3f3f46' }}>Fechar</button>
             {status !== 'connected' && <button onClick={loadStatus} disabled={status === 'loading'} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#18181b', cursor: 'pointer', fontSize: 13.5, color: '#fff', fontWeight: 600, opacity: status === 'loading' ? 0.5 : 1 }}>{status === 'loading' ? 'Carregando...' : 'Atualizar QR'}</button>}
           </div>
@@ -215,12 +215,12 @@ function InvitesTab() {
           {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 13px', fontSize: 13, color: '#dc2626' }}>{error}</div>}
           {invite && (
               <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '16px 18px' }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#15803d', margin: '0 0 6px' }}>✓ {invite.email ? `Convite criado para ${invite.email}` : 'Convite genérico criado'}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#15803d', margin: '0 0 6px' }}>{invite.email ? `Convite criado para ${invite.email}` : 'Convite genérico criado'}</p>
                 <p style={{ fontSize: 12, color: '#71717a', margin: '0 0 10px' }}>Expira em: {new Date(invite.expiresAt).toLocaleString('pt-BR')}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 12px' }}>
                   <span style={{ fontSize: 12, color: '#3f3f46', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invite.inviteUrl}</span>
                   <button onClick={copyLink} style={{ flexShrink: 0, fontSize: 12, padding: '4px 12px', border: '1.5px solid #e8eaed', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#3f3f46', fontWeight: 500 }}>
-                    {copied ? '✓ Copiado' : 'Copiar'}
+                    {copied ? 'Copiado' : 'Copiar'}
                   </button>
                 </div>
               </div>
@@ -288,7 +288,7 @@ function AccountTab() {
               <h2 style={{ fontSize: 16, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>Meu perfil</h2>
               <p style={{ fontSize: 13, color: '#71717a' }}>Nome e e-mail da sua conta.</p>
             </div>
-            <button onClick={saveProfile} style={saveBtnStyle(nameSave)}>{nameSave === 'saving' ? 'Salvando...' : nameSave === 'saved' ? '✓ Salvo' : nameSave === 'error' ? 'Erro' : 'Salvar'}</button>
+            <button onClick={saveProfile} style={saveBtnStyle(nameSave)}>{nameSave === 'saving' ? 'Salvando...' : nameSave === 'saved' ? 'Salvo' : nameSave === 'error' ? 'Erro' : 'Salvar'}</button>
           </div>
           <Field label="Nome"><input value={nameForm.name} onChange={e => setNameForm(f => ({ ...f, name: e.target.value }))} placeholder="Seu nome" style={inp} /></Field>
           <Field label="Novo e-mail" hint="Opcional — deixe em branco para não alterar"><input type="email" value={nameForm.email} onChange={e => setNameForm(f => ({ ...f, email: e.target.value }))} placeholder="novo@email.com" style={inp} /></Field>
@@ -300,7 +300,7 @@ function AccountTab() {
               <h2 style={{ fontSize: 16, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>Alterar senha</h2>
               <p style={{ fontSize: 13, color: '#71717a' }}>Mínimo 6 caracteres.</p>
             </div>
-            <button onClick={changePassword} style={saveBtnStyle(pwSave)}>{pwSave === 'saving' ? 'Salvando...' : pwSave === 'saved' ? '✓ Alterada' : pwSave === 'error' ? 'Erro' : 'Alterar'}</button>
+            <button onClick={changePassword} style={saveBtnStyle(pwSave)}>{pwSave === 'saving' ? 'Salvando...' : pwSave === 'saved' ? 'Alterada' : pwSave === 'error' ? 'Erro' : 'Alterar'}</button>
           </div>
           {pwError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 13px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{pwError}</div>}
           <Field label="Nova senha"><input type="password" value={pwForm.password} onChange={e => setPwForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" style={inp} /></Field>
@@ -363,15 +363,15 @@ export default function SettingsPage() {
   const saveBtnBg = saveState === 'saved' ? '#22c55e' : saveState === 'error' ? '#ef4444' : '#18181b'
 
   return (
-      <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto', fontFamily: "'Geist Variable', sans-serif" }}>
+      <div className="ms-page" style={{ maxWidth: 1100, fontFamily: "'Geist Variable', sans-serif" }}>
         {/* Modals */}
         {showMercadoPagoConfirm && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
-              <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.14)', border: '1.5px solid #e8eaed' }}>
+            <div className="ms-modal-backdrop">
+              <div className="ms-modal-card" style={{ padding: 32, width: 420 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: '0 0 8px', letterSpacing: '-0.02em' }}>Trocar chave do Mercado Pago?</h2>
                 <p style={{ fontSize: 14, color: '#71717a', margin: '0 0 6px', lineHeight: 1.6 }}>Você já possui uma chave configurada. Ao substituir, a chave anterior será permanentemente removida.</p>
                 <p style={{ fontSize: 13, color: '#a1a1aa', margin: '0 0 28px', lineHeight: 1.6 }}>Cobranças em andamento podem ser afetadas caso a nova chave seja de uma conta diferente.</p>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="ms-modal-actions" style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setShowMercadoPagoConfirm(false)} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#18181b', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#fff' }}>Cancelar</button>
                   <button onClick={() => { setShowMercadoPagoConfirm(false); setShowMercadoPagoModal(true) }} style={{ flex: 1, padding: '10px 0', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13.5, color: '#71717a' }}>Sim, trocar</button>
                 </div>
@@ -382,7 +382,7 @@ export default function SettingsPage() {
         {showWaModal && <WhatsAppModal onClose={() => setShowWaModal(false)} onConnected={() => setWaConnected(true)} />}
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.09em', textTransform: 'uppercase', margin: '0 0 4px' }}>Conta</p>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#18181b', margin: '0 0 6px', letterSpacing: '-0.03em' }}>Configurações</h1>
@@ -390,14 +390,14 @@ export default function SettingsPage() {
           </div>
           {activeTab === 'Escola' && (
               <button onClick={saveSchool} style={{ padding: '9px 18px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#fff', background: saveBtnBg, transition: 'background 0.15s' }}>
-                {saveState === 'saving' ? 'Salvando...' : saveState === 'saved' ? '✓ Salvo' : saveState === 'error' ? 'Erro' : 'Salvar alterações'}
+                {saveState === 'saving' ? 'Salvando...' : saveState === 'saved' ? 'Salvo' : saveState === 'error' ? 'Erro' : 'Salvar alterações'}
               </button>
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '190px 1fr', gap: 28 }}>
+        <div className="ms-settings-layout" style={{ display: 'grid', gridTemplateColumns: '190px 1fr', gap: 28 }}>
           {/* Sidebar nav */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <div className="ms-settings-tabs" style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {tabs.map(t => (
                 <button key={t} onClick={() => setActiveTab(t)} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13.5, fontWeight: activeTab === t ? 600 : 400, color: activeTab === t ? '#18181b' : '#71717a', background: activeTab === t ? '#f4f4f5' : 'transparent', transition: 'background 0.12s, color 0.12s' }}>
                   {t}
@@ -408,7 +408,7 @@ export default function SettingsPage() {
           {/* Content */}
           <div>
             {activeTab === 'Escola' && (
-                <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 28 }}>
+                <div className="ms-settings-card" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 28 }}>
                   <h2 style={{ fontSize: 16, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>Dados da escola</h2>
                   <p style={{ fontSize: 13, color: '#71717a', margin: '0 0 24px' }}>Informações que aparecem nos boletos e mensagens enviadas.</p>
                   {tenant === null ? <p style={{ color: '#a1a1aa', fontSize: 14 }}>Carregando...</p> : (
@@ -426,7 +426,7 @@ export default function SettingsPage() {
             {activeTab === 'Conta' && <AccountTab />}
 
             {activeTab === 'Integrações' && (
-                <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 28 }}>
+                <div className="ms-settings-card" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 28 }}>
                   <h2 style={{ fontSize: 16, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.02em' }}>Integrações</h2>
                   <p style={{ fontSize: 13, color: '#71717a', margin: '0 0 8px' }}>Conexões com serviços externos.</p>
                   <IntegrationCard acronym="MP" name="Mercado Pago" description="Boletos, PIX e pagamentos automáticos" connected={mercadoPagoConnected} connectedLabel="Configurado" onManage={() => mercadoPagoConnected ? setShowMercadoPagoConfirm(true) : setShowMercadoPagoModal(true)} />

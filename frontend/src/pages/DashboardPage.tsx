@@ -228,9 +228,9 @@ interface ManualChargeModalProps {
 type ModalStep = 'student' | 'enrollment' | 'payment'
 
 const PAYMENT_METHODS = [
-  { value: 'DINHEIRO', label: 'Dinheiro', icon: '💵' },
-  { value: 'CARTAO',   label: 'Cartão',   icon: '💳' },
-  { value: 'PIX',      label: 'PIX',      icon: '⚡' },
+  { value: 'DINHEIRO', label: 'Dinheiro', icon: 'R$' },
+  { value: 'CARTAO',   label: 'Cartão',   icon: 'CC' },
+  { value: 'PIX',      label: 'PIX',      icon: 'PIX' },
 ]
 
 // Methods that bypass the payment gateway — mark as PAID directly
@@ -612,7 +612,7 @@ function ManualChargeModal({ students, onClose, onSuccess }: ManualChargeModalPr
                   >
                     {saving
                         ? <><Spinner /> Confirmando...</>
-                        : '✓ Confirmar como Pago'
+                        : 'Confirmar como pago'
                     }
                   </button>
                 </>
@@ -735,7 +735,7 @@ export default function DashboardPage() {
             />
         )}
 
-        <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        <div className="ms-page">
           {/* Cabeçalho */}
           <div style={{ marginBottom: 28 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>
@@ -750,7 +750,7 @@ export default function DashboardPage() {
           </div>
 
           {/* KPIs */}
-          <div style={{
+          <div className="ms-kpi-grid" style={{
             display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 1, background: '#e5e7eb',
             border: '1px solid #e5e7eb', borderRadius: 12,
@@ -768,7 +768,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Botões de ação */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
+          <div className="ms-page-actions" style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/app/students')} style={btnStyle}>
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -795,10 +795,10 @@ export default function DashboardPage() {
             Acompanhe pagamentos, envie lembretes e registre baixas manuais.
           </p>
 
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="ms-list-panel" style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
             {/* Toolbar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
-              <div style={{ display: 'flex', gap: 4 }}>
+            <div className="ms-list-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+              <div className="ms-tabs" style={{ display: 'flex', gap: 4 }}>
                 {(['Todos', 'Inadimplentes', 'Pagos'] as Tab[]).map((t) => (
                     <button key={t} onClick={() => setTab(t)} style={{
                       padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -808,7 +808,7 @@ export default function DashboardPage() {
                     }}>{t}</button>
                 ))}
               </div>
-              <div style={{ position: 'relative' }}>
+              <div className="ms-search-wrap" style={{ position: 'relative' }}>
                 <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
                      width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -823,7 +823,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Header da tabela */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 0.8fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+            <div className="ms-table-head" style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 0.8fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
               {['ALUNO', 'VALOR', 'VENCIMENTO', 'STATUS', 'AÇÕES'].map((h) => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em' }}>{h}</span>
               ))}
@@ -837,7 +837,7 @@ export default function DashboardPage() {
             ) : filtered.map((c, i) => {
               const st = STATUS_META[c.status] ?? { label: c.status, color: '#6b7280' }
               return (
-                  <div key={c.id} style={{
+                  <div className="ms-table-row ms-charge-row" key={c.id} style={{
                     display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 0.8fr',
                     padding: '14px 20px', alignItems: 'center', background: '#fff',
                     borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',

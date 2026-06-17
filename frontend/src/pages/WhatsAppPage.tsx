@@ -136,15 +136,16 @@ export default function WhatsAppPage() {
     }
 
     return (
-        <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+        <div className="ms-page" style={{ maxWidth: 1100 }}>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+            <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
                 <div>
                     <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>INTEGRAÇÃO</p>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>WhatsApp</h1>
                     <p style={{ fontSize: 14, color: '#6b7280' }}>Status da conexão, templates de mensagem e histórico de envios.</p>
                 </div>
                 <button
+                    className="ms-action-button"
                     onClick={handleReconnect}
                     disabled={provisioning}
                     style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: provisioning ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500, color: '#374151', opacity: provisioning ? 0.6 : 1 }}
@@ -167,7 +168,7 @@ export default function WhatsAppPage() {
             ) : (
                 <>
                     {/* Status + Stats cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 28, background: '#e5e7eb', gap: 1 }}>
+                    <div className="ms-kpi-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 28, background: '#e5e7eb', gap: 1 }}>
 
                         {/* Conexão */}
                         <div style={{ background: '#fff', padding: '24px 28px' }}>
@@ -214,7 +215,7 @@ export default function WhatsAppPage() {
 
                     {/* QR Code quando desconectado */}
                     {!connected && status?.qrCodeBase64 && (
-                        <div style={{ marginBottom: 28, padding: 24, border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', display: 'flex', alignItems: 'center', gap: 24 }}>
+                        <div className="ms-qr-panel" style={{ marginBottom: 28, padding: 24, border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', display: 'flex', alignItems: 'center', gap: 24 }}>
                             <img src={`data:image/png;base64,${status.qrCodeBase64}`} alt="QR Code WhatsApp" style={{ width: 160, height: 160, borderRadius: 8 }} />
                             <div>
                                 <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Escaneie para conectar</p>
@@ -234,7 +235,7 @@ export default function WhatsAppPage() {
                     </div>
 
                     {/* Variáveis disponíveis */}
-                    <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div className="ms-info-panel" style={{ marginBottom: 16, padding: '12px 16px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                         <svg width="15" height="15" fill="none" stroke="#6b7280" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0, marginTop: 1 }}>
                             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                         </svg>
@@ -251,19 +252,19 @@ export default function WhatsAppPage() {
                         </div>
                     </div>
 
-                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 28, background: '#fff' }}>
+                    <div className="ms-template-list" style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 28, background: '#fff' }}>
                         {TEMPLATE_LABELS.map((tpl, i) => {
                             const isEditing = editingKey === tpl.key
                             const value = templates?.[tpl.key] ?? ''
                             return (
-                                <div key={tpl.key} style={{ borderBottom: i < TEMPLATE_LABELS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                                    <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                                <div className="ms-template-item" key={tpl.key} style={{ borderBottom: i < TEMPLATE_LABELS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                                    <div className="ms-template-head" style={{ padding: '18px 24px', display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                                         <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                                             <svg width="16" height="16" fill="none" stroke="#6b7280" strokeWidth="1.8" viewBox="0 0 24 24">
                                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                             </svg>
                                         </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div className="ms-template-title" style={{ flex: 1, minWidth: 0 }}>
                                             <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{tpl.name}</span>
                                             <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>{tpl.trigger}</p>
                                         </div>
@@ -282,11 +283,11 @@ export default function WhatsAppPage() {
                                     </div>
 
                                     {!isEditing ? (
-                                        <div style={{ margin: '0 24px 18px 74px', padding: '12px 16px', background: '#f9fafb', borderRadius: 8, fontSize: 13, color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-line', fontFamily: 'inherit' }}>
+                                        <div className="ms-template-body" style={{ margin: '0 24px 18px 74px', padding: '12px 16px', background: '#f9fafb', borderRadius: 8, fontSize: 13, color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-line', fontFamily: 'inherit' }}>
                                             {value}
                                         </div>
                                     ) : (
-                                        <div style={{ margin: '0 24px 20px 74px' }}>
+                                        <div className="ms-template-editor" style={{ margin: '0 24px 20px 74px' }}>
                                             <textarea
                                                 value={editingValue}
                                                 onChange={e => setEditingValue(e.target.value)}
@@ -319,12 +320,12 @@ export default function WhatsAppPage() {
 
                     {/* Histórico recente */}
                     <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>Histórico recente</h2>
-                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                    <div className="ms-list-panel" style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
                         {recentSends.length === 0 ? (
                             <p style={{ padding: 32, textAlign: 'center', color: '#9ca3af', margin: 0 }}>Nenhuma mensagem enviada ainda.</p>
                         ) : (
                             recentSends.map((c, i) => (
-                                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: i < recentSends.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                                <div className="ms-history-row" key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: i < recentSends.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
                                     <svg width="14" height="14" fill="none" stroke="#6b7280" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
                                         <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                                     </svg>

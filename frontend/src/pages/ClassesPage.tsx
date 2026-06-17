@@ -218,7 +218,7 @@ export default function ClassesPage() {
   }
 
   return (
-      <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      <div className="ms-page">
         {modal.open && (
             <ClassModal
                 initial={modal.cls}
@@ -227,13 +227,13 @@ export default function ClassesPage() {
             />
         )}
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
           <div>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>CATÁLOGO</p>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Turmas</h1>
             <p style={{ fontSize: 14, color: '#6b7280' }}>Organize horários, professores e vagas das turmas ativas.</p>
           </div>
-          <button onClick={() => setModal({ open: true })}
+          <button className="ms-action-button" onClick={() => setModal({ open: true })}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -243,7 +243,7 @@ export default function ClassesPage() {
         </div>
 
         {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div className="ms-classes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
               {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} style={{ height: 180, background: '#f3f4f6', borderRadius: 12 }} />
               ))}
@@ -257,7 +257,7 @@ export default function ClassesPage() {
               <p style={{ fontSize: 13 }}>Clique em "Nova turma" para começar.</p>
             </div>
         ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div className="ms-classes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
               {classes.map(cls => (
                   <ClassCard
                       key={cls.id}

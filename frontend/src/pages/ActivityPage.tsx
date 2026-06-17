@@ -286,10 +286,10 @@ export default function ActivityPage() {
   }
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1050, margin: '0 auto' }}>
+    <div className="ms-page" style={{ maxWidth: 1050 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+      <div className="ms-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
           <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>AUDITORIA</p>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Histórico de Atividade</h1>
@@ -298,6 +298,7 @@ export default function ActivityPage() {
           </p>
         </div>
         <button
+          className="ms-action-button"
           onClick={exportCSV}
           disabled={exportLoading || filtered.length === 0}
           style={{
@@ -317,7 +318,7 @@ export default function ActivityPage() {
 
       {/* Stat cards */}
       {!loading && (
-        <div style={{
+        <div className="ms-kpi-grid ms-kpi-grid-five" style={{
           display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
           gap: 1, background: '#e5e7eb', border: '1px solid #e5e7eb',
           borderRadius: 12, overflow: 'hidden', marginBottom: 24,
@@ -339,7 +340,7 @@ export default function ActivityPage() {
       )}
 
       {/* Filtros de data */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+      <div className="ms-date-filters" style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
         <span style={{ fontSize: 13, color: '#6b7280', flexShrink: 0 }}>Período:</span>
         <input
           type="date" value={fromDate}
@@ -366,14 +367,14 @@ export default function ActivityPage() {
       </div>
 
       {/* Lista */}
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', overflow: 'hidden' }}>
+      <div className="ms-list-panel" style={{ border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', overflow: 'hidden' }}>
 
         {/* Tabs + busca */}
-        <div style={{
+        <div className="ms-activity-toolbar" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 16px', borderBottom: '1px solid #e5e7eb',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto' }}>
+          <div className="ms-activity-tabs" style={{ display: 'flex', alignItems: 'center', overflowX: 'auto' }}>
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={tabStyle(activeTab === tab)}>
                 {tab}
@@ -390,7 +391,7 @@ export default function ActivityPage() {
               </button>
             ))}
           </div>
-          <div style={{ position: 'relative', flexShrink: 0, marginLeft: 8 }}>
+          <div className="ms-search-wrap" style={{ position: 'relative', flexShrink: 0, marginLeft: 8 }}>
             <svg width="13" height="13" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24"
               style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}>
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -432,6 +433,7 @@ export default function ActivityPage() {
                   const isSystem = !log.userEmail || log.userEmail === 'system'
                   return (
                     <div
+                      className="ms-activity-row"
                       key={log.id}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 14,

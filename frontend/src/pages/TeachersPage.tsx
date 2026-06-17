@@ -61,9 +61,9 @@ export default function TeachersPage() {
     const teachers = filtered.filter(u => u.role === 'TEACHER')
 
     return (
-        <div style={{ padding: '32px 40px', maxWidth: 1000, margin: '0 auto' }}>
+        <div className="ms-page" style={{ maxWidth: 1000 }}>
     {/* Header */}
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+    <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
     <div>
         <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>EQUIPE</p>
     <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Professores</h1>
@@ -72,7 +72,7 @@ export default function TeachersPage() {
     </div>
 
     {/* Search */}
-    <div style={{ position: 'relative', marginBottom: 24, maxWidth: 360 }}>
+    <div className="ms-search-wrap" style={{ position: 'relative', marginBottom: 24, maxWidth: 360 }}>
     <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
     width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -124,9 +124,9 @@ function UserSection({ title, users }: { title: string; users: TenantUser[] }) {
     <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 10 }}>
     {title.toUpperCase()} · {users.length}
     </p>
-    <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+    <div className="ms-list-panel" style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
     {/* Header */}
-    <div style={{
+    <div className="ms-table-head" style={{
         display: 'grid', gridTemplateColumns: '2.5fr 2fr 1fr 0.8fr',
             padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb',
     }}>
@@ -138,7 +138,7 @@ function UserSection({ title, users }: { title: string; users: TenantUser[] }) {
     {users.map((u, i) => {
         const role = ROLE_META[u.role] ?? { label: u.role, color: '#6b7280', bg: '#f3f4f6' }
         return (
-            <div key={u.id} style={{
+            <div className="ms-table-row ms-teacher-row" key={u.id} style={{
             display: 'grid', gridTemplateColumns: '2.5fr 2fr 1fr 0.8fr',
                 padding: '14px 20px', alignItems: 'center', background: '#fff',
                 borderBottom: i < users.length - 1 ? '1px solid #f3f4f6' : 'none',

@@ -1,5 +1,6 @@
 import {Link} from 'react-router-dom'
 import {ArrowUpRight} from 'lucide-react'
+import BrandMark from '@/components/BrandMark'
 
 // Importa os planos canônicos do BillingPage — fonte única de verdade
 import {PLANS} from './BillingPage'
@@ -10,7 +11,10 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-zinc-100">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <span className="text-sm font-semibold tracking-tight">Mensalito</span>
+          <Link to="/" className="flex items-center gap-2 text-zinc-900 no-underline">
+            <BrandMark size={26} radius={7} />
+            <span className="text-sm font-semibold tracking-tight">Mensalito</span>
+          </Link>
           <div className="flex items-center gap-6">
             <Link to="/login" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Entrar</Link>
             <Link to="/register" className="text-sm bg-zinc-900 text-white px-4 py-1.5 rounded-md hover:bg-zinc-700 transition-colors">
@@ -28,7 +32,7 @@ export default function LandingPage() {
             Cobranças no automático.
           </h1>
           <p className="text-zinc-500 text-lg max-w-lg leading-relaxed mb-10">
-            Gera PIX, envia por WhatsApp e cobra seus alunos sozinho todo mês. Para escolas de idiomas, dança, música e artes marciais.
+            Gera PIX e boleto, envia por WhatsApp e cobra seus alunos sozinho todo mês. Para escolas de idiomas, dança, música e artes marciais.
           </p>
           <div className="flex items-center gap-4">
             <Link to="/register" className="inline-flex items-center gap-2 bg-zinc-900 text-white text-sm px-5 py-2.5 rounded-md hover:bg-zinc-700 transition-colors">
@@ -46,7 +50,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-12">
           {[
             { title: 'Cobranças automáticas', body: 'PIX e boleto gerados todo mês sem você precisar fazer nada.' },
-            { title: 'WhatsApp automático', body: 'Link de pagamento enviado direto pro celular. Lembretes para inadimplentes no D+3 e D+7.' },
+            { title: 'WhatsApp automático', body: 'Envie links de pagamento direto para o celular dos alunos e lembre quem está com mensalidade em atraso.' },
             { title: 'Dashboard financeiro', body: 'Veja em segundos quanto entrou, quanto está previsto e quem não pagou.' },
           ].map((f, i) => (
             <div key={i}>
@@ -63,7 +67,7 @@ export default function LandingPage() {
       {/* Pricing — usando os planos canônicos */}
       <section className="py-20 px-6">
         <div className="max-w-5xl mx-auto">
-          <p className="text-xs text-zinc-400 uppercase tracking-widest mb-12">Preços</p>
+          <p className="text-xs text-zinc-400 uppercase tracking-widest mb-12">Nossos planos</p>
           <div className="grid md:grid-cols-3 gap-6">
             {PLANS.map((p) => (
               <div key={p.key} className={`p-6 rounded-lg border ${p.highlight ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200'}`}>
@@ -92,7 +96,10 @@ export default function LandingPage() {
       {/* Footer */}
       <div className="border-t border-zinc-100">
         <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between">
-          <span className="text-sm font-semibold">Mensalito</span>
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <BrandMark size={24} radius={6} />
+            Mensalito
+          </span>
           <p className="text-xs text-zinc-400">© {new Date().getFullYear()}</p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import {NavLink, Outlet, useNavigate} from 'react-router-dom'
 import {useAuth} from '@/contexts/AuthContext'
 import {useEffect, useRef, useState} from 'react'
 import api from '@/services/api'
+import BrandMark from '@/components/BrandMark'
 
 function initials(name: string) {
     return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
@@ -163,7 +164,7 @@ function UserMenu({ tenantName, userName, role }: { tenantName: string; userName
                 }}>
                     {initials(userName)}
                 </div>
-                <div className="hidden sm:block" style={{ textAlign: 'left' }}>
+                <div style={{ textAlign: 'left' }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#18181b', margin: 0, lineHeight: 1.2 }}>{tenantName}</p>
                     <p style={{ fontSize: 11, color: '#a1a1aa', margin: 0 }}>{role === 'OWNER' ? 'Administrador' : 'Professor'}</p>
                 </div>
@@ -206,61 +207,42 @@ export default function Layout() {
     const userName = user?.name ?? localStorage.getItem('userName') ?? 'Usuário'
     const tenantName = localStorage.getItem('tenantName') ?? 'Escola'
     const role = user?.role ?? 'OWNER'
-    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+    useEffect(() => {
+        document.body.style.overflow = mobileNavOpen ? 'hidden' : ''
+        return () => { document.body.style.overflow = '' }
+    }, [mobileNavOpen])
+
+    const closeMobileNav = () => setMobileNavOpen(false)
 
     return (
-        <div style={{ display: 'flex', height: '100vh', background: '#fafafa', fontFamily: "'Geist Variable', sans-serif" }}>
-            {/* Overlay (mobile only, shown while drawer is open) */}
-            {sidebarOpen && (
-                <div
-                    onClick={() => setSidebarOpen(false)}
-                    className="md:hidden"
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 35 }}
-                />
-            )}
+        <div className="app-shell">
+            {mobileNavOpen && <button className="app-sidebar-backdrop" aria-label="Fechar menu" onClick={closeMobileNav} />}
 
             {/* Sidebar */}
-            <aside
-                className={`md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-                style={{
-                    width: 232, flexShrink: 0,
-                    background: '#fff',
-                    borderRight: '1px solid #e8eaed',
-                    display: 'flex', flexDirection: 'column',
-                    position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 40,
-                    transition: 'transform 0.2s ease-in-out',
-                }}
-            >
+            <aside className={`app-sidebar${mobileNavOpen ? ' app-sidebar-open' : ''}`}>
                 {/* Logo */}
-                <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid #f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <div style={{
-                            width: 30, height: 30,
-                            background: 'linear-gradient(135deg, #18181b 0%, #3f3f46 100%)',
-                            borderRadius: 8,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/>
-                            </svg>
+                <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid #f4f4f5' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 9 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                            <BrandMark />
+                            <span style={{ fontSize: 15, fontWeight: 700, color: '#18181b', letterSpacing: '-0.02em' }}>Mensalito</span>
                         </div>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: '#18181b', letterSpacing: '-0.02em' }}>Mensalito</span>
+                        <button className="app-sidebar-close" onClick={closeMobileNav} aria-label="Fechar menu">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setSidebarOpen(false)}
-                        aria-label="Fechar menu"
-                        className="md:hidden"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, border: 'none', background: 'transparent', color: '#71717a', cursor: 'pointer', borderRadius: 6 }}
-                    >
-                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
                 </div>
 
                 {/* Nav */}
                 <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
-                    <NavGroup label="Principal" items={NAV_MAIN} onNavigate={() => setSidebarOpen(false)} />
-                    <NavGroup label="Ferramentas" items={NAV_TOOLS} onNavigate={() => setSidebarOpen(false)} />
-                    <NavGroup label="Conta" items={NAV_ACCOUNT} onNavigate={() => setSidebarOpen(false)} />
+                    <NavGroup label="Principal" items={NAV_MAIN} onNavigate={closeMobileNav} />
+                    <NavGroup label="Ferramentas" items={NAV_TOOLS} onNavigate={closeMobileNav} />
+                    <NavGroup label="Conta" items={NAV_ACCOUNT} onNavigate={closeMobileNav} />
                 </nav>
 
                 {/* Status footer */}
@@ -272,30 +254,21 @@ export default function Layout() {
             </aside>
 
             {/* Main */}
-            <div className="md:ml-[232px]" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div className="app-main">
                 {/* Topbar */}
-                <header className="px-4 md:px-7" style={{
-                    height: 52, background: '#fff',
-                    borderBottom: '1px solid #e8eaed',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    position: 'sticky', top: 0, zIndex: 30,
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            aria-label="Abrir menu"
-                            className="md:hidden"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, border: '1.5px solid #e8eaed', background: '#fff', color: '#3f3f46', cursor: 'pointer', borderRadius: 8, flexShrink: 0 }}
-                        >
-                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                        </button>
-                        <span className="md:hidden" style={{ fontSize: 15, fontWeight: 700, color: '#18181b', letterSpacing: '-0.02em' }}>Mensalito</span>
-                    </div>
+                <header className="app-topbar">
+                    <button className="app-menu-button" onClick={() => setMobileNavOpen(true)} aria-label="Abrir menu">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <line x1="3" y1="6" x2="21" y2="6" />
+                            <line x1="3" y1="12" x2="21" y2="12" />
+                            <line x1="3" y1="18" x2="21" y2="18" />
+                        </svg>
+                    </button>
                     <UserMenu tenantName={tenantName} userName={userName} role={role} />
                 </header>
 
                 {/* Content */}
-                <main style={{ flex: 1, overflowY: 'auto', background: '#fafafa' }}>
+                <main className="app-content">
                     <Outlet />
                 </main>
             </div>

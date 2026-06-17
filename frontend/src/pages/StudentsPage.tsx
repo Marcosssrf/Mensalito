@@ -362,8 +362,6 @@ function StudentModal({
                           transition: 'all 0.15s',
                         }}
                     >
-                      {val === 'PIX' && <span style={{ marginRight: 5 }}>⚡</span>}
-                      {val === 'BOLETO' && <span style={{ marginRight: 5 }}>🏦</span>}
                       {label}
                     </button>
                 )
@@ -435,7 +433,7 @@ export default function StudentsPage() {
   }
 
   return (
-      <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      <div className="ms-page">
         {modal.open && (
             <StudentModal
                 initial={modal.student}
@@ -444,13 +442,13 @@ export default function StudentsPage() {
             />
         )}
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
           <div>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>CADASTRO</p>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Alunos</h1>
             <p style={{ fontSize: 14, color: '#6b7280' }}>{totalElements} aluno{totalElements !== 1 ? 's' : ''} no total</p>
           </div>
-          <button onClick={() => setModal({ open: true })}
+          <button className="ms-action-button" onClick={() => setModal({ open: true })}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#111827', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
@@ -460,10 +458,10 @@ export default function StudentsPage() {
           </button>
         </div>
 
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ms-list-panel" style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
           {/* Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-            <div style={{ display: 'flex', gap: 4 }}>
+          <div className="ms-list-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+            <div className="ms-tabs" style={{ display: 'flex', gap: 4 }}>
               {(['Todos', 'Ativos', 'Inativos'] as Tab[]).map((t) => (
                   <button key={t} onClick={() => setTab(t)} style={{
                     padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
@@ -471,7 +469,7 @@ export default function StudentsPage() {
                   }}>{t}</button>
               ))}
             </div>
-            <div style={{ position: 'relative' }}>
+            <div className="ms-search-wrap" style={{ position: 'relative' }}>
               <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
                    width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -482,7 +480,7 @@ export default function StudentsPage() {
           </div>
 
           {/* Cabeçalho */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 0.8fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+          <div className="ms-table-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 0.8fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
             {['ALUNO', 'CONTATO', 'CADASTRO', 'STATUS', 'AÇÕES'].map((h) => (
                 <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em' }}>{h}</span>
             ))}
@@ -493,7 +491,7 @@ export default function StudentsPage() {
           ) : filtered.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Nenhum aluno encontrado.</div>
           ) : filtered.map((s, i) => (
-              <div key={s.id} style={{
+              <div className="ms-table-row ms-student-row" key={s.id} style={{
                 display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 0.8fr',
                 padding: '16px 20px', alignItems: 'center', background: '#fff',
                 borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',

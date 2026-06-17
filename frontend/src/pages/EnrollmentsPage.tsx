@@ -90,7 +90,7 @@ function Combobox({
                             style={{ flex: 1, fontSize: 14, outline: 'none', border: 'none', background: 'transparent', color: '#111827' }}
                         />
                         {query && (
-                            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex' }}>
+                            <button onClick={() => setQuery('')} aria-label="Limpar busca" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex' }}>
                                 <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                             </button>
                         )}
@@ -107,7 +107,7 @@ function Combobox({
                         }
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 8 }}>
                             {selected && (
-                                <span onClick={handleClear} style={{ cursor: 'pointer', color: '#9ca3af', display: 'flex', padding: 2 }}>
+                                <span role="button" tabIndex={0} aria-label="Limpar seleção" onClick={handleClear} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClear(e as any) }} style={{ cursor: 'pointer', color: '#9ca3af', display: 'flex', padding: 2 }}>
                   <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </span>
                             )}
@@ -210,8 +210,8 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
     const planOptions: ComboboxOption[]    = plans.map(p => ({ id: p.id, label: p.name, sublabel: `${fmt(p.amount)}/mês` }))
 
     return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 520, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="ms-modal-backdrop">
+            <div className="ms-modal-card" style={{ padding: 32, width: 520 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Nova matrícula</h2>
                 <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Vincule um aluno a uma turma e plano.</p>
 
@@ -220,7 +220,7 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
                 )}
 
                 {loadingData ? (
-                    <div style={{ padding: '32px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Carregando dados...</div>
+                    <div className="ms-empty-state">Carregando dados...</div>
                 ) : (
                     <>
                         <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 12 }}>DADOS DA MATRÍCULA</p>
@@ -244,7 +244,7 @@ function NewEnrollmentModal({ onClose, onCreated }: { onClose: () => void; onCre
                     </>
                 )}
 
-                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                <div className="ms-modal-actions" style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                     <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
                         Cancelar
                     </button>
@@ -297,17 +297,18 @@ export default function EnrollmentsPage() {
     const totalAtivas = enrollments.filter(e => e.active).length
 
     return (
-        <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        <div className="ms-page">
             {showModal && <NewEnrollmentModal onClose={() => setShowModal(false)} onCreated={load} />}
 
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+            <div className="ms-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
                 <div>
                     <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', marginBottom: 4 }}>CADASTRO</p>
                     <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Matrículas</h1>
                     <p style={{ fontSize: 14, color: '#6b7280' }}>{totalAtivas} matrícula{totalAtivas !== 1 ? 's' : ''} ativa{totalAtivas !== 1 ? 's' : ''}</p>
                 </div>
                 <button
+                    className="ms-action-button"
                     onClick={() => setShowModal(true)}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#111827', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#fff' }}
                 >
@@ -318,12 +319,12 @@ export default function EnrollmentsPage() {
                 </button>
             </div>
 
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="ms-list-panel" style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
 
                 {/* Toolbar */}
-                <div style={{ padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', gap: 4 }}>
+                <div className="ms-list-toolbar" style={{ padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+                    <div className="ms-list-toolbar-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div className="ms-tabs" style={{ display: 'flex', gap: 4 }}>
                             {(['Todos', 'Ativas', 'Inativas'] as TabStatus[]).map(t => (
                                 <button key={t} onClick={() => setTab(t)} style={{
                                     padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
@@ -331,7 +332,7 @@ export default function EnrollmentsPage() {
                                 }}>{t}</button>
                             ))}
                         </div>
-                        <div style={{ position: 'relative' }}>
+                        <div className="ms-search-wrap" style={{ position: 'relative' }}>
                             <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
                                  width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -347,7 +348,7 @@ export default function EnrollmentsPage() {
                 </div>
 
                 {/* Cabeçalho da tabela */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 1fr 1fr 0.6fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                <div className="ms-table-head" style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 1fr 1fr 0.6fr', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                     {['ALUNO', 'TURMA', 'PLANO', 'VALOR', 'INÍCIO', 'STATUS', ''].map(h => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em' }}>{h}</span>
                     ))}
@@ -359,7 +360,7 @@ export default function EnrollmentsPage() {
                 ) : filtered.length === 0 ? (
                     <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Nenhuma matrícula encontrada.</div>
                 ) : filtered.map((en, i) => (
-                    <div key={en.id} style={{
+                    <div className="ms-table-row ms-enrollment-row" key={en.id} style={{
                         display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 1fr 1fr 0.6fr',
                         padding: '16px 20px', alignItems: 'center', background: '#fff',
                         borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',

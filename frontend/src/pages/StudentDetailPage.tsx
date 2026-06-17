@@ -127,7 +127,7 @@ function StudentEditModal({ student, onClose, onSaved }: { student: Student; onC
           <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: 20, marginBottom: 24 }}>
             <p style={lbl as any} className="ms-section-label">PREFERÊNCIA DE PAGAMENTO</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              {([['', 'Sem preferência'], ['PIX', '⚡ PIX'], ['BOLETO', '🏦 Boleto']] as const).map(([val, label]) => {
+              {([['', 'Sem preferência'], ['PIX', 'PIX'], ['BOLETO', 'Boleto']] as const).map(([val, label]) => {
                 const selected = form.paymentPreference === val
                 return (
                     <button key={val} type="button" onClick={() => setForm(f => ({ ...f, paymentPreference: val }))} style={{ padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: selected ? '2px solid #18181b' : '1.5px solid #e8eaed', background: selected ? '#18181b' : '#fff', color: selected ? '#fff' : '#71717a', transition: 'all 0.13s' }}>
@@ -217,7 +217,7 @@ function WhatsAppMessageModal({ student, onClose }: { student: Student; onClose:
     setResult(null)
     try {
       await api.post(`/students/${student.id}/whatsapp/message`, { message: message.trim() })
-      setResult({ success: true, text: 'Mensagem enviada com sucesso! ✓' })
+      setResult({ success: true, text: 'Mensagem enviada com sucesso!' })
       setMessage('')
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? e?.response?.data?.error ?? 'Erro ao enviar mensagem.'
@@ -391,7 +391,7 @@ export default function StudentDetailPage() {
   ]
 
   return (
-      <div style={{ padding: '32px 40px', maxWidth: 1240, margin: '0 auto', fontFamily: "'Geist Variable', sans-serif" }}>
+      <div className="ms-page ms-student-detail-page" style={{ maxWidth: 1240, fontFamily: "'Geist Variable', sans-serif" }}>
         {showNewCharge && <NewChargeModal studentId={student.id} onClose={() => setShowNewCharge(false)} onCreated={loadData} />}
         {showEdit && <StudentEditModal student={student} onClose={() => setShowEdit(false)} onSaved={loadData} />}
         {showWhatsApp && <WhatsAppMessageModal student={student} onClose={() => setShowWhatsApp(false)} />}
@@ -403,20 +403,20 @@ export default function StudentDetailPage() {
             Voltar para alunos
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="ms-page-header ms-student-detail-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+            <div className="ms-student-identity" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #18181b 0%, #3f3f46 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                 {initials(student.name)}
               </div>
               <div>
                 <h1 style={{ fontSize: 26, fontWeight: 700, color: '#18181b', margin: '0 0 4px', letterSpacing: '-0.03em' }}>{student.name}</h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="ms-student-badges" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 100, background: student.active ? '#dcfce7' : '#f4f4f5', color: student.active ? '#15803d' : '#71717a' }}>
                   {student.active ? 'Ativo' : 'Inativo'}
                 </span>
                   {student.inTrial && (
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 100, background: '#fef9c3', color: '#a16207' }}>
-                    ⏳ Trial até {fmtDate(student.trialEndsAt)}
+                    Trial até {fmtDate(student.trialEndsAt)}
                   </span>
                   )}
                   <span style={{ fontSize: 13, color: '#a1a1aa' }}>Aluno desde {fmtDate(student.createdAt)}</span>
@@ -424,7 +424,7 @@ export default function StudentDetailPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <div className="ms-page-actions ms-student-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               <button onClick={() => setShowWhatsApp(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#3f3f46' }}>
                 <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Mensagem
@@ -442,7 +442,7 @@ export default function StudentDetailPage() {
         </div>
 
         {/* Stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+        <div className="ms-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
           {statCards.map((c, i) => (
               <div key={i} style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: '18px 20px' }}>
                 <p style={{ fontSize: 12, color: '#a1a1aa', margin: '0 0 8px', fontWeight: 500 }}>{c.label}</p>
@@ -453,11 +453,11 @@ export default function StudentDetailPage() {
         </div>
 
         {/* Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 }}>
+        <div className="ms-student-detail-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 }}>
           {/* Left */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Contact card */}
-            <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 22 }}>
+            <div className="ms-detail-card" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 22 }}>
               <p style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 16px' }}>Contato</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
                 {student.email && (
@@ -490,7 +490,7 @@ export default function StudentDetailPage() {
                         <svg width="12" height="12" fill="none" stroke="#71717a" strokeWidth="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 100, background: student.paymentPreference === 'PIX' ? '#ede9fe' : '#dbeafe', color: student.paymentPreference === 'PIX' ? '#7c3aed' : '#2563eb' }}>
-                    {student.paymentPreference === 'PIX' ? '⚡ PIX' : '🏦 Boleto'}
+                    {student.paymentPreference === 'PIX' ? 'PIX' : 'Boleto'}
                   </span>
                     </div>
                 )}
@@ -500,7 +500,7 @@ export default function StudentDetailPage() {
                   <div style={{ borderTop: '1px solid #f4f4f5', marginTop: 16, paddingTop: 16 }}>
                     <p style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>Trial</p>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <div style={{ width: 28, height: 28, background: student.inTrial ? '#fef9c3' : '#f4f4f5', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }}>⏳</div>
+                      <div style={{ width: 28, height: 28, background: student.inTrial ? '#fef9c3' : '#f4f4f5', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, fontWeight: 700, color: student.inTrial ? '#a16207' : '#71717a' }}>TR</div>
                       <div>
                         <p style={{ fontSize: 13, color: '#3f3f46', margin: 0, fontWeight: 500 }}>Até {fmtDate(student.trialEndsAt)}</p>
                         <p style={{ fontSize: 11.5, color: student.inTrial ? '#a16207' : '#a1a1aa', margin: '2px 0 0' }}>
@@ -525,7 +525,7 @@ export default function StudentDetailPage() {
 
             {/* Enrollments card */}
             {enrollments.length > 0 && (
-                <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 22 }}>
+                <div className="ms-detail-card" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, padding: 22 }}>
                   <p style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 14px' }}>Matrículas</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {enrollments.map(e => (
@@ -552,13 +552,13 @@ export default function StudentDetailPage() {
           {/* Right */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Payment history */}
-            <div style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '18px 22px', borderBottom: '1px solid #f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="ms-list-panel" style={{ background: '#fff', border: '1.5px solid #e8eaed', borderRadius: 12, overflow: 'hidden' }}>
+              <div className="ms-panel-header" style={{ padding: '18px 22px', borderBottom: '1px solid #f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: '#18181b', margin: 0 }}>Histórico de pagamentos</h3>
                 <span style={{ fontSize: 12, color: '#a1a1aa' }}>{charges.length} cobranças</span>
               </div>
               <div style={{ padding: '0 22px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 0.9fr', padding: '11px 0', borderBottom: '1px solid #f4f4f5' }}>
+                <div className="ms-table-head" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 0.9fr', padding: '11px 0', borderBottom: '1px solid #f4f4f5' }}>
                   {['MÊS', 'VALOR', 'PAGO EM', 'MÉTODO', 'STATUS'].map(h => (
                       <span key={h} style={{ fontSize: 10.5, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.06em' }}>{h}</span>
                   ))}
@@ -570,7 +570,7 @@ export default function StudentDetailPage() {
                 ) : charges.slice(0, 12).map((c, i) => {
                   const st = STATUS_META[c.status] ?? { label: c.status, color: '#71717a', bg: '#f4f4f5' }
                   return (
-                      <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 0.9fr', padding: '13px 0', alignItems: 'center', borderBottom: i < Math.min(charges.length, 12) - 1 ? '1px solid #fafafa' : 'none' }}>
+                      <div className="ms-table-row ms-student-charge-row" key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 0.9fr', padding: '13px 0', alignItems: 'center', borderBottom: i < Math.min(charges.length, 12) - 1 ? '1px solid #fafafa' : 'none' }}>
                         <span style={{ fontSize: 13.5, fontWeight: 500, color: '#18181b' }}>{fmtMonth(c.dueDate)}</span>
                         <span style={{ fontSize: 13.5, color: '#3f3f46', fontWeight: 500 }}>{fmt(Number(c.amount))}</span>
                         <span style={{ fontSize: 13, color: '#71717a' }}>{c.paymentDate ? fmtDate(c.paymentDate) : '—'}</span>

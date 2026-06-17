@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {Link, useNavigate, useSearchParams} from 'react-router-dom'
 import api from '@/services/api'
+import BrandMark from '@/components/BrandMark'
 
 interface InvitePreview {
   schoolName: string
@@ -263,7 +264,10 @@ export default function AcceptInvitePage() {
 function TopBar() {
   return (
     <div style={styles.topBar}>
-      <Link to="/" style={styles.logo}>Mensalito</Link>
+      <Link to="/" style={styles.logo}>
+        <BrandMark size={26} radius={7} />
+        Mensalito
+      </Link>
       <span style={styles.topBarRight}>
         Já tem conta?{' '}
         <Link to="/login" style={styles.topBarLink}>Entrar</Link>
@@ -295,7 +299,7 @@ function EyeOff() {
 const styles: Record<string, React.CSSProperties> = {
   page:       { fontFamily: "'Geist', 'Inter', sans-serif", minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' },
   topBar:     { borderBottom: '1px solid #f3f4f6', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo:       { fontSize: 14, fontWeight: 600, letterSpacing: '-0.02em', color: '#111827', textDecoration: 'none' },
+  logo:       { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, letterSpacing: '-0.02em', color: '#111827', textDecoration: 'none' },
   topBarRight:{ fontSize: 13, color: '#9ca3af' },
   topBarLink: { color: '#111827', textDecoration: 'underline', textUnderlineOffset: 2 },
   center:     { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' },

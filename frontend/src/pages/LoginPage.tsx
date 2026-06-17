@@ -1,6 +1,7 @@
 import {useState} from 'react'
 import {Link, useNavigate} from 'react-router-dom'
 import {useAuth} from '@/contexts/AuthContext'
+import BrandMark from '@/components/BrandMark'
 
 export default function LoginPage() {
   const [email, setEmail]       = useState('')
@@ -29,9 +30,7 @@ export default function LoginPage() {
       {/* Topbar */}
       <div style={{ height: 52, background: '#fff', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px' }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <div style={{ width: 26, height: 26, background: '#18181b', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#fff"/></svg>
-          </div>
+          <BrandMark size={26} radius={7} />
           <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b', letterSpacing: '-0.01em' }}>Mensalito</span>
         </Link>
         <span style={{ fontSize: 13, color: '#a1a1aa' }}>
