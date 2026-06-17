@@ -116,27 +116,43 @@ public class TenantService {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
-        log.info("[TenantService] Re-provisionando instância Evolution para tenant '{}' ({})", tenant.getName(), tenantId);
-
-        try {
-            String instanceKey = evolutionInstanceClient.createInstanceWithKey(tenantId, tenant.getName());
-            tenant.setEvolutionInstanceKey(instanceKey);
-            tenant.setEvolutionInstanceName(instanceKey);
-            tenantRepository.save(tenant);
-            log.info("[TenantService] Instância '{}' re-provisionada para tenant {}", instanceKey, tenantId);
-
-            var conn = evolutionInstanceClient.checkConnection(instanceKey);
-            if (conn.connected()) {
-                String phoneNumber = extractPhone(conn.ownerJid(), instanceKey);
-                return new WhatsAppStatusResponseDTO(true, instanceKey, null, phoneNumber);
-            }
-            String qrCode = evolutionInstanceClient.getQrCode(instanceKey);
-            return new WhatsAppStatusResponseDTO(false, instanceKey, qrCode, null);
-
-        } catch (Exception e) {
-            log.error("[TenantService] Falha ao re-provisionar Evolution para tenant {}: {}", tenantId, e.getMessage());
-            throw new RuntimeException("Falha ao criar instância WhatsApp: " + e.getMessage(), e);
+        String instanceName = tenant.getEvolutionInstanceKey();
+        if (instanceName == null || instanceName.isBlank()) {
+            instanceName = tenant.getEvolutionInstanceName();
         }
+
+        if (instanceName == null || instanceName.isBlank()) {
+            log.info("[TenantService] Criando instância Evolution inicial para tenant '{}' ({})", tenant.getName(), tenantId);
+            try {
+                instanceName = evolutionInstanceClient.createInstanceWithKey(tenantId, tenant.getName());
+                tenant.setEvolutionInstanceKey(instanceName);
+                tenant.setEvolutionInstanceName(instanceName);
+                tenantRepository.save(tenant);
+            } catch (Exception e) {
+                log.error("[TenantService] Falha ao criar instância Evolution para tenant {}: {}", tenantId, e.getMessage());
+                throw new RuntimeException("Falha ao criar instância WhatsApp: " + e.getMessage(), e);
+            }
+        } else {
+            log.info("[TenantService] Reutilizando instância Evolution '{}' para tenant {}", instanceName, tenantId);
+            if (tenant.getEvolutionInstanceKey() == null || tenant.getEvolutionInstanceKey().isBlank()) {
+                tenant.setEvolutionInstanceKey(instanceName);
+                tenantRepository.save(tenant);
+            }
+        }
+
+        var conn = evolutionInstanceClient.checkConnection(instanceName);
+        if (conn.connected()) {
+            String phoneNumber = extractPhone(conn.ownerJid(), instanceName);
+            return new WhatsAppStatusResponseDTO(true, instanceName, null, phoneNumber);
+        }
+
+        WhatsAppStatusResponseDTO restored = tryRestoreLegacyInstance(tenant, tenantId, instanceName);
+        if (restored != null) {
+            return restored;
+        }
+
+        String qrCode = evolutionInstanceClient.getQrCode(instanceName);
+        return new WhatsAppStatusResponseDTO(false, instanceName, qrCode, null);
     }
 
     public WhatsAppStatusResponseDTO getWhatsAppStatus() {
@@ -177,6 +193,11 @@ public class TenantService {
             return new WhatsAppStatusResponseDTO(true, instanceName, null, phoneNumber);
         }
 
+        WhatsAppStatusResponseDTO restored = tryRestoreLegacyInstance(tenant, tenantId, instanceName);
+        if (restored != null) {
+            return restored;
+        }
+
         // Busca QR Code — nunca deixa estourar
         String qrCode = null;
         try {
@@ -186,6 +207,34 @@ public class TenantService {
         }
 
         return new WhatsAppStatusResponseDTO(false, instanceName, qrCode, null);
+    }
+
+    private WhatsAppStatusResponseDTO tryRestoreLegacyInstance(Tenant tenant, UUID tenantId, String currentInstanceName) {
+        String legacyInstanceName = evolutionInstanceClient.sanitizeInstanceName(tenant.getName());
+        if (legacyInstanceName == null || legacyInstanceName.isBlank() || legacyInstanceName.equals(currentInstanceName)) {
+            return null;
+        }
+
+        try {
+            var legacyConn = evolutionInstanceClient.checkConnection(legacyInstanceName);
+            if (!legacyConn.connected()) {
+                return null;
+            }
+
+            tenant.setEvolutionInstanceKey(legacyInstanceName);
+            tenant.setEvolutionInstanceName(legacyInstanceName);
+            tenantRepository.save(tenant);
+
+            log.info("[TenantService] Instância Evolution restaurada de '{}' para '{}' no tenant {}",
+                    currentInstanceName, legacyInstanceName, tenantId);
+
+            String phoneNumber = extractPhone(legacyConn.ownerJid(), legacyInstanceName);
+            return new WhatsAppStatusResponseDTO(true, legacyInstanceName, null, phoneNumber);
+        } catch (Exception e) {
+            log.warn("[TenantService] Não foi possível verificar instância legada '{}' para tenant {}: {}",
+                    legacyInstanceName, tenantId, e.getMessage());
+            return null;
+        }
     }
 
     private String extractPhone(String ownerJid, String instanceName) {

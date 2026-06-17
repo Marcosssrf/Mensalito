@@ -13,6 +13,9 @@ function fmtMonth(dueDate: string) { const [y, m] = dueDate.split('-'); const mo
 function initials(name: string) { return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase() }
 function maskPhone(value: string) { const d = value.replace(/\D/g, '').slice(0, 11); if (d.length <= 10) return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d{1,4})$/, '$1-$2'); return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d{1,4})$/, '$1-$2') }
 function maskDocument(value: string) { const d = value.replace(/\D/g, '').slice(0, 14); if (d.length <= 11) return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); return d.replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1/$2').replace(/(\d{4})(\d{1,2})$/, '$1-$2') }
+function validateCpf(digits: string): boolean { if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false; let sum = 0; for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i); let r = (sum * 10) % 11; if (r === 10 || r === 11) r = 0; if (r !== parseInt(digits[9])) return false; sum = 0; for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i); r = (sum * 10) % 11; if (r === 10 || r === 11) r = 0; return r === parseInt(digits[10]) }
+function validateCnpj(digits: string): boolean { if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false; const calc = (d: string, n: number) => { let s = 0, p = n; for (let i = 0; i < d.length; i++) { s += parseInt(d[i]) * p--; if (p < 2) p = 9 } const r = s % 11; return r < 2 ? 0 : 11 - r }; return calc(digits.slice(0, 12), 5) === parseInt(digits[12]) && calc(digits.slice(0, 13), 6) === parseInt(digits[13]) }
+function validateDocument(value: string): boolean { const digits = value.replace(/\D/g, ''); if (digits.length === 11) return validateCpf(digits); if (digits.length === 14) return validateCnpj(digits); return false }
 function maskZip(v: string) { const d = v.replace(/\D/g, '').slice(0, 8); return d.replace(/(\d{5})(\d{1,3})$/, '$1-$2') }
 function paymentMethodLabel(c: Charge) { if (c.pixCode) return 'PIX'; if (c.boletoUrl) return 'Boleto'; if (c.checkoutUrl) return 'Checkout'; return 'Manual' }
 
@@ -28,11 +31,25 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 
 const emptyAddress: Address = { zipCode: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '' }
 
-const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', border: '1.5px solid #e8eaed', borderRadius: 8, fontSize: 13.5, color: '#18181b', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' }
-const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#5c5f6b', display: 'block', marginBottom: 5, letterSpacing: '0.01em' }
+const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box' }
+const lbl: React.CSSProperties = { fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }
 
 function StudentEditModal({ student, onClose, onSaved }: { student: Student; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ name: student.name, email: student.email ?? '', phone: student.phone ?? '', document: student.document ?? '', address: student.address ?? {...emptyAddress}, paymentPreference: student.paymentPreference ?? '' as 'PIX' | 'BOLETO' | '' })
+  const [form, setForm] = useState<{
+    name: string
+    email: string
+    phone: string
+    document: string
+    address: Address
+    paymentPreference: 'PIX' | 'BOLETO' | ''
+  }>({
+    name: student.name,
+    email: student.email ?? '',
+    phone: student.phone ?? '',
+    document: student.document ?? '',
+    address: student.address ?? { ...emptyAddress },
+    paymentPreference: student.paymentPreference ?? '',
+  })
   const [trialOpen, _setTrialOpen] = useState<boolean>(!!(student.trialEndsAt))
   const [trialDate, _setTrialDate] = useState<string>(student.trialEndsAt ?? '')
   const [savingTrial, setSavingTrial] = useState(false)
@@ -57,10 +74,20 @@ function StudentEditModal({ student, onClose, onSaved }: { student: Student; onC
 
   async function submit() {
     if (!form.name.trim()) { setError('Nome é obrigatório'); return }
+    if (!form.email.trim()) { setError('E-mail é obrigatório'); return }
+    if (!form.phone.trim()) { setError('Telefone é obrigatório'); return }
+    if (!form.document.trim()) { setError('CPF/CNPJ é obrigatório'); return }
+    if (!validateDocument(form.document)) { setError('CPF ou CNPJ inválido. Verifique os dígitos informados.'); return }
+    if (!form.paymentPreference) { setError('Preferência de pagamento é obrigatória'); return }
+    if (!form.address.zipCode.trim()) { setError('CEP é obrigatório'); return }
+    if (!form.address.street.trim()) { setError('Rua é obrigatória'); return }
+    if (!form.address.number.trim()) { setError('Número é obrigatório'); return }
+    if (!form.address.neighborhood.trim()) { setError('Bairro é obrigatório'); return }
+    if (!form.address.city.trim()) { setError('Cidade é obrigatória'); return }
+    if (!form.address.state.trim()) { setError('Estado é obrigatório'); return }
     setLoading(true); setError('')
     try {
-      const hasAddress = Object.values(form.address).some(v => v.trim() !== '')
-      await api.patch(`/students/${student.id}`, { ...form, address: hasAddress ? form.address : null, paymentPreference: form.paymentPreference || null })
+      await api.patch(`/students/${student.id}`, { ...form, address: form.address, paymentPreference: form.paymentPreference })
       // Salva trial separadamente se alterado
       const originalTrial = student.trialEndsAt ?? ''
       const newTrial = trialOpen ? trialDate : ''
@@ -76,61 +103,110 @@ function StudentEditModal({ student, onClose, onSaved }: { student: Student; onC
   }
 
   return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
-        <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 560, maxWidth: '94vw', boxShadow: '0 24px 64px rgba(0,0,0,0.14)', maxHeight: '90vh', overflowY: 'auto', border: '1.5px solid #e8eaed' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="ms-modal-backdrop">
+        <div className="ms-modal-card" style={{ padding: 32, width: 560 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Editar aluno</h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Atualize os dados do aluno.</p>
+
+          {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{error}</div>}
+
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 12 }}>DADOS PESSOAIS</p>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl}>Nome completo *</label>
+            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: João da Silva" style={inp} required />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0, letterSpacing: '-0.02em' }}>Editar aluno</h2>
-              <p style={{ fontSize: 13, color: '#a1a1aa', marginTop: 4 }}>Atualize os dados cadastrais.</p>
+              <label style={lbl}>E-mail *</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="joao@email.com" style={inp} required />
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#a1a1aa' }}>
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-
-          {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 13px', fontSize: 13, color: '#dc2626', marginBottom: 18 }}>{error}</div>}
-
-          <p style={lbl as any} className="ms-section-label">DADOS PESSOAIS</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-            <div><label style={lbl}>Nome completo *</label><input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: João da Silva" style={inp} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div><label style={lbl}>E-mail</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="joao@email.com" style={inp} /></div>
-              <div><label style={lbl}>Telefone</label><input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: maskPhone(e.target.value) }))} placeholder="(21) 99999-9999" maxLength={15} style={inp} /></div>
-            </div>
-            <div><label style={lbl}>CPF / Documento</label><input type="text" value={form.document} onChange={e => setForm(f => ({ ...f, document: maskDocument(e.target.value) }))} placeholder="000.000.000-00" maxLength={18} style={inp} /></div>
-          </div>
-
-          <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: 20, marginBottom: 20 }}>
-            <p style={lbl as any} className="ms-section-label">ENDEREÇO</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12 }}>
-                <div>
-                  <label style={lbl}>CEP</label>
-                  <input type="text" value={form.address.zipCode} onChange={e => { const v = maskZip(e.target.value); setAddr('zipCode', v); lookupCep(v) }} placeholder="00000-000" maxLength={9} style={{ ...inp, borderColor: cepError && !loadingCep ? '#fca5a5' : '#e8eaed' }} />
-                  {loadingCep && <span style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4, display: 'block' }}>Buscando...</span>}
-                  {cepError && !loadingCep && <span style={{ fontSize: 11, color: '#ef4444', marginTop: 4, display: 'block' }}>{cepError}</span>}
-                </div>
-                <div><label style={lbl}>Bairro</label><input type="text" value={form.address.neighborhood} onChange={e => setAddr('neighborhood', e.target.value)} placeholder="Bairro" style={inp} /></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 12 }}>
-                <div><label style={lbl}>Rua / Logradouro</label><input type="text" value={form.address.street} onChange={e => setAddr('street', e.target.value)} placeholder="Rua das Flores" style={inp} /></div>
-                <div><label style={lbl}>Número</label><input type="text" value={form.address.number} onChange={e => setAddr('number', e.target.value)} placeholder="123" style={inp} /></div>
-              </div>
-              <div><label style={lbl}>Complemento</label><input type="text" value={form.address.complement} onChange={e => setAddr('complement', e.target.value)} placeholder="Apto 42, Bloco B..." style={inp} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 12 }}>
-                <div><label style={lbl}>Cidade</label><input type="text" value={form.address.city} onChange={e => setAddr('city', e.target.value)} placeholder="São Paulo" style={inp} /></div>
-                <div><label style={lbl}>UF</label><input type="text" value={form.address.state} onChange={e => setAddr('state', e.target.value.toUpperCase().slice(0, 2))} placeholder="SP" maxLength={2} style={inp} /></div>
-              </div>
+            <div>
+              <label style={lbl}>Telefone *</label>
+              <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: maskPhone(e.target.value) }))} placeholder="(21) 99999-9999" maxLength={15} style={inp} required />
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: 20, marginBottom: 24 }}>
-            <p style={lbl as any} className="ms-section-label">PREFERÊNCIA DE PAGAMENTO</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              {([['', 'Sem preferência'], ['PIX', 'PIX'], ['BOLETO', 'Boleto']] as const).map(([val, label]) => {
+          <div style={{ marginBottom: 24 }}>
+            <label style={lbl}>CPF / Documento *</label>
+            <input type="text" value={form.document} onChange={e => setForm(f => ({ ...f, document: maskDocument(e.target.value) }))} placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18} style={inp} required />
+          </div>
+
+          <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 20, marginBottom: 14 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 12 }}>ENDEREÇO</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={lbl}>CEP *</label>
+                <input
+                    type="text"
+                    value={form.address.zipCode}
+                    onChange={e => {
+                      const v = maskZip(e.target.value)
+                      setAddr('zipCode', v)
+                      lookupCep(v)
+                    }}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    style={{ ...inp, borderColor: cepError && !loadingCep ? '#fca5a5' : '#e5e7eb' }}
+                    required
+                />
+                {loadingCep && <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, display: 'block' }}>Buscando...</span>}
+                {cepError && !loadingCep && <span style={{ fontSize: 11, color: '#ef4444', marginTop: 4, display: 'block' }}>{cepError}</span>}
+              </div>
+              <div>
+                <label style={lbl}>Bairro *</label>
+                <input type="text" value={form.address.neighborhood} onChange={e => setAddr('neighborhood', e.target.value)} placeholder="Bairro" style={inp} required />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={lbl}>Rua / Logradouro *</label>
+                <input type="text" value={form.address.street} onChange={e => setAddr('street', e.target.value)} placeholder="Rua das Flores" style={inp} required />
+              </div>
+              <div>
+                <label style={lbl}>Número *</label>
+                <input type="text" value={form.address.number} onChange={e => setAddr('number', e.target.value)} placeholder="123" style={inp} required />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Complemento</label>
+              <input type="text" value={form.address.complement} onChange={e => setAddr('complement', e.target.value)} placeholder="Apto 42, Bloco B..." style={inp} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 12 }}>
+              <div>
+                <label style={lbl}>Cidade *</label>
+                <input type="text" value={form.address.city} onChange={e => setAddr('city', e.target.value)} placeholder="São Paulo" style={inp} required />
+              </div>
+              <div>
+                <label style={lbl}>UF *</label>
+                <input type="text" value={form.address.state} onChange={e => setAddr('state', e.target.value.toUpperCase().slice(0, 2))} placeholder="SP" maxLength={2} style={inp} required />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 20, marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', letterSpacing: '0.06em', marginBottom: 12 }}>PREFERÊNCIA DE PAGAMENTO</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {([['PIX', 'PIX'], ['BOLETO', 'Boleto']] as const).map(([val, label]) => {
                 const selected = form.paymentPreference === val
                 return (
-                    <button key={val} type="button" onClick={() => setForm(f => ({ ...f, paymentPreference: val }))} style={{ padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: selected ? '2px solid #18181b' : '1.5px solid #e8eaed', background: selected ? '#18181b' : '#fff', color: selected ? '#fff' : '#71717a', transition: 'all 0.13s' }}>
+                    <button
+                        key={val}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, paymentPreference: val }))}
+                        style={{
+                          padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          border: selected ? '2px solid #111827' : '1.5px solid #e5e7eb',
+                          background: selected ? '#111827' : '#fff',
+                          color: selected ? '#fff' : '#6b7280',
+                          transition: 'all 0.15s',
+                        }}
+                    >
                       {label}
                     </button>
                 )
@@ -138,10 +214,10 @@ function StudentEditModal({ student, onClose, onSaved }: { student: Student; onC
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1.5px solid #e8eaed', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13.5, color: '#3f3f46', fontWeight: 500 }}>Cancelar</button>
-            <button onClick={submit} disabled={loading} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#18181b', cursor: 'pointer', fontSize: 13.5, color: '#fff', fontWeight: 600, opacity: loading ? 0.5 : 1 }}>
-              {savingTrial ? 'Salvando trial...' : loading ? 'Salvando...' : 'Salvar alterações'}
+          <div className="ms-modal-actions" style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px 0', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 14, color: '#374151' }}>Cancelar</button>
+            <button onClick={submit} disabled={loading || savingTrial} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 8, background: '#111827', cursor: 'pointer', fontSize: 14, color: '#fff', fontWeight: 600 }}>
+              {savingTrial ? 'Salvando trial...' : loading ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </div>

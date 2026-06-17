@@ -137,6 +137,8 @@ function UserMenu({ tenantName, userName, role }: { tenantName: string; userName
     const { logout } = useAuth()
     const navigate = useNavigate()
     const ref = useRef<HTMLDivElement>(null)
+    const firstName = userName.trim().split(/\s+/)[0] || 'Usuário'
+    const roleLabel = role === 'OWNER' ? 'Administrador' : 'Professor'
 
     useEffect(() => {
         const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
@@ -164,9 +166,9 @@ function UserMenu({ tenantName, userName, role }: { tenantName: string; userName
                 }}>
                     {initials(userName)}
                 </div>
-                <div style={{ textAlign: 'left' }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#18181b', margin: 0, lineHeight: 1.2 }}>{tenantName}</p>
-                    <p style={{ fontSize: 11, color: '#a1a1aa', margin: 0 }}>{role === 'OWNER' ? 'Administrador' : 'Professor'}</p>
+                <div style={{ textAlign: 'left', minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#18181b', margin: 0, lineHeight: 1.2, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{firstName}</p>
+                    <p style={{ fontSize: 11, color: '#a1a1aa', margin: 0 }}>{roleLabel}</p>
                 </div>
                 <svg width="12" height="12" fill="none" stroke="#a1a1aa" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 2 }}>
                     <polyline points="6 9 12 15 18 9"/>
@@ -180,7 +182,7 @@ function UserMenu({ tenantName, userName, role }: { tenantName: string; userName
                 }}>
                     <div style={{ padding: '12px 16px', borderBottom: '1px solid #f4f4f5' }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: '#18181b', margin: 0 }}>{userName}</p>
-                        <p style={{ fontSize: 11.5, color: '#a1a1aa', margin: '3px 0 0' }}>{role === 'OWNER' ? 'Dono da escola' : 'Professor'}</p>
+                        <p style={{ fontSize: 11.5, color: '#a1a1aa', margin: '3px 0 0' }}>{tenantName} · {role === 'OWNER' ? 'Dono da escola' : 'Professor'}</p>
                     </div>
                     <button
                         onClick={() => { setOpen(false); navigate('/app/settings') }}
