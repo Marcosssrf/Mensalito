@@ -52,12 +52,12 @@ const navItemStyle = (isActive: boolean): React.CSSProperties => ({
     transition: 'background 0.12s, color 0.12s',
 })
 
-function NavGroup({ label, items }: { label: string; items: typeof NAV_MAIN }) {
+function NavGroup({ label, items, onNavigate }: { label: string; items: typeof NAV_MAIN; onNavigate?: () => void }) {
     return (
         <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', letterSpacing: '0.09em', padding: '0 11px', marginBottom: 4, textTransform: 'uppercase' }}>{label}</p>
             {items.map(({ to, label, icon }) => (
-                <NavLink key={to} to={to} style={({ isActive }) => navItemStyle(isActive)}>
+                <NavLink key={to} to={to} onClick={onNavigate} style={({ isActive }) => navItemStyle(isActive)}>
                     {icon}{label}
                 </NavLink>
             ))}
@@ -163,7 +163,7 @@ function UserMenu({ tenantName, userName, role }: { tenantName: string; userName
                 }}>
                     {initials(userName)}
                 </div>
-                <div style={{ textAlign: 'left' }}>
+                <div className="hidden sm:block" style={{ textAlign: 'left' }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#18181b', margin: 0, lineHeight: 1.2 }}>{tenantName}</p>
                     <p style={{ fontSize: 11, color: '#a1a1aa', margin: 0 }}>{role === 'OWNER' ? 'Administrador' : 'Professor'}</p>
                 </div>
@@ -206,19 +206,33 @@ export default function Layout() {
     const userName = user?.name ?? localStorage.getItem('userName') ?? 'Usuário'
     const tenantName = localStorage.getItem('tenantName') ?? 'Escola'
     const role = user?.role ?? 'OWNER'
+    const [sidebarOpen, setSidebarOpen] = useState(false)
 
     return (
         <div style={{ display: 'flex', height: '100vh', background: '#fafafa', fontFamily: "'Geist Variable', sans-serif" }}>
+            {/* Overlay (mobile only, shown while drawer is open) */}
+            {sidebarOpen && (
+                <div
+                    onClick={() => setSidebarOpen(false)}
+                    className="md:hidden"
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 35 }}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside style={{
-                width: 232, flexShrink: 0,
-                background: '#fff',
-                borderRight: '1px solid #e8eaed',
-                display: 'flex', flexDirection: 'column',
-                position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 40,
-            }}>
+            <aside
+                className={`md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                style={{
+                    width: 232, flexShrink: 0,
+                    background: '#fff',
+                    borderRight: '1px solid #e8eaed',
+                    display: 'flex', flexDirection: 'column',
+                    position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 40,
+                    transition: 'transform 0.2s ease-in-out',
+                }}
+            >
                 {/* Logo */}
-                <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid #f4f4f5' }}>
+                <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid #f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                         <div style={{
                             width: 30, height: 30,
@@ -232,13 +246,21 @@ export default function Layout() {
                         </div>
                         <span style={{ fontSize: 15, fontWeight: 700, color: '#18181b', letterSpacing: '-0.02em' }}>Mensalito</span>
                     </div>
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        aria-label="Fechar menu"
+                        className="md:hidden"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, border: 'none', background: 'transparent', color: '#71717a', cursor: 'pointer', borderRadius: 6 }}
+                    >
+                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                 </div>
 
                 {/* Nav */}
                 <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
-                    <NavGroup label="Principal" items={NAV_MAIN} />
-                    <NavGroup label="Ferramentas" items={NAV_TOOLS} />
-                    <NavGroup label="Conta" items={NAV_ACCOUNT} />
+                    <NavGroup label="Principal" items={NAV_MAIN} onNavigate={() => setSidebarOpen(false)} />
+                    <NavGroup label="Ferramentas" items={NAV_TOOLS} onNavigate={() => setSidebarOpen(false)} />
+                    <NavGroup label="Conta" items={NAV_ACCOUNT} onNavigate={() => setSidebarOpen(false)} />
                 </nav>
 
                 {/* Status footer */}
@@ -250,14 +272,25 @@ export default function Layout() {
             </aside>
 
             {/* Main */}
-            <div style={{ marginLeft: 232, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div className="md:ml-[232px]" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 {/* Topbar */}
-                <header style={{
+                <header className="px-4 md:px-7" style={{
                     height: 52, background: '#fff',
                     borderBottom: '1px solid #e8eaed',
-                    display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-                    padding: '0 28px', position: 'sticky', top: 0, zIndex: 30,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    position: 'sticky', top: 0, zIndex: 30,
                 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            aria-label="Abrir menu"
+                            className="md:hidden"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, border: '1.5px solid #e8eaed', background: '#fff', color: '#3f3f46', cursor: 'pointer', borderRadius: 8, flexShrink: 0 }}
+                        >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        </button>
+                        <span className="md:hidden" style={{ fontSize: 15, fontWeight: 700, color: '#18181b', letterSpacing: '-0.02em' }}>Mensalito</span>
+                    </div>
                     <UserMenu tenantName={tenantName} userName={userName} role={role} />
                 </header>
 
