@@ -9,8 +9,8 @@ export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Geist Variable', 'Inter', sans-serif" }} className="min-h-screen bg-white text-zinc-900">
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-zinc-100">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-zinc-100 px-6">
+        <div className="max-w-5xl mx-auto h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-zinc-900 no-underline">
             <BrandMark size={26} radius={7} />
             <span className="text-sm font-semibold tracking-tight">Mensalito</span>
