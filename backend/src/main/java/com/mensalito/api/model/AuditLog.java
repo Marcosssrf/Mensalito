@@ -25,32 +25,25 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Tenant ao qual o evento pertence (nunca nulo). */
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
-    /** ID do usuário autenticado que disparou a ação (nulo p/ eventos de sistema/scheduler). */
     @Column(name = "user_id")
     private UUID userId;
 
-    /** E-mail do usuário no momento do evento (desnormalizado para evitar JOIN). */
     @Column(name = "user_email")
     private String userEmail;
 
-    /** Ação realizada. */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 60)
     private AuditAction action;
 
-    /** Tipo da entidade afetada: "Charge", "Student", "Enrollment", etc. */
     @Column(name = "entity_type", nullable = false, length = 50)
     private String entityType;
 
-    /** ID da entidade afetada. */
     @Column(name = "entity_id")
     private UUID entityId;
 
-    /** Descrição legível do evento para exibição no painel. */
     @Column(nullable = false, length = 500)
     private String description;
 

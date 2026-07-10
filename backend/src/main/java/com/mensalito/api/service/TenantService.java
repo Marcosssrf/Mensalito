@@ -49,7 +49,7 @@ public class TenantService {
         try {
             String instanceKey = evolutionInstanceClient.createInstanceWithKey(saved.getId(), dto.name());
             saved.setEvolutionInstanceKey(instanceKey);
-            saved.setEvolutionInstanceName(instanceKey); // mantém em sync para compatibilidade
+            saved.setEvolutionInstanceName(instanceKey);
             saved = tenantRepository.save(saved);
             log.info("Instância Evolution '{}' associada ao tenant {}", instanceKey, saved.getId());
         } catch (Exception e) {
@@ -162,12 +162,10 @@ public class TenantService {
 
         String instanceName = tenant.getEvolutionInstanceKey();
 
-        // Fallback para tenants antigos que ainda não têm a key
         if (instanceName == null || instanceName.isBlank()) {
             instanceName = tenant.getEvolutionInstanceName();
         }
 
-        // Se não tem instância ainda, tenta criar
         if (instanceName == null || instanceName.isBlank()) {
             try {
                 instanceName = evolutionInstanceClient.createInstanceWithKey(tenantId, tenant.getName());
@@ -180,7 +178,6 @@ public class TenantService {
             }
         }
 
-        // Verifica conexão e obtém ownerJid numa única chamada
         EvolutionInstanceClient.ConnectionResult conn = null;
         try {
             conn = evolutionInstanceClient.checkConnection(instanceName);
@@ -198,7 +195,6 @@ public class TenantService {
             return restored;
         }
 
-        // Busca QR Code — nunca deixa estourar
         String qrCode = null;
         try {
             qrCode = evolutionInstanceClient.getQrCode(instanceName);
@@ -245,7 +241,6 @@ public class TenantService {
                 return formatted;
             }
         }
-        // Fallback: tenta fetchInstances
         try {
             String phone = evolutionInstanceClient.getPhoneNumber(instanceName);
             if (phone != null) {
@@ -264,7 +259,6 @@ public class TenantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado"));
 
         if (tenant.getWhatsappTemplates() == null || tenant.getWhatsappTemplates().isBlank()) {
-            // Retorna os defaults
             return new WhatsAppTemplatesResponseDTO(
                     WhatsAppMessageBuilder.DEFAULT_PIX_CHARGE,
                     WhatsAppMessageBuilder.DEFAULT_BOLETO_CHARGE,

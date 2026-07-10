@@ -91,7 +91,6 @@ public class WhatsAppClient {
             String normalized = normalizePhone(phone);
             log.info("[WhatsApp] Baixando PDF '{}' para envio ao número '{}'", fileName, normalized);
 
-            // Baixa o PDF no backend (com auth se necessário) e converte para base64
             String base64Pdf = downloadAsBase64(pdfUrl, bearerToken);
 
             log.info("[WhatsApp] Enviando documento '{}' para '{}' via instância '{}'",
@@ -125,7 +124,6 @@ public class WhatsAppClient {
         }
     }
 
-    /** Baixa um arquivo como base64. Passa Bearer token se a URL exigir autenticação. */
     private String downloadAsBase64(String url, String bearerToken) {
         try {
             var request = restClient.get().uri(url);

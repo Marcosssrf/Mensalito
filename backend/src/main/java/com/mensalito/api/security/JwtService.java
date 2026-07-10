@@ -20,10 +20,7 @@ import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Valida tokens JWT emitidos pelo Supabase via JWKS (ECC P-256).
- * O Spring não gera mais tokens — isso é responsabilidade do Supabase.
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -81,7 +78,6 @@ public class JwtService {
         return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
     }
 
-    /** No token do Supabase, o email fica na claim "email". */
     public String extractEmail(String token) {
         try {
             return getClaims(token).getStringClaim("email");
@@ -90,7 +86,6 @@ public class JwtService {
         }
     }
 
-    /** UUID do usuário no Supabase (claim "sub"). */
     public UUID extractSupabaseUserId(String token) {
         try {
             return UUID.fromString(getClaims(token).getSubject());

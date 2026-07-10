@@ -9,9 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/**
- * Scheduler responsável por marcar convites expirados como "used" em batch.
- */
+
 @Component
 @RequiredArgsConstructor
 @Slf4j

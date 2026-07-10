@@ -17,12 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * AuthService simplificado para a Opção A:
- * - Login/registro/verificação de email → Supabase (frontend chama direto)
- * - Spring só provisiona o tenant+user local após confirmação do Supabase
- * - Logout → blacklist do token no Redis
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -44,15 +39,6 @@ public class AuthService {
     @Value("${app.trusted-proxies:}")
     private java.util.List<String> trustedProxies;
 
-    // -------------------------------------------------------------------------
-    // Provisionamento local após registro confirmado pelo Supabase
-    // -------------------------------------------------------------------------
-
-    /**
-     * Chamado pelo frontend após o usuário confirmar o email no Supabase.
-     * Cria o Tenant e o User local se ainda não existirem.
-     * Retorna o User (existente ou recém-criado).
-     */
     @Transactional
     public User provisionLocalUser(String email, String name,
                                    String schoolName, String schoolPhone,
@@ -82,17 +68,9 @@ public class AuthService {
         });
     }
 
-    // -------------------------------------------------------------------------
-    // Logout
-    // -------------------------------------------------------------------------
-
     public void logout(String token) {
         jwtService.invalidateToken(token);
     }
-
-    // -------------------------------------------------------------------------
-    // Rate limit (mantido para proteção de outros endpoints)
-    // -------------------------------------------------------------------------
 
     public void checkRateLimit(String clientIp) {
         String key = LOGIN_ATTEMPTS_PREFIX + clientIp;

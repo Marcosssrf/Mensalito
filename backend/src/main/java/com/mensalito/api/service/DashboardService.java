@@ -34,7 +34,7 @@ public class DashboardService {
         List<Charge> monthCharges = chargeRepository
                 .findByTenantIdAndDueDateBetween(tenantId, startOfMonth, endOfMonth);
 
-        // Receita prevista: PAID + PENDING do mês atual (mesma base temporal)
+        // Receita prevista: PAID + PENDING do mês atual
         BigDecimal expectedRevenue = monthCharges.stream()
                 .filter(c -> c.getStatus() == ChargeStatus.PENDING || c.getStatus() == ChargeStatus.PAID)
                 .map(Charge::getAmount)
@@ -47,7 +47,6 @@ public class DashboardService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Inadimplência: cobranças PENDING do mês atual com vencimento já passado
-        // (mesma base temporal que expectedRevenue — comparação coerente)
         BigDecimal overdueRevenue = monthCharges.stream()
                 .filter(c -> c.getStatus() == ChargeStatus.PENDING && c.getDueDate().isBefore(now))
                 .map(Charge::getAmount)

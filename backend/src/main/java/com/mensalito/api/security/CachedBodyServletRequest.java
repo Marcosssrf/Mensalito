@@ -8,10 +8,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-/**
- * Wrapper que armazena o body lido pelo WebhookAuthFilter
- * para que o controller possa relê-lo normalmente.
- */
+
 public class CachedBodyServletRequest extends HttpServletRequestWrapper {
 
     private final byte[] cachedBody;

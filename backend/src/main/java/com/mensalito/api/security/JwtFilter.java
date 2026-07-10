@@ -61,10 +61,6 @@ public class JwtFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (UsernameNotFoundException e) {
-                // Usuário ainda não provisionado localmente (ex: chamando /api/auth/provision
-                // pela primeira vez). O token Supabase é válido, mas não há User local ainda.
-                // Deixamos a requisição passar sem autenticação Spring — o endpoint /provision
-                // é público no SecurityConfig e não depende do principal Spring Security.
                 logger.debug("[JwtFilter] Token Supabase válido, mas usuário local não encontrado para: " + email);
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();

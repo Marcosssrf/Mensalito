@@ -21,7 +21,7 @@ public class WhatsAppMessageBuilder {
     private static final DateTimeFormatter DATE_FORMAT      = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter DATE_FORMAT_FULL = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    // Templates padrão — usados quando o tenant não tem template customizado
+    // Templates padrão
     public static final String DEFAULT_PIX_CHARGE =
             "Olá, {aluno}! 👋\n\n"
                     + "Seu PIX de *R$ {valor}* vence {label_data}, *{data}*.\n\n"
@@ -49,10 +49,6 @@ public class WhatsAppMessageBuilder {
                     + "Qualquer dúvida é só chamar aqui. 😊";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    // ---------------------------------------------------------------
-    // API pública — com suporte a templates customizados
-    // ---------------------------------------------------------------
 
     public String buildChargeNotification(Charge charge) {
         Student student = charge.getEnrollment().getStudent();
@@ -94,11 +90,6 @@ public class WhatsAppMessageBuilder {
         }
     }
 
-    // ---------------------------------------------------------------
-    // Substituição de variáveis
-    // Variáveis disponíveis: {aluno}, {valor}, {data}, {label_data}, {dias}
-    // ---------------------------------------------------------------
-
     private String applyChargeVars(String template, Student student, Charge charge) {
         return template
                 .replace("{aluno}",      firstName(student.getName()))
@@ -120,10 +111,6 @@ public class WhatsAppMessageBuilder {
                 .replace("{label_data}", dueDateLabel(charge.getDueDate()))
                 .replace("{data}",       charge.getDueDate().format(DATE_FORMAT));
     }
-
-    // ---------------------------------------------------------------
-    // Helpers para verificação de preferência
-    // ---------------------------------------------------------------
 
     public boolean isPixPreference(Student student) {
         return resolvePreference(student) == PaymentPreference.PIX;
@@ -148,10 +135,6 @@ public class WhatsAppMessageBuilder {
         return null;
     }
 
-    // ---------------------------------------------------------------
-    // Carrega templates customizados do tenant (JSON armazenado na coluna)
-    // ---------------------------------------------------------------
-
     public WhatsAppTemplatesResponseDTO loadCustomTemplates(Tenant tenant) {
         if (tenant == null || tenant.getWhatsappTemplates() == null || tenant.getWhatsappTemplates().isBlank()) {
             return null;
@@ -163,10 +146,6 @@ public class WhatsAppMessageBuilder {
             return null;
         }
     }
-
-    // ---------------------------------------------------------------
-    // Helpers internos
-    // ---------------------------------------------------------------
 
     private PaymentPreference resolvePreference(Student student) {
         return student.getPaymentPreference() != null

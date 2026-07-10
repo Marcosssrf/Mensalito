@@ -13,14 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * AuthController — Opção A (Supabase como provedor de auth).
- *
- * Login, registro e verificação de email acontecem no Supabase (frontend).
- * O Spring expõe apenas:
- *   POST /api/auth/provision  — cria tenant+user local após confirmação do Supabase
- *   POST /api/auth/logout     — blacklista o token no Redis
- */
+
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
@@ -34,9 +27,6 @@ public class AuthController {
      * Chamado pelo frontend logo após o usuário confirmar o email no Supabase
      * e receber o token. Cria (ou retorna) o Tenant e User local.
      *
-     * Este endpoint é público no SecurityConfig. O token Supabase pode ser
-     * válido sem que exista um User local ainda, portanto não dependemos do
-     * principal Spring Security aqui.
      *
      * Body esperado:
      * {
@@ -70,10 +60,6 @@ public class AuthController {
         authService.logout(authHeader.substring(7));
         return ResponseEntity.noContent().build();
     }
-
-    // -------------------------------------------------------------------------
-    // Utilitários (mantidos)
-    // -------------------------------------------------------------------------
 
     @DeleteMapping("/login-attempts/{ip}")
     @PreAuthorize("hasRole('OWNER')")

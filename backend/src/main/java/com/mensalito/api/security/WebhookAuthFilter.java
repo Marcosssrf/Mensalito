@@ -20,11 +20,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
-/**
- * Valida a assinatura HMAC-SHA256 do webhook do Mercado Pago.
- * O MP envia o header "x-signature" com formato "ts=...,v1=..."
- * e o header "x-request-id" usados para montar o manifest a ser validado.
- */
+
 @Slf4j
 @Component
 public class WebhookAuthFilter extends OncePerRequestFilter {
@@ -61,7 +57,6 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Extrai ts e v1 do header x-signature (formato: "ts=123,v1=abc")
         String ts = null, v1 = null;
         for (String part : xSignature.split(",")) {
             if (part.startsWith("ts=")) ts = part.substring(3).trim();
@@ -75,7 +70,6 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Lê o body para extrair data.id e reutilizar no controller
         byte[] body = StreamUtils.copyToByteArray(request.getInputStream());
         String dataId = extractDataId(body);
 
@@ -86,8 +80,6 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Manifest conforme documentação do MP:
-        // "id:{data.id};request-id:{x-request-id};ts:{ts};"
         String manifest = "id:" + dataId + ";request-id:" + xRequestId + ";ts:" + ts + ";";
         String expected = computeHmac(manifest);
 
@@ -98,7 +90,6 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Envolve o request para que o body possa ser relido pelo controller
         filterChain.doFilter(new CachedBodyServletRequest(request, body), response);
     }
 
@@ -123,7 +114,6 @@ public class WebhookAuthFilter extends OncePerRequestFilter {
         }
     }
 
-    /** Comparação em tempo constante para evitar timing attacks */
     private boolean constantTimeEquals(String a, String b) {
         if (a.length() != b.length()) return false;
         int result = 0;

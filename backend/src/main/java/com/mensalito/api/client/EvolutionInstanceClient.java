@@ -12,10 +12,7 @@ import java.text.Normalizer;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Cliente para gerenciamento de instâncias na Evolution API.
- * Cada escola (tenant) tem sua própria instância — isolamento total.
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -31,7 +28,6 @@ public class EvolutionInstanceClient {
     }
 
     public String createInstanceWithKey(UUID tenantId, String schoolName) {
-        // Prefixo legível do nome + sufixo curto do UUID para unicidade
         String prefix = sanitizeInstanceName(schoolName);
         String suffix = tenantId.toString().replace("-", "").substring(0, 8);
         String key = (prefix + "-" + suffix);
@@ -41,7 +37,6 @@ public class EvolutionInstanceClient {
 
     private String doCreateInstance(String instanceName) {
 
-        // Valida configuração antes de tentar a chamada
         if (config.getApiUrl() == null || config.getApiUrl().isBlank()) {
             log.warn("[Evolution] EVOLUTION_API_URL não configurada — instância '{}' será criada manualmente depois.", instanceName);
             return instanceName;
@@ -65,7 +60,6 @@ public class EvolutionInstanceClient {
                     ))
                     .retrieve()
                     .onStatus(status -> status.value() == 409, (req, res) -> {
-                        // 409 = instância já existe — não é erro, ignora silenciosamente
                         log.info("[Evolution] Instância '{}' já existe (409), seguindo normalmente.", instanceName);
                     })
                     .body(String.class);
@@ -90,7 +84,6 @@ public class EvolutionInstanceClient {
             log.error("[Evolution] Erro inesperado ao criar instância '{}': {}", instanceName, e.getMessage(), e);
         }
 
-        // Sempre retorna o instanceName — o tenant será salvo e a conexão feita depois
         return instanceName;
     }
 
@@ -106,13 +99,11 @@ public class EvolutionInstanceClient {
 
             if (body == null) return new ConnectionResult(false, null);
 
-            // INFO para ver o JSON completo no log e diagnosticar campos disponíveis
             log.info("[Evolution] connectionState RAW '{}': {}", instanceName, body);
 
             @SuppressWarnings("unchecked")
             Map<String, Object> response = objectMapper.readValue(body, Map.class);
 
-            // Formato: { "instance": { "instanceName": "...", "state": "open", "owner": "5511...@s.whatsapp.net" } }
             Object instanceObj = response.get("instance");
             if (instanceObj instanceof Map<?, ?> instanceMap) {
                 String state = (String) instanceMap.get("state");
@@ -122,7 +113,6 @@ public class EvolutionInstanceClient {
                 if (open) {
                     log.info("[Evolution] Valores do instance '{}': owner={} ownerJid={} ownerNumber={}",
                             instanceName, instanceMap.get("owner"), instanceMap.get("ownerJid"), instanceMap.get("ownerNumber"));
-                    // Tenta owner, ownerJid, ownerNumber em ordem
                     String jid = firstNonNull(
                             (String) instanceMap.get("owner"),
                             (String) instanceMap.get("ownerJid"),
@@ -133,7 +123,6 @@ public class EvolutionInstanceClient {
                 return new ConnectionResult(false, null);
             }
 
-            // Formato alternativo direto: { "state": "open", "owner": "..." }
             String directState = (String) response.get("state");
             if (directState != null) {
                 boolean open = "open".equals(directState);
@@ -219,7 +208,6 @@ public class EvolutionInstanceClient {
             @SuppressWarnings("unchecked")
             Object parsed = objectMapper.readValue(body, Object.class);
 
-            // Resposta pode ser objeto ou array com um elemento
             Map<String, Object> data = null;
             if (parsed instanceof java.util.List<?> list && !list.isEmpty()) {
                 if (list.get(0) instanceof Map<?, ?> m) {
@@ -235,14 +223,12 @@ public class EvolutionInstanceClient {
 
             if (data == null) return null;
 
-            // Tenta owner.id (formato "5511999998888@s.whatsapp.net")
             Object ownerObj = data.get("owner");
             if (ownerObj instanceof String owner && !owner.isBlank()) {
                 String number = owner.replace("@s.whatsapp.net", "").replace("@c.us", "");
                 return formatPhoneNumber(number);
             }
 
-            // Tenta ownerJid
             Object ownerJid = data.get("ownerJid");
             if (ownerJid instanceof String jid && !jid.isBlank()) {
                 String number = jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
@@ -259,7 +245,6 @@ public class EvolutionInstanceClient {
     private String formatPhoneNumber(String raw) {
         if (raw == null) return null;
         String digits = raw.replaceAll("\\D", "");
-        // Formato BR: 55 + DDD (2) + número (8 ou 9)
         if (digits.startsWith("55") && digits.length() >= 12) {
             String ddd = digits.substring(2, 4);
             String num = digits.substring(4);

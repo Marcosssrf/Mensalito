@@ -31,17 +31,6 @@ public class InviteController {
         return ResponseEntity.ok(inviteService.previewInvite(token));
     }
 
-    /**
-     * Aceita o convite — usuário já deve estar autenticado via Supabase.
-     * Fluxo: frontend registra no Supabase → confirma email → chama este endpoint com o token JWT.
-     *
-     * Body esperado:
-     * {
-     *   "token": "<invite-token>",
-     *   "email": "<email do usuário autenticado>",
-     *   "name": "<nome do usuário>"
-     * }
-     */
     @PostMapping("/accept")
     public ResponseEntity<Void> accept(@RequestBody Map<String, String> body) {
         String token = body.get("token");

@@ -14,13 +14,11 @@ import java.util.UUID;
 
 public interface ChargeRepository extends JpaRepository<Charge, UUID> {
 
-    // Paginated queries (preferred for API responses)
     Page<Charge> findByTenantId(UUID tenantId, Pageable pageable);
     Page<Charge> findByTenantIdAndEnrollmentId(UUID tenantId, UUID enrollmentId, Pageable pageable);
     Page<Charge> findByTenantIdAndStatus(UUID tenantId, ChargeStatus status, Pageable pageable);
     Page<Charge> findByTenantIdAndDueDate(UUID tenantId, LocalDate dueDate, Pageable pageable);
 
-    // Non-paginated (used internally by scheduler)
     List<Charge> findByTenantIdAndEnrollmentId(UUID tenantId, UUID enrollmentId);
     List<Charge> findByTenantIdAndDueDate(UUID tenantId, LocalDate dueDate);
     List<Charge> findByTenantIdAndStatus(UUID tenantId, ChargeStatus status);

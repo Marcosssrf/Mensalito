@@ -112,7 +112,7 @@ public class InviteService {
         invite.setUsed(true);
         inviteRepository.save(invite);
 
-        // logSystem pois não há SecurityContext no momento do aceite
+
         auditService.logSystem(invite.getTenant().getId(),
                 AuditAction.USER_REGISTERED, "User", user.getId(),
                 "Usuário registrado via convite: " + email + " — role: " + invite.getRole().name());

@@ -106,7 +106,6 @@ public class StudentService {
         if (dto.paymentPreference() != null) student.setPaymentPreference(dto.paymentPreference());
         if (dto.address() != null)           student.setAddress(toAddressModel(dto.address()));
 
-        // trialEndsAt NÃO é tocado aqui — use PATCH /students/{id}/trial
 
         student = studentRepository.save(student);
         log.info("Aluno atualizado: studentId={}, preferencia={}", student.getId(), student.getPaymentPreference());
@@ -117,11 +116,6 @@ public class StudentService {
         return toResponse(student);
     }
 
-    /**
-     * Define ou remove o período de trial do aluno.
-     * Endpoint dedicado: PATCH /students/{id}/trial
-     * trialEndsAt = null → remove o trial
-     */
     public StudentResponseDTO setTrial(UUID id, TrialRequestDTO dto) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
         Student student = studentRepository.findByIdAndTenantId(id, tenantId)
@@ -166,10 +160,6 @@ public class StudentService {
         return toResponse(student);
     }
 
-    /**
-     * Envia uma mensagem de texto personalizada via WhatsApp para um aluno específico.
-     * Requer que o aluno tenha telefone cadastrado e que o tenant tenha instância Evolution configurada.
-     */
     public WhatsAppSendResultDTO sendCustomWhatsAppMessage(UUID studentId, String message) {
         UUID tenantId = securityUtils.getAuthenticatedTenantId();
 
@@ -203,8 +193,6 @@ public class StudentService {
             return new WhatsAppSendResultDTO(false, "Falha ao enviar a mensagem. Verifique se o WhatsApp está conectado.");
         }
     }
-
-    // ---------- helpers ----------
 
     private Address toAddressModel(AddressDTO dto) {
         if (dto == null) return null;

@@ -55,13 +55,6 @@ public class StudentController {
         return ResponseEntity.ok(studentService.update(id, dto));
     }
 
-    /**
-     * Define ou remove o período de trial de um aluno.
-     * PATCH /api/students/{id}/trial
-     *
-     * Body: { "trialEndsAt": "2026-08-31" }  → define trial
-     * Body: { "trialEndsAt": null }           → remove trial
-     */
     @PreAuthorize("hasRole('OWNER')")
     @PatchMapping(value = "/{id}/trial")
     public ResponseEntity<StudentResponseDTO> setTrial(
@@ -82,10 +75,6 @@ public class StudentController {
         return ResponseEntity.ok(studentService.reactivate(id));
     }
 
-    /**
-     * Envia uma mensagem de texto personalizada via WhatsApp para o aluno.
-     * POST /api/students/{id}/whatsapp/message
-     */
     @PostMapping(value = "/{id}/whatsapp/message")
     public ResponseEntity<WhatsAppSendResultDTO> sendWhatsAppMessage(
             @PathVariable UUID id,

@@ -36,17 +36,11 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Provision e logout são públicos (token validado pelo JwtFilter)
                         .requestMatchers("/api/auth/provision", "/api/auth/logout").permitAll()
-                        // Convites: preview e accept são públicos; criar exige auth
                         .requestMatchers(HttpMethod.GET,  "/api/invites/*/preview").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/invites/accept").permitAll()
-                        // Webhooks — autenticação feita via HMAC no WebhookAuthFilter
                         .requestMatchers(HttpMethod.POST, "/api/webhooks/**").permitAll()
-                        // Tudo mais exige autenticação
                         .anyRequest().authenticated()
                 )
-                // WebhookAuthFilter valida HMAC antes do JwtFilter
                 .addFilterBefore(webhookAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

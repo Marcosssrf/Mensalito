@@ -14,10 +14,7 @@ public interface InviteRepository extends JpaRepository<Invite, UUID> {
 
     Optional<Invite> findByToken(String token);
 
-    /**
-     * Marca em batch todos os convites não-usados cujo expiresAt já passou.
-     * Retorna o número de registros afetados.
-     */
+
     @Modifying
     @Query("UPDATE Invite i SET i.used = true WHERE i.used = false AND i.expiresAt < :now")
     int markExpiredInvites(@Param("now") LocalDateTime now);

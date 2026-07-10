@@ -104,9 +104,6 @@ public class UserService implements UserDetailsService {
         return toResponse(target);
     }
 
-    // OWNER pode editar qualquer usuário do próprio tenant
-    // TEACHER só pode editar a si mesmo
-    // Ninguém pode editar usuário de outro tenant
     private void checkEditPermission(User authenticated, User target) {
         boolean sameTenant = authenticated.getTenant().getId()
                 .equals(target.getTenant().getId());

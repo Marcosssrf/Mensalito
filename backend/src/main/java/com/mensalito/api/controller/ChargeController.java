@@ -51,10 +51,7 @@ public class ChargeController {
         return ResponseEntity.created(uri).body(charge);
     }
 
-    /**
-     * Cria uma cobrança MANUAL, sem acionar qualquer gateway de pagamento.
-     * O valor pode ser customizado; se omitido, usa o valor do plano da matrícula.
-     */
+
     @PostMapping("/manual")
     public ResponseEntity<ChargeResponseDTO> createManual(@RequestBody @Valid ManualChargeRequestDTO dto) {
         ChargeResponseDTO charge = chargeService.createManual(dto);
@@ -66,11 +63,6 @@ public class ChargeController {
         return ResponseEntity.created(uri).body(charge);
     }
 
-    // --------------------------------------------------------------- PATCH --
-
-    /**
-     * Atualiza o status de uma cobrança de forma genérica (compatibilidade).
-     */
     @PatchMapping(value = "/{id}/status")
     public ResponseEntity<ChargeResponseDTO> updateStatus(
             @PathVariable UUID id,
@@ -85,16 +77,10 @@ public class ChargeController {
         return ResponseEntity.ok(chargeService.confirmManualPayment(id, dto));
     }
 
-    /**
-     * Cancela uma cobrança pendente ou em atraso.
-     * Cobranças já pagas não podem ser canceladas por este endpoint.
-     */
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<ChargeResponseDTO> cancel(@PathVariable UUID id) {
         return ResponseEntity.ok(chargeService.cancel(id));
     }
-
-    // ----------------------------------------------------------------- UTIL --
 
     @PostMapping("/{id}/resend-notification")
     public ResponseEntity<ChargeResponseDTO> resendNotification(@PathVariable UUID id) {
