@@ -1,6 +1,6 @@
-# Mensalito API
+# Mensalito
 
-API backend do **Mensalito**, um sistema SaaS multi-tenant de gestão de mensalidades escolares. A plataforma permite que escolas (tenants) gerenciem turmas, alunos, matrículas e planos de pagamento, com geração automática de cobranças recorrentes (PIX/Boleto via Mercado Pago) e envio de notificações via WhatsApp (Evolution API).
+**Mensalito**, um sistema SaaS multi-tenant de gestão de mensalidades escolares. A plataforma permite que escolas (tenants) gerenciem turmas, alunos, matrículas e planos de pagamento, com geração automática de cobranças recorrentes (PIX/Boleto via Mercado Pago) e envio de notificações via WhatsApp (Evolution API).
 
 ## Principais funcionalidades
 
