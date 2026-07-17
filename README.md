@@ -1,420 +1,139 @@
-# Mensalito
+# Mensalito API
 
-Sistema de gestão de cobranças para escolas e cursos, com suporte a múltiplos gateways de pagamento, notificações via WhatsApp e arquitetura multi-tenant.
+API backend do **Mensalito**, um sistema SaaS multi-tenant de gestão de mensalidades escolares. A plataforma permite que escolas (tenants) gerenciem turmas, alunos, matrículas e planos de pagamento, com geração automática de cobranças recorrentes (PIX/Boleto via Mercado Pago) e envio de notificações via WhatsApp (Evolution API).
 
----
+## Principais funcionalidades
 
-## Sumário
+- **Multi-tenant**: cada escola (`Tenant`) opera de forma isolada, com seus próprios usuários, alunos, turmas e cobranças.
+- **Gestão acadêmica**: cadastro de turmas (`SchoolClass`), alunos (`Student`) e matrículas (`Enrollment`) vinculando aluno, turma e plano.
+- **Planos e cobranças**: criação de planos de mensalidade (`Plan`) e geração automática mensal de cobranças (`Charge`), com suporte a cobrança manual, confirmação de pagamento, cancelamento e reenvio de notificação.
+- **Pagamentos (Mercado Pago)**: integração para criação de clientes/ordens de pagamento e recebimento de status via webhook.
+- **WhatsApp (Evolution API)**: provisionamento de instância, templates de mensagem, envio de lembretes de cobrança/vencimento e estatísticas de envio.
+- **Convites**: convite de novos usuários (`Invite`) para uma escola, com aceite via token e expiração automática.
+- **Autenticação e autorização**: login/provisionamento via Supabase, JWT próprio da API, papéis `OWNER` e `TEACHER`, bloqueio de tentativas de login (login-attempts) e proteção de webhooks por autenticação dedicada.
+- **Auditoria**: registro de ações relevantes do sistema (`AuditLog`), consultável via endpoint dedicado.
+- **Dashboard**: endpoint agregado com indicadores da escola (financeiro/operacional).
+- **Jobs agendados**:
+  - Geração mensal de cobranças (todo dia às 8h).
+  - Marcação de cobranças vencidas como `OVERDUE` e envio de lembretes de atraso (todo dia às 9h).
+  - Expiração automática de convites (todo dia às 2h).
 
-- [Visão Geral](#visão-geral)
-- [Arquitetura](#arquitetura)
-- [Tecnologias](#tecnologias)
-- [Funcionalidades](#funcionalidades)
-- [Modelo de Dados](#modelo-de-dados)
-- [Autenticação e Controle de Acesso](#autenticação-e-controle-de-acesso)
-- [Integrações Externas](#integrações-externas)
-- [Agendamento Automático](#agendamento-automático)
-- [API — Endpoints Principais](#api--endpoints-principais)
-- [Frontend — Páginas](#frontend--páginas)
-- [Configuração e Variáveis de Ambiente](#configuração-e-variáveis-de-ambiente)
-- [Execução Local](#execução-local)
-- [Estrutura de Pastas](#estrutura-de-pastas)
+## Stack técnica
 
----
+- **Java + Spring Boot** (Spring Web, Spring Security, Spring Data JPA)
+- **PostgreSQL** como banco de dados, com **Flyway** para versionamento de schema (`src/main/resources/db/migration`)
+- **Redis** para cache/estado (ex.: controle de tentativas de login)
+- **Spring Scheduling** (`@EnableScheduling`) para os jobs recorrentes
+- **JWT** para autenticação da API e **Supabase** como provedor de identidade/provisionamento
+- **Mercado Pago API** como gateway de pagamento (PIX/Boleto)
+- **Evolution API** para integração com WhatsApp
+- **JUnit 5 + Mockito** para testes
 
-## Visão Geral
-
-O **Mensalito** é uma plataforma SaaS multi-tenant voltada para escolas, academias e cursos que precisam gerenciar alunos, turmas, matrículas e cobranças mensais de forma automatizada. O sistema integra-se com o **Mercado Pago** para geração de boletos e PIX, com a **Evolution API** para envio de mensagens via WhatsApp, e utiliza o **Supabase** como provedor de autenticação.
-
-Cada escola (tenant) possui um ambiente completamente isolado. Os usuários podem ter o papel de **OWNER** (acesso total) ou **TEACHER** (acesso limitado), sendo possível convidar colaboradores via link.
-
----
-
-## Arquitetura
+## Estrutura do projeto
 
 ```
-┌──────────────────────────────┐
-│        Frontend (React)       │
-│   Vite · TypeScript · Tailwind│
-└──────────────┬───────────────┘
-               │ HTTPS / REST
-┌──────────────▼───────────────┐
-│       Backend (Spring Boot)   │
-│   Java 21 · Spring Security   │
-│   JWT (Supabase) · Flyway     │
-└────┬────────┬────────┬───────┘
-     │        │        │
- PostgreSQL  Redis  Integrações
-             (cache  (Mercado Pago,
-             /rate    Evolution API,
-             limit)   Supabase Auth)
+src/main/java/com/mensalito/api
+├── ApiApplication.java        # Entry point (Spring Boot)
+├── client/                    # Clientes HTTP externos (Mercado Pago, WhatsApp, Evolution)
+├── config/                    # Configurações (Security, CORS, Mercado Pago, Evolution)
+├── controller/                # Endpoints REST
+├── dto/                       # Request/Response DTOs (inclui subpasta mercadopago/)
+├── exception/                 # Exceções customizadas e handler global
+├── model/                     # Entidades JPA e enums
+├── repository/                # Repositórios Spring Data JPA
+├── scheduler/                 # Jobs agendados (cobranças, convites)
+├── security/                  # Filtros JWT, filtro de webhook, utilitários de segurança
+└── service/                   # Regras de negócio
+
+src/main/resources
+├── application.yaml           # Configuração principal (via variáveis de ambiente)
+├── application-test.yaml      # Configuração do profile de testes
+└── db/migration/              # Scripts Flyway (V1 ... V15)
+
+src/test/java/com/mensalito/api  # Testes (contexto Spring, serviços, config de Redis mockado)
 ```
 
-O backend segue o padrão **Controller → Service → Repository** com separação clara de DTOs de request/response. A autenticação é feita pelo Supabase; o backend valida os tokens JWT emitidos pelo Supabase e provisiona os dados locais do tenant/usuário na primeira autenticação.
+> Observação: este repositório contém apenas a pasta `src`. Não há `pom.xml`/`build.gradle` incluído nesta cópia — adicione o arquivo de build do projeto (Maven ou Gradle) na raiz para compilar/executar localmente.
 
----
+## Modelo de dados (resumo)
 
-## Tecnologias
+Principais tabelas (ver migrações Flyway para o histórico completo):
 
-### Backend
-- **Java 21** com **Spring Boot 3**
-- **Spring Security** com filtro JWT customizado
-- **Spring Data JPA** + **Hibernate** (DDL validado pelo Flyway)
-- **Flyway** para migrações de banco de dados (12 versões)
-- **PostgreSQL** como banco de dados principal
-- **Redis** para blacklist de tokens, rate limiting e deduplicação do scheduler
-- **Lombok** para redução de boilerplate
-- **Supabase** como provedor de autenticação (JWT RS256/HS256)
+- `tenants` — escolas
+- `users` — usuários (donos/professores) de cada escola
+- `plans` — planos de mensalidade
+- `classes` — turmas
+- `students` — alunos
+- `enrollments` — matrículas (aluno + turma + plano)
+- `charges` — cobranças geradas (status: `PENDING`, `PAID`, `OVERDUE`, `CANCELLED`, `REFUNDED`, `LOST`, `DISPUTED`)
+- `invites` — convites de acesso
+- `audit_logs` — trilha de auditoria
 
-### Frontend
-- **React 18** com **TypeScript**
-- **Vite** como bundler
-- **React Router v6** para roteamento
-- **Axios** com interceptors para autenticação automática
-- **Tailwind CSS** para estilização
-- **Shadcn/UI** como biblioteca de componentes base
-- **Supabase JS SDK** para signup/login diretamente no frontend
+As migrações posteriores (`V2` a `V15`) adicionam, entre outros pontos: integração com Mercado Pago, instância/chave da Evolution API, papéis e convites, preferências de pagamento, endereço do aluno, URL de boleto, flag de cobrança manual, data de envio via WhatsApp, normalização de documentos, tabela de auditoria, trial de alunos e templates de WhatsApp.
 
----
+## Principais endpoints (`/api/...`)
 
-## Funcionalidades
-
-### Gestão de Alunos
-- Cadastro completo com nome, email, telefone, documento (CPF/CNPJ) e endereço
-- Ativação e desativação de alunos
-- Preferência de pagamento por aluno: **PIX** ou **Boleto**
-- Página de detalhe do aluno com histórico de cobranças e matrículas
-
-### Turmas e Planos
-- Criação de turmas com nome e descrição
-- Planos de pagamento com valor e dia de vencimento mensal
-- Associação de múltiplos alunos a turmas e planos
-
-### Matrículas
-- Vinculação de aluno + turma + plano com data de início e fim
-- Ativação e desativação de matrículas
-- Somente matrículas ativas geram cobranças
-
-### Cobranças
-- **Geração automática** de cobranças mensais (via scheduler às 8h)
-- **Geração manual** avulsa com valor customizável
-- Integração com **Mercado Pago** para criação de ordens de pagamento (PIX e boleto)
-- Status: `PENDING`, `PAID`, `OVERDUE`, `CANCELLED`, `REFUNDED`, `LOST`, `DISPUTED`
-- Confirmação manual de pagamento
-- Cancelamento de cobranças pendentes ou em atraso
-- Proteção contra cobranças duplicadas no mesmo mês
-
-### Notificações via WhatsApp
-- Envio automático de cobrança ao criar (PIX ou boleto, com link e linha digitável)
-- Lembretes automáticos para cobranças em atraso (às 9h diariamente)
-- Reenvio manual de notificação por cobrança
-- Mensagens personalizadas com nome do aluno, valor e data de vencimento
-
-### Dashboard
-- Receita esperada, recebida e em atraso
-- Total de alunos ativos
-- Contagem de cobranças pendentes, pagas e em atraso
-
-### Relatórios
-- Visão consolidada das cobranças por período
-
-### Configurações
-- Configuração da chave da API do Mercado Pago por tenant (salva criptografada)
-- Configuração da instância WhatsApp (Evolution API)
-- Dados da escola (nome, telefone, documento)
-- Troca de senha do usuário
-
-### Professores / Equipe
-- Convite de colaboradores por email com papel `TEACHER`
-- Link de convite com expiração automática
-- Aceite de convite via página dedicada
-
-### Atividade
-- Log de atividades recentes no sistema
-
----
-
-## Modelo de Dados
-
-O banco é gerenciado pelo Flyway com 12 migrações. As entidades principais são:
-
-| Tabela | Descrição |
-|---|---|
-| `tenants` | Escolas/organizações (multi-tenant) |
-| `users` | Usuários vinculados a um tenant, com papel `OWNER` ou `TEACHER` |
-| `plans` | Planos de pagamento com valor e dia de vencimento |
-| `classes` | Turmas da escola |
-| `students` | Alunos com endereço e preferência de pagamento |
-| `enrollments` | Matrícula: vínculo entre aluno, turma e plano |
-| `charges` | Cobranças geradas por matrícula |
-| `invites` | Convites para novos usuários com token e expiração |
-
-Campos adicionados ao longo das migrações:
-- Integração com **Mercado Pago**: `mercado_pago_customer_id`, `mercado_pago_order_id`
-- Integração com **AbacatePay** (legado): `abacate_pay_checkout_id`, `checkout_url`
-- Instância **WhatsApp** por tenant: `evolution_instance_name`, `evolution_instance_key`
-- Endereço completo nos alunos
-- Flag `manual` nas cobranças para diferenciar cobranças manuais das automáticas
-- Campo `whatsapp_sent_at` para rastrear envio das notificações
-- Normalização de documentos (somente dígitos)
-
----
-
-## Autenticação e Controle de Acesso
-
-O fluxo de autenticação funciona da seguinte forma:
-
-1. O usuário realiza login ou cadastro diretamente no **Supabase** via frontend
-2. O Supabase retorna um `access_token` JWT
-3. O frontend chama `POST /api/auth/provision` para criar (ou recuperar) o tenant e usuário local
-4. Todas as requisições subsequentes enviam o token JWT no header `Authorization: Bearer <token>`
-5. O `JwtFilter` valida o token junto ao Supabase e popula o `SecurityContext` do Spring
-
-O token JWT pode ser invalidado via `POST /api/auth/logout`, que o insere em uma blacklist no Redis.
-
-Há proteção contra brute force por IP com desbloqueio manual pelo OWNER ou via secret.
-
-**Papéis disponíveis:**
-- `OWNER` — acesso completo a todos os recursos
-- `TEACHER` — acesso de leitura e operações básicas
-
----
-
-## Integrações Externas
-
-### Mercado Pago
-- Criação de ordens de pagamento (PIX e boleto)
-- Recebimento de webhooks em `POST /api/webhooks/mercadopago` para atualização automática de status de cobranças
-- A chave de API é configurada por tenant e armazenada de forma criptografada (AES via `EncryptionService`)
-
-### Evolution API (WhatsApp)
-- Envio de mensagens de texto e documentos (PDF do boleto)
-- Cada tenant pode ter sua própria instância configurada
-- Utilizada pelo `WhatsAppClient` e `WhatsAppMessageBuilder`
-
-### Supabase
-- Provedor de autenticação (signup, login, confirmação de email)
-- Validação de tokens JWT no backend via `JwtService`
-- Configurado com `SUPABASE_URL` e `SUPABASE_ANON_KEY`
-
----
-
-## Agendamento Automático
-
-Dois jobs rodam diariamente:
-
-| Horário | Ação |
-|---|---|
-| **08h00** | Geração automática das cobranças mensais para todas as matrículas ativas |
-| **09h00** | Marcação de cobranças vencidas como `OVERDUE` + envio de lembretes via WhatsApp |
-
-Os jobs utilizam Redis para garantir que a geração não execute mais de uma vez por dia (deduplicação por chave com TTL). O endpoint `POST /api/charges/generate-charges?force=true` permite forçar a geração manualmente.
-
----
-
-## API — Endpoints Principais
-
-Todos os endpoints (exceto os públicos) requerem o header `Authorization: Bearer <token>`.
-
-### Autenticação
-| Método | Rota | Descrição |
+| Recurso | Base | Descrição |
 |---|---|---|
-| `POST` | `/api/auth/provision` | Provisiona tenant e usuário local após confirmação Supabase |
-| `POST` | `/api/auth/logout` | Invalida o token no Redis |
+| Auth | `/api/auth` | Provisionamento, logout, controle de tentativas de login |
+| Tenants | `/api/tenants` | Dados da escola, chave de API, integração e templates de WhatsApp |
+| Users | `/api/users` | Usuários da escola, troca de senha |
+| Plans | `/api/plans` | Planos de mensalidade (criar, editar, ativar/desativar) |
+| Classes | `/api/classes` | Turmas |
+| Students | `/api/students` | Alunos, trial, envio de mensagem WhatsApp |
+| Enrollments | `/api/enrollments` | Matrículas |
+| Charges | `/api/charges` | Cobranças (listar, criar, cobrança manual, status, confirmar pagamento, cancelar, reenviar notificação, gerar cobranças em lote) |
+| Invites | `/api/invites` | Criar convite, preview público por token, aceitar convite |
+| Dashboard | `/api/dashboard` | Indicadores agregados da escola |
+| Audit | `/api/audit` | Consulta de logs de auditoria |
+| Webhooks | `/api/webhooks/mercadopago` | Recebimento de eventos de pagamento |
 
-### Alunos
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/students` | Lista alunos paginados |
-| `GET` | `/api/students/{id}` | Busca aluno por ID |
-| `POST` | `/api/students` | Cria aluno |
-| `PATCH` | `/api/students/{id}` | Atualiza aluno |
-| `PATCH` | `/api/students/{id}/deactivate` | Desativa aluno (OWNER) |
-| `PATCH` | `/api/students/{id}/reactivate` | Reativa aluno (OWNER) |
+Todas as rotas exigem autenticação (JWT), exceto `/api/auth/provision`, `/api/auth/logout`, `GET /api/invites/{token}/preview` e `POST /api/webhooks/**` (protegido por um filtro de autenticação próprio para webhooks).
 
-### Turmas, Planos, Matrículas
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET/POST` | `/api/classes` | Lista / cria turmas |
-| `PATCH/DELETE` | `/api/classes/{id}` | Atualiza / remove turma |
-| `GET/POST` | `/api/plans` | Lista / cria planos |
-| `GET/POST` | `/api/enrollments` | Lista / cria matrículas |
-| `PATCH` | `/api/enrollments/{id}/deactivate` | Desativa matrícula |
+## Configuração (variáveis de ambiente)
 
-### Cobranças
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/charges` | Lista cobranças com filtros (enrollmentId, status, dueDate) |
-| `POST` | `/api/charges` | Cria cobrança via gateway |
-| `POST` | `/api/charges/manual` | Cria cobrança manual (sem gateway) |
-| `PATCH` | `/api/charges/{id}/status` | Atualiza status |
-| `PATCH` | `/api/charges/{id}/confirm-payment` | Confirma pagamento manual |
-| `PATCH` | `/api/charges/{id}/cancel` | Cancela cobrança |
-| `POST` | `/api/charges/{id}/resend-notification` | Reenvia notificação WhatsApp |
-| `POST` | `/api/charges/generate-charges` | Dispara geração manual das cobranças |
-
-### Dashboard e Relatórios
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/dashboard` | Retorna métricas consolidadas |
-
-### Webhooks
-| Método | Rota | Descrição |
-|---|---|---|
-| `POST` | `/api/webhooks/mercadopago` | Recebe notificações de pagamento do Mercado Pago |
-
-### Convites e Usuários
-| Método | Rota | Descrição |
-|---|---|---|
-| `POST` | `/api/invites` | Cria convite para novo usuário |
-| `GET` | `/api/invites/{token}` | Valida token de convite |
-| `POST` | `/api/invites/{token}/accept` | Aceita convite e cria usuário |
-| `GET/PATCH` | `/api/users/me` | Dados do usuário autenticado |
-
----
-
-## Frontend — Páginas
-
-| Rota | Página | Descrição |
-|---|---|---|
-| `/` | LandingPage | Página inicial pública |
-| `/login` | LoginPage | Login via Supabase |
-| `/register` | RegisterPage | Cadastro de nova escola |
-| `/register?invite=...` | AcceptInvitePage | Aceite de convite |
-| `/auth/callback` | AuthCallbackPage | Callback do Supabase após confirmação de email |
-| `/app/dashboard` | DashboardPage | Métricas e resumo financeiro |
-| `/app/students` | StudentsPage | Listagem e gestão de alunos |
-| `/app/students/:id` | StudentDetailPage | Detalhe do aluno com cobranças e matrículas |
-| `/app/plans` | PlansPage | Gestão de planos de pagamento |
-| `/app/classes` | ClassesPage | Gestão de turmas |
-| `/app/enrollments` | EnrollmentsPage | Gestão de matrículas |
-| `/app/charges` | ChargesPage | Listagem e gestão de cobranças |
-| `/app/reports` | ReportsPage | Relatórios financeiros |
-| `/app/whatsapp` | WhatsAppPage | Configuração e status do WhatsApp |
-| `/app/teachers` | TeachersPage | Gestão de professores e convites |
-| `/app/activity` | ActivityPage | Log de atividades |
-| `/app/billing` | BillingPage | Plano e faturamento do sistema |
-| `/app/settings` | SettingsPage | Configurações da escola, API keys e senha |
-
----
-
-## Configuração e Variáveis de Ambiente
-
-### Backend (`application.yaml`)
+A aplicação é configurada via `src/main/resources/application.yaml`, lendo as seguintes variáveis:
 
 | Variável | Descrição |
 |---|---|
-| `DB_URL` | URL de conexão PostgreSQL (ex: `jdbc:postgresql://host:5432/mensalito`) |
-| `DB_USERNAME` | Usuário do banco |
-| `DB_PASSWORD` | Senha do banco |
-| `REDIS_URL` | URL do Redis (ex: `redis://localhost:6379`) |
-| `SUPABASE_URL` | URL do projeto Supabase |
-| `SUPABASE_ANON_KEY` | Chave anon/pública do Supabase |
-| `MERCADOPAGO_WEBHOOK_SECRET` | Secret para validação de webhooks do Mercado Pago |
-| `ENCRYPTION_SECRET` | Chave para criptografia AES das API keys dos tenants |
-| `EVOLUTION_API_URL` | URL base da Evolution API |
-| `EVOLUTION_API_KEY` | Chave global da Evolution API |
-| `EVOLUTION_INSTANCE` | Nome da instância padrão (opcional) |
-| `FRONTEND_URL` | URL do frontend (para geração de links em convites) |
-| `ADMIN_SECRET` | Secret para operações administrativas (ex: desbloqueio de IP) |
-| `TRUSTED_PROXIES` | IPs de proxies confiáveis para extração do IP real (opcional) |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Conexão com PostgreSQL |
+| `REDIS_URL` | Conexão com Redis |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Integração com Supabase (auth/provisionamento) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Segredo para validar webhooks do Mercado Pago (opcional) |
+| `ENCRYPTION_SECRET` | Chave usada para criptografia de dados sensíveis |
+| `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` | Integração com a Evolution API (WhatsApp) |
+| `FRONTEND_URL` | URL do frontend (usada em CORS/links) |
+| `ADMIN_SECRET` | Segredo para operações administrativas |
+| `TRUSTED_PROXIES` | Lista de proxies confiáveis (opcional) |
 
-### Frontend (`.env`)
+A aplicação sobe por padrão na porta `8080`.
 
-| Variável | Descrição |
-|---|---|
-| `VITE_API_URL` | URL base da API backend (ex: `https://api.mensalito.com.br/api`) |
-| `VITE_SUPABASE_URL` | URL do projeto Supabase |
-| `VITE_SUPABASE_ANON_KEY` | Chave anon/pública do Supabase |
+## Como executar localmente
 
----
+> Este README assume Maven; ajuste os comandos caso o projeto use Gradle.
 
-## Execução Local
+1. Suba as dependências de infraestrutura (PostgreSQL e Redis), por exemplo via Docker:
+   ```bash
+   docker run -d --name mensalito-db -e POSTGRES_DB=mensalito -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+   docker run -d --name mensalito-redis -p 6379:6379 redis:7
+   ```
+2. Defina as variáveis de ambiente necessárias (ver tabela acima), por exemplo em um arquivo `.env` ou exportando no shell.
+3. Execute as migrações e suba a aplicação:
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+4. A API estará disponível em `http://localhost:8080`.
 
-### Pré-requisitos
-- Java 21+
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 7+
-- Conta no Supabase (gratuita)
-
-### Backend
+## Testes
 
 ```bash
-# Clone o repositório e entre na pasta do backend
-cd backend
-
-# Configure as variáveis de ambiente (crie um .env ou exporte diretamente)
-export DB_URL=jdbc:postgresql://localhost:5432/mensalito
-export DB_USERNAME=postgres
-export DB_PASSWORD=postgres
-export REDIS_URL=redis://localhost:6379
-export SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
-export SUPABASE_ANON_KEY=eyJ...
-export ENCRYPTION_SECRET=uma-chave-de-32-caracteres-aqui!!
-export FRONTEND_URL=http://localhost:5173
-export ADMIN_SECRET=admin-secret-local
-
-# Execute o banco e Redis via Docker (opcional)
-docker run -d -p 5432:5432 -e POSTGRES_DB=mensalito -e POSTGRES_PASSWORD=postgres postgres:16
-docker run -d -p 6379:6379 redis:7
-
-# Build e execução
-./mvnw spring-boot:run
-# A API ficará disponível em http://localhost:8080
+./mvnw test
 ```
 
-### Frontend
+Os testes usam o profile `test` (`application-test.yaml`) e um `StringRedisTemplate` mockado (`TestRedisConfig`), não exigindo uma instância real de Redis.
 
-```bash
-# Entre na pasta do frontend
-cd frontend
+## Integrações externas
 
-# Instale as dependências
-npm install
-
-# Configure as variáveis de ambiente
-cp .env.example .env
-# Edite o .env com suas credenciais
-
-# Execute em desenvolvimento
-npm run dev
-# O frontend ficará disponível em http://localhost:5173
-```
-
----
-
-## Estrutura de Pastas
-
-```
-backend/src/main/java/com/mensalito/api/
-├── client/           # Clientes HTTP (Mercado Pago, WhatsApp, Evolution)
-├── config/           # Configurações Spring (CORS, Security, integrações)
-├── controller/       # Controllers REST
-├── dto/
-│   ├── request/      # DTOs de entrada
-│   └── response/     # DTOs de saída
-├── exception/        # Tratamento global de erros
-├── model/            # Entidades JPA
-│   └── enums/        # ChargeStatus, Role, PaymentPreference
-├── repository/       # Interfaces Spring Data JPA
-├── scheduler/        # Jobs agendados (cobranças e lembretes)
-├── security/         # JwtFilter, JwtService, SecurityUtils
-├── service/          # Lógica de negócio
-└── util/             # Utilitários (DocumentUtils)
-
-backend/src/main/resources/
-├── application.yaml
-├── application-test.yaml
-└── db/migration/     # Migrações Flyway (V1 a V12)
-
-frontend/src/
-├── assets/           # Imagens e SVGs
-├── components/       # Componentes reutilizáveis (Layout, UI)
-├── contexts/         # AuthContext (Supabase + estado global)
-├── hooks/            # Custom hooks
-├── lib/              # Utilitários (cn, etc.)
-├── pages/            # Páginas da aplicação
-├── services/         # Cliente axios configurado
-└── types/            # Interfaces TypeScript globais
-```
+- **Mercado Pago**: criação de clientes e ordens de pagamento (PIX/Boleto), com tratamento de erros via `PaymentGatewayException` e recebimento de atualizações de status via webhook.
+- **Evolution API**: provisionamento de instância de WhatsApp por tenant, envio de mensagens/lembretes de cobrança e consulta de templates/estatísticas de envio.
+- **Supabase**: usado no fluxo de autenticação/provisionamento de usuários.
