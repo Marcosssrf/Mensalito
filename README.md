@@ -53,8 +53,6 @@ src/main/resources
 src/test/java/com/mensalito/api  # Testes (contexto Spring, serviços, config de Redis mockado)
 ```
 
-> Observação: este repositório contém apenas a pasta `src`. Não há `pom.xml`/`build.gradle` incluído nesta cópia — adicione o arquivo de build do projeto (Maven ou Gradle) na raiz para compilar/executar localmente.
-
 ## Modelo de dados (resumo)
 
 Principais tabelas (ver migrações Flyway para o histórico completo):
@@ -68,8 +66,6 @@ Principais tabelas (ver migrações Flyway para o histórico completo):
 - `charges` — cobranças geradas (status: `PENDING`, `PAID`, `OVERDUE`, `CANCELLED`, `REFUNDED`, `LOST`, `DISPUTED`)
 - `invites` — convites de acesso
 - `audit_logs` — trilha de auditoria
-
-As migrações posteriores (`V2` a `V15`) adicionam, entre outros pontos: integração com Mercado Pago, instância/chave da Evolution API, papéis e convites, preferências de pagamento, endereço do aluno, URL de boleto, flag de cobrança manual, data de envio via WhatsApp, normalização de documentos, tabela de auditoria, trial de alunos e templates de WhatsApp.
 
 ## Principais endpoints (`/api/...`)
 
